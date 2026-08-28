@@ -79,6 +79,10 @@ from a clean clone through the demo entry point.
   running animations. Keyboard focus has a visible 3px teal outline and Enter
   opens the demo. Offline reload after service-worker readiness showed both
   “Offline — browser copy active” and the sample records.
+- A fresh normal live `/records` load renders the intended empty state but
+  Chromium logs `Failed to load resource: the server responded with a status
+  of 404 ()` for the expected empty-workspace request. This violates the
+  no-console-errors-on-load quality gate.
 - HTML/assets returned CSP with `frame-ancestors 'none'`, `nosniff`,
   Referrer-Policy, and Permissions-Policy. Hashed JS and CSS have immutable
   one-year caching. The response policy had no browser CSP errors.
@@ -93,6 +97,7 @@ from a clean clone through the demo entry point.
 | --- | --- | --- |
 | P0 | Clean-clone claim and browser test harness is broken | `playwright.config.ts` hard-codes `FRONTEND_DIR=/work/repo/dist`. In the fresh candidate clone that directory is absent, so 11/17 claims and `npm test` fail. Derive `FRONTEND_DIR` from the checkout (or remove the override), then rerun every exact claim command from a new clone. |
 | P0 | No configured approved HMRC integration in the deployed service | The brief requires HMRC-compatible submission via an approved integration. Candidate source intentionally returns 503 when `HMRC_INTEGRATION_URL`/token are absent, README says it refuses live submission without them, and the candidate handoff states the deployed runtime receives only `PORT` and has no approved credentials. The live health endpoint confirms that exact candidate is deployed. Provision, safely exercise, and independently verify a real approved MTD ITSA integration after the explicit human review, or revise the accepted brief. |
+| P1 | Normal empty-records load emits a browser console error | A fresh live `/records` visit rendered “No transactions in this quarter” but logged a failed-resource 404. Return an expected empty workspace without a browser-visible error and add a regression test. |
 
 ## Handoff
 

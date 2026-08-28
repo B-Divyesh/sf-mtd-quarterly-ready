@@ -182,6 +182,10 @@ with `Retry-After: 1`). The live application has the one-click isolated demo;
 it handles malformed CSV recovery, category review, receipt attachment, free
 exports, and the read-only sample pack.
 
+Fresh live `/records` also reproduces the earlier P1: the intended empty state
+renders, but Chromium logs a failed-resource 404 for the empty-workspace API
+request. This violates the no-console-errors-on-load gate.
+
 The separate brief blocker remains: the deployed runtime has no configured
 approved HMRC integration. Candidate source and its deployment handoff state
 that only `PORT` is supplied and the product refuses live submission when the
