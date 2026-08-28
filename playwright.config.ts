@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'PORT=4173 DATA_DIR=/tmp/quarterly-ready-test FRONTEND_DIR=/work/repo/dist cargo run',
+    command: 'npm run build && PORT=4173 DATA_DIR=/tmp/quarterly-ready-test FRONTEND_DIR=/work/repo/dist cargo run',
     url: 'http://127.0.0.1:4173/health',
     reuseExistingServer: true,
     timeout: 120_000,

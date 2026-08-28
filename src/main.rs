@@ -76,7 +76,7 @@ impl IntoResponse for ApiError {
 async fn main() {
     tracing_subscriber::fmt()
         .json()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(default_log_filter())
         .init();
 
     let port = env::var("PORT")
@@ -288,7 +288,7 @@ async fn page_view(State(state): State<AppState>) -> Result<StatusCode, ApiError
 }
 
 async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next: Next) -> Response {
-    if request.uri().path() == "/health" {
+    if !request.uri().path().starts_with("/api/") {
         return next.run(request).await;
     }
     let write_request = request.method() != axum::http::Method::GET;
@@ -523,6 +523,16 @@ fn unix_now() -> u64 {
         .as_secs()
 }
 
+fn default_log_filter() -> tracing_subscriber::EnvFilter {
+    log_filter(env::var("RUST_LOG").ok())
+}
+
+fn log_filter(value: Option<String>) -> tracing_subscriber::EnvFilter {
+    value
+        .and_then(|filter| tracing_subscriber::EnvFilter::try_new(filter).ok())
+        .unwrap_or_else(|| tracing_subscriber::EnvFilter::new("info"))
+}
+
 fn internal<E: std::fmt::Display>(error: E) -> ApiError {
     error!(%error, "request_failed");
     ApiError(
@@ -611,5 +621,10 @@ mod tests {
         expected.update(b"second");
         expected.update(b"two");
         assert_eq!(second, format!("{:x}", expected.finalize()));
+    }
+
+    #[test]
+    fn default_log_filter_keeps_startup_information_visible() {
+        assert_eq!(log_filter(None).to_string(), "info");
     }
 }

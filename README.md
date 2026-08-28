@@ -30,10 +30,10 @@ The free version keeps one working quarter and all downloads. A £99 one-time li
 
 ## Run locally
 
-Requirements: Node 22+, npm, and Rust 1.88+.
+Requirements: Node 22+, npm, and current stable Rust.
 
 ```sh
-npm install
+npm ci
 npm run build
 PORT=8080 cargo run
 ```
@@ -51,6 +51,7 @@ npm run dev
 
 ```sh
 npm test
+npm run typecheck
 ```
 
 This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright claim tests, and Axe checks. Claim definitions live in [`.factory/claims.json`](.factory/claims.json).

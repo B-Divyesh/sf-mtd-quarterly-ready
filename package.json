@@ -7,14 +7,17 @@
     "dev": "vite --config frontend/vite.config.ts",
     "build": "vite build --config frontend/vite.config.ts",
     "serve": "cargo run --release",
+    "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --config frontend/vitest.config.ts",
     "test:e2e": "playwright test",
     "test:rust": "cargo test",
-    "test": "npm run test:unit && npm run test:rust && npm run build && npm run test:e2e"
+    "test": "npm run typecheck && npm run test:unit && npm run test:rust && npm run build && npm run test:e2e"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
+    "@types/node": "24.10.1",
     "@playwright/test": "1.58.2",
+    "playwright-core": "1.58.2",
     "typescript": "5.9.2",
     "vite": "7.3.6",
     "vitest": "3.2.7"

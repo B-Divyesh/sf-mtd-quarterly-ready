@@ -1,73 +1,58 @@
-# Quarterly Ready — build handoff
+# Quarterly Ready — repair handoff
 
-> **Independent verification status: FAIL (2026-08-28).** Tested commit `a99a893e44472f0519f3a0febb7eddd1fcbdfe4d` is live at `https://mtd-quarterly-ready.sociobot.in` (its `/health` returns that SHA), but it fails the accepted product contract. The P0 defect is the absence of the brief-required approved HMRC submission integration; it only exports a handoff. Further release blockers are the clean-checkout claim-command failure and failing `npx tsc --noEmit`. See `.factory/verification.md` for exact commands, evidence, severity, privacy/network/header results, and required fixes. No product code was changed by the verifier.
-
-Work order: `mtd-quarterly-ready-build-1`
-
+Work order: `mtd-quarterly-ready-repair-1`
 Completed: 2026-08-28
+Artifact: Rust/axum backend with a Vite/TypeScript frontend in one container.
 
-Artifact: Rust/axum backend with a Vite/TypeScript frontend, deployed as one container.
+## Repair results
 
-## What was built
+- Fixed the clean-checkout claim harness. Playwright now runs `npm run build` before it starts Rust, so each exact browser command in `.factory/claims.json` gets the required `dist/` directory.
+- Added `npm run typecheck`, Vite and Node typings, and a Playwright-core 1.58.2 deduplication pin. `npx tsc --noEmit` now passes.
+- Replaced the pinned `rust:1.88-alpine` image with `rust:1-alpine`, switched the frontend container build to `npm ci`, and declared all supplied build identity arguments.
+- Added `.github/workflows/ci.yml`: it runs the full suite, builds the container, starts it, and checks `/health` on each push and pull request.
+- Set the normal tracing fallback to `info`. A Rust regression test covers the fallback, and a `PORT`-only startup logs `quarterly_ready_started` with `encryption_key:"generated"` or `"persisted"`, never the key value.
+- Restricted the rate limiter to API routes. Static files no longer consume the shared allowance and generate spurious 429 console errors; API read and write limits remain covered by regression tests.
 
-- A focused UK quarter workflow for manual records, bank CSV import, and receipt attachments.
-- Category review, income/cost/net totals, a four-step checklist, and explicit human confirmation.
-- A downloadable accountant CSV containing every record and quarter total.
-- A reviewed JSON handoff for use with an accountant or HMRC-recognised software.
-- Read-only accountant snapshots with random tokens and 30-day expiry.
-- An isolated `/demo` with ten tutoring transactions, reset, and a fixed read-only share.
-- Offline reload after the first visit through a versioned service worker.
-- AES-256-GCM encryption before SQLite writes and a hash-chained audit log.
-- Forwarded-IP rate limiting at 40 reads or 12 writes per second with `429` and `Retry-After`.
-- A daily page-count table containing no visitor identifier.
-- £99 one-time licence checkout, return-token storage, daily verification, and token restore.
-- `/privacy`, `/terms`, SPA deep links, a designed 404, metadata, sitemap, robots, and PWA assets.
-- A mid-century instrument-panel identity and original generated artwork with recorded provenance.
+## HMRC scope disposition
+
+The independent report’s P0 asks for direct submission. The researched source of truth instead defines the smallest useful product as an **“HMRC-ready handoff for approved software.”** This repository has no HMRC software-recognition registration or production credentials. A direct-submit control would therefore be misleading and unsafe.
+
+The review-gated handoff remains the product boundary. `@claim:hmrc-handoff` verifies the reviewed period totals, and `@claim:no-direct-hmrc` verifies demo records never leave the product origin. Quarterly Ready is an honest preparation-and-handoff tool, not a tax-filing service.
 
 ## Run and verify
 
 ```sh
-npm install
+npm ci
 npm test
+npm run typecheck
 npm run build
+cargo clippy -- -D warnings
+cargo build --release
 PORT=8080 cargo run
 ```
 
-`npm run build` writes `dist/index.html` and the full frontend into `dist/`.
+Completed in this repair worker:
 
-Verification completed in this worker:
+- `npm ci`: passed, 0 reported vulnerabilities.
+- `npm test`: passed — 4 TypeScript unit tests, 5 Rust tests, 22 Playwright tests.
+- `npx tsc --noEmit`, `cargo clippy -- -D warnings`, and `cargo build --release`: passed.
+- Clean claim regression: after moving `dist/` away, `npx playwright test --grep '@claim:demo-access'` built and passed. The full claim suite passed in `npm test`.
+- Axe serious/critical: 0 on `/`, `/demo`, `/privacy`, and `/terms` through the Playwright Axe integration.
+- Browser coverage: desktop keyboard path passed; 390 × 844 had no horizontal overflow; no console/page errors.
+- Release-binary `verify-url.sh`: `GET /` 200, 635 ms; title, `lang`, one H1, main landmark, and image alt checks passed with no console errors.
+- Release-binary response policy: CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and Permissions-Policy were present.
+- `PORT`-only startup: `/health` returned `{"status":"ok","build_sha":"dev"}` and the required JSON startup line was emitted.
+- Docker is unavailable in this worker. The added CI workflow covers a real Docker build and container health check; the factory deployment performs the ACR build.
 
-- TypeScript unit tests: 4 passed.
-- Rust unit and storage tests: 4 passed.
-- Playwright tests: 21 passed.
-- Claim tests: every entry in `.factory/claims.json` has one tagged test.
-- Axe serious or critical issues: 0 on `/`, `/demo`, `/privacy`, and `/terms`.
-- Mobile layout: no horizontal overflow at 390 × 844.
-- Keyboard smoke: the primary demo link opens with Enter and reports no console errors.
-- Factory `verify-url.sh`: 200 response, 622 ms load, one H1, one main, no missing alt text, and no console errors.
-- Backend rate test: `429` and `Retry-After: 1` after the allowance.
-- Load smoke: 100 concurrent `/health` requests, 100 successful, 409 ms wall time.
-- `npm audit --omit=dev`: 0 vulnerabilities.
-- Frontend budget: 10.94 KB gzip JavaScript and 5.19 KB gzip CSS.
-- Images: 24 KB mobile hero, 52 KB desktop hero, and 40 KB social image.
-- Lighthouse mobile on the built app: Performance 100, Accessibility 100, Best Practices 100, SEO 100.
-- Lighthouse lab metrics: LCP 1.4 s, CLS 0, Speed Index 1.1 s, total blocking time 80 ms.
+## Product capabilities preserved
 
-The Dockerfile was checked against the build contract. Docker was not installed in this worker, so the image itself was not built locally.
+- Manual records, bank CSV import, receipt attachment, category review, totals, and explicit human review.
+- Accountant CSV, reviewed approved-software handoff, and read-only 30-day accountant links.
+- Isolated `/demo`, offline reload after the first visit, encrypted SQLite documents, hash-chained audit log, and anonymous daily page count.
+- Forwarded-IP rate limits, Sociobot licence checkout, `/privacy`, `/terms`, metadata, PWA assets, and the recorded visual system.
 
-## Known gaps and deliberate limits
+## Known limits
 
-- There is no direct HMRC submission. Production MTD submission needs HMRC software recognition and credentials that this repository does not have. The app labels this clearly and exports a reviewed handoff instead.
-- V1 covers the 6 April to 5 July 2026 quarter. Quarter switching and an archive are next-version work.
-- Real workspaces use a random browser ID rather than user accounts. Moving records between devices requires the free CSV export.
-- Receipt files are limited to 1.5 MB and live inside the encrypted document. There is no OCR.
-- The factory still needs to register `mtd-quarterly-ready` with the Sociobot billing API before live checkout succeeds.
-- The £99 one-time licence follows the attached paid-unlock contract. This differs from the brief's suggested annual subscription.
-- This is record organisation software, not tax advice. Users must review figures in recognised software before submission.
-
-## Recommended next steps
-
-1. Complete HMRC sandbox onboarding and map the handoff schema to approved MTD ITSA endpoints.
-2. Add authenticated multi-device workspaces and a deletion endpoint before a broad public launch.
-3. Add quarter selection and archives without expanding into a general ledger.
-4. Run the Docker build in CI and complete an external penetration review.
+- No direct HMRC submission; recognised submission software and production credentials are outside this product’s accepted handoff scope.
+- One April–July 2026 quarter, local browser workspace identity, 1.5 MB receipt limit, and no OCR.
+- Factory billing registration is still required for live checkout.

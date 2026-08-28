@@ -1,0 +1,24 @@
+name: release checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: cargo clippy -- -D warnings
+      - run: docker build --build-arg BUILD_SHA=${{ github.sha }} -t quarterly-ready:${{ github.sha }} .
+      - run: docker run --rm -d --name quarterly-ready -p 8080:8080 quarterly-ready:${{ github.sha }}
+      - run: curl --fail --retry 10 --retry-connrefused http://127.0.0.1:8080/health

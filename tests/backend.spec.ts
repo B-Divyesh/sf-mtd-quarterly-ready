@@ -15,10 +15,15 @@ test('workspace endpoints save and return an encrypted document', async ({ reque
 });
 
 test('rate limiting returns 429 with Retry-After', async ({ request }) => {
-  const responses = await Promise.all(Array.from({ length: 48 }, () => request.get('/missing-asset.txt', { headers: { 'x-forwarded-for': '203.0.113.99' } })));
+  const responses = await Promise.all(Array.from({ length: 48 }, () => request.get('/api/workspace', { headers: { 'x-forwarded-for': '203.0.113.99' } })));
   const limited = responses.find(response => response.status() === 429);
   expect(limited).toBeTruthy();
   expect(limited?.headers()['retry-after']).toBe('1');
+});
+
+test('static files never consume the API rate allowance', async ({ request }) => {
+  const responses = await Promise.all(Array.from({ length: 48 }, () => request.get('/favicon.svg', { headers: { 'x-forwarded-for': '203.0.113.97' } })));
+  expect(responses.every(response => response.status() === 200)).toBe(true);
 });
 
 test('write endpoints use the stricter allowance', async ({ request }) => {
