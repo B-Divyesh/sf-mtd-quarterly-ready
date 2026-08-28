@@ -1,3 +1,34 @@
+# Quarterly Ready — verification addendum: **FAIL**
+
+Independent verification on 2026-08-28 tested commit
+`e7a37d14918ffb296268057892a370c7e5ac2305` at
+`https://mtd-quarterly-ready.sociobot.in`.
+
+**Release status: FAIL.** The live build and technical quality gates are sound,
+but the candidate does not meet the researched brief's core requirement for
+HMRC-compatible submission through an approved integration. It provides only a
+handoff JSON and explicitly refuses direct submission. In addition, the £99
+accountant-link gate is bypassable because `POST /api/share` has no server-side
+licence verification, and the one-time price conflicts with the brief's
+subscription model.
+
+Exact independent evidence is in
+[`verification-2.md`](verification-2.md): all 16 claims passed after `npm ci`,
+`npm test`, production frontend/release-Rust builds, clippy, live desktop and
+390px browser tests, Axe, offline reload, privacy/request/header checks,
+backend restart/encryption/concurrency checks, and live rate-limit checks
+passed. The live health SHA and live JS/CSS bytes match this candidate. The
+observed live allowance is 40 reads/s and 12 writes/s, both returning 429 with
+`Retry-After: 1` when exceeded. Docker could not be run because the verifier
+image has no Docker executable.
+
+Required next steps: implement and independently verify approved HMRC
+submission after explicit human review; enforce a verified Sociobot licence in
+the server before issuing live accountant links; and align monetisation with
+the accepted brief (or get the brief revised).
+
+---
+
 # Quarterly Ready — repair handoff
 
 Work order: `mtd-quarterly-ready-repair-1`
