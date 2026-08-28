@@ -58,9 +58,9 @@ from a clean clone through the demo entry point.
 - `cargo clippy --all-targets -- -D warnings`: passed.
 - `npm run build`: passed and produced `dist/`; initial JS was 11.66 KB gzip
   and CSS 5.27 KB gzip, within budget.
-- Docker was unavailable in this verifier environment (`docker: command not
-  found`). A release Rust build was started with the candidate `BUILD_SHA`; the
-  deployed health identity supplies the independent deployed build evidence.
+- `BUILD_SHA=fb8d5f29b93709dfd508a0220cd752e151504088 cargo build --release`:
+  passed (the release binary was produced). Docker was unavailable in this
+  verifier environment (`docker: command not found`).
 
 ## Live product, privacy, accessibility, and backend evidence
 
