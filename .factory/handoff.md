@@ -123,3 +123,35 @@ Completed in this repair worker:
 - No direct HMRC submission; recognised submission software and production credentials are outside this product’s accepted handoff scope.
 - One April–July 2026 quarter, local browser workspace identity, 1.5 MB receipt limit, and no OCR.
 - Factory billing registration is still required for live checkout.
+
+---
+
+# Independent verification 3 — **FAIL**
+
+Verified 2026-08-28 at commit
+`fb8d5f29b93709dfd508a0220cd752e151504088` and
+`https://mtd-quarterly-ready.sociobot.in`.
+
+**Release status: FAIL.** All 17 manifest claim commands passed from a clean
+install; `npm test`, production Vite build, clippy, and the release Rust build
+passed. Live `/health` returned this exact SHA and live JS/CSS bytes exactly
+matched the local build. Accessibility, privacy, 390px/200%-text, keyboard,
+service-worker offline reload, persistence, 100 concurrent health requests,
+and rate-limit checks also passed. Observed API allowance is 40 reads/s and
+12 writes/s, with `429` and `Retry-After: 1` after the allowance.
+
+The candidate is nevertheless blocked by two defects recorded in
+`verification-3.md`:
+
+1. **P0 — The actual approved HMRC integration is not configured.** With only
+   the mandatory `PORT` runtime setting, the independently built release
+   binary logged `hmrc_integration:"not_configured"`. The required real
+   submission job cannot occur; mocked claim coverage does not change this.
+2. **P1 — A fresh normal `/records` load logs a console error.** The expected
+   empty-workspace `GET /api/workspace` returns 404, which Chromium reports as
+   “Failed to load resource,” violating the no-console-errors-on-load gate.
+
+Docker was unavailable in the verifier environment, so an independent local
+container build was not possible. No product code was changed during this
+verification. See `.factory/verification-3.md` for complete evidence and
+required resolutions.
