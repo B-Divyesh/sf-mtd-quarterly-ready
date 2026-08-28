@@ -305,12 +305,34 @@
       "degree": 11
     },
     {
-      "id": "tsconfig_compileroptions",
-      "label": "compilerOptions",
+      "id": "src_main_get_share",
+      "label": "get_share()",
       "degree": 10
     }
   ],
   "surprises": [
+    {
+      "source": "refreshRemote()",
+      "target": "loadRemote()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "downloadPack()",
+      "target": "accountantCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
     {
       "source": "downloadHmrc()",
       "target": "hmrcHandoff()",
@@ -323,41 +345,19 @@
       "why": "bridges separate communities"
     },
     {
+      "source": "importCsv()",
+      "target": "parseCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
       "source": "checklist()",
       "target": "summarise()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "summarise()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "renderShare()",
-      "target": "summarise()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "downloadPack()",
-      "target": "accountantCsv()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
