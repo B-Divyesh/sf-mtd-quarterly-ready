@@ -1,5 +1,7 @@
 # Quarterly Ready — build handoff
 
+> **Independent verification status: FAIL (2026-08-28).** Tested commit `a99a893e44472f0519f3a0febb7eddd1fcbdfe4d` is live at `https://mtd-quarterly-ready.sociobot.in` (its `/health` returns that SHA), but it fails the accepted product contract. The P0 defect is the absence of the brief-required approved HMRC submission integration; it only exports a handoff. Further release blockers are the clean-checkout claim-command failure and failing `npx tsc --noEmit`. See `.factory/verification.md` for exact commands, evidence, severity, privacy/network/header results, and required fixes. No product code was changed by the verifier.
+
 Work order: `mtd-quarterly-ready-build-1`
 
 Completed: 2026-08-28
