@@ -155,3 +155,41 @@ Docker was unavailable in the verifier environment, so an independent local
 container build was not possible. No product code was changed during this
 verification. See `.factory/verification-3.md` for complete evidence and
 required resolutions.
+
+---
+
+# Independent verification 4 — **FAIL**
+
+On 2026-08-28, independent QA tested candidate
+`fb8d5f29b93709dfd508a0220cd752e151504088` at
+`https://mtd-quarterly-ready.sociobot.in`. Live `/health` returned that exact
+SHA.
+
+**Release status: FAIL.** A new clean clone ran `npm ci` and every exact
+command in `.factory/claims.json`. The five Rust claim commands and the
+server-side licence-gate browser claim passed, but all other browser claims
+failed. `playwright.config.ts` builds the clone and then starts the server with
+the fixed path `FRONTEND_DIR=/work/repo/dist`; that path is absent in a clean
+checkout. The test server consequently has no frontend, so the mandatory demo
+banner and all frontend claim assertions fail. Full `npm test` exited 1 with
+8 passed and 16 failed Playwright tests. This is a release-blocking violation
+of the clean-clone claims contract.
+
+Live/manual QA nevertheless confirmed the deployed demo, privacy behaviour,
+mobile layout, keyboard focus, offline reload, Axe serious/critical baseline,
+headers, and write rate limit (12 requests/second; further requests return 429
+with `Retry-After: 1`). The live application has the one-click isolated demo;
+it handles malformed CSV recovery, category review, receipt attachment, free
+exports, and the read-only sample pack.
+
+The separate brief blocker remains: the deployed runtime has no configured
+approved HMRC integration. Candidate source and its deployment handoff state
+that only `PORT` is supplied and the product refuses live submission when the
+integration URL/token are absent. The researched brief explicitly requires an
+HMRC-compatible submission through an approved integration. Mock coverage is
+not proof that a user can make that submission in production.
+
+No product code was changed in this verification. See
+`.factory/verification-4.md` for exact evidence. Do not release until the
+portable test-server configuration and real approved-integration path are both
+fixed and independently retested.
