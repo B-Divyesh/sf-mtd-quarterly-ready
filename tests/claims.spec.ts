@@ -1,0 +1,102 @@
+import { expect, test } from '@playwright/test';
+
+test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking @claim:no-direct-hmrc keeps sample changes separate from real records', async ({ page, context }) => {
+  const outgoing: string[] = [];
+  page.on('request', request => outgoing.push(request.url()));
+  await page.goto('/demo');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  const row = page.locator('tr', { hasText: 'Bank transfer from J. Clarke' });
+  await row.locator('select').selectOption('Sales');
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).toContain('demo:quarterly-ready:document');
+  expect(keys).not.toContain('quarterly-ready:document');
+  expect(outgoing.every(url => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  expect(await context.cookies()).toEqual([]);
+});
+
+test('@claim:accountant-csv exports every sample transaction', async ({ page }) => {
+  await page.goto('/demo');
+  const download = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download accountant CSV' }).click()]);
+  const contents = await download[0].createReadStream().then(async stream => { let text = ''; for await (const chunk of stream) text += chunk.toString(); return text; });
+  expect(contents).toContain('Maya Patel Tutoring');
+  expect(contents).toContain('Bank transfer from J. Clarke');
+  expect(contents).toContain('Whiteboard markers');
+  expect(contents.split('\r\n')).toHaveLength(19);
+});
+
+test('@claim:quarter-review shows totals and resolves the outstanding category', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.getByText('£260.00')).toBeVisible();
+  await expect(page.getByText('£155.83')).toBeVisible();
+  await expect(page.getByText('1 transaction needs a category')).toBeVisible();
+  await page.locator('tr', { hasText: 'Bank transfer from J. Clarke' }).locator('select').selectOption('Sales');
+  await expect(page.getByText('Every transaction has a category').first()).toBeVisible();
+});
+
+test('@claim:csv-import imports a bank CSV into the quarter', async ({ page }) => {
+  await page.goto('/demo');
+  await page.locator('#csv-input').setInputFiles({ name: 'bank.csv', mimeType: 'text/csv', buffer: Buffer.from('date,description,amount,type,category\n2026-07-01,Revision lesson,55.00,income,Sales') });
+  await expect(page.getByText('1 transactions imported.')).toBeVisible();
+  await expect(page.getByText('Revision lesson', { exact: true })).toBeVisible();
+});
+
+test('@claim:receipt-capture attaches a receipt to an existing expense', async ({ page }) => {
+  await page.goto('/demo');
+  const row = page.locator('tr', { hasText: 'Whiteboard markers' });
+  await row.locator('[data-receipt]').setInputFiles({ name: 'markers-receipt.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 sample receipt') });
+  await expect(page.getByText('Receipt attached.')).toBeVisible();
+  await expect(page.locator('tr', { hasText: 'Whiteboard markers' }).getByText('Receipt · markers-receipt.pdf')).toBeVisible();
+  const stored = await page.evaluate(() => localStorage.getItem('demo:quarterly-ready:document'));
+  expect(stored).toContain('data:application/pdf;base64');
+});
+
+test('@claim:hmrc-handoff creates reviewed period totals for recognised software', async ({ page }) => {
+  await page.goto('/demo');
+  await page.locator('tr', { hasText: 'Bank transfer from J. Clarke' }).locator('select').selectOption('Sales');
+  await page.getByLabel('I checked these figures').check();
+  const download = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download HMRC handoff' }).click()]);
+  const contents = await download[0].createReadStream().then(async stream => { let text = ''; for await (const chunk of stream) text += chunk.toString(); return text; });
+  const handoff = JSON.parse(contents);
+  expect(handoff).toMatchObject({ format: 'quarterly-ready-mtd-itsa-handoff-v1', periodStartDate: '2026-04-06', periodEndDate: '2026-07-05', reviewedByUser: true });
+  expect(handoff.periodIncome.turnover).toBe(260);
+});
+
+test('@claim:accountant-link opens a read-only sample pack', async ({ page }) => {
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Make accountant link' }).click();
+  const link = page.locator('#output-result a');
+  await expect(link).toHaveAttribute('href', /\/share\/demo$/);
+  await link.click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review this accountant pack');
+  await expect(page.getByText('Maya Patel Tutoring')).toBeVisible();
+  await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0);
+});
+
+test('@claim:accountant-link-expiry gives live packs a 30-day expiry', async ({ request }) => {
+  const workspace = '15aa583d-84cf-43f1-8438-354ddbfd6358';
+  const before = Math.floor(Date.now() / 1000);
+  const response = await request.post('/api/share', { headers: { 'x-workspace-id': workspace, 'x-forwarded-for': '203.0.113.10' }, data: { document: { transactions: [] } } });
+  expect(response.status()).toBe(201);
+  const result = await response.json();
+  expect(result.expires_at).toBeGreaterThanOrEqual(before + 30 * 86400 - 2);
+  expect(result.expires_at).toBeLessThanOrEqual(before + 30 * 86400 + 2);
+  expect((await request.get(`/api/share/${result.token}`, { headers: { 'x-forwarded-for': '203.0.113.11' } })).status()).toBe(200);
+});
+
+test('@claim:offline-browser-copy reloads the demo after the network is disabled', async ({ page, context }) => {
+  await page.goto('/demo');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await context.setOffline(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Offline — browser copy active')).toBeVisible();
+  await expect(page.getByText('Maya Patel Tutoring')).toBeVisible();
+});
+
+test('@claim:paid-tier uses Sociobot checkout and keeps CSV free', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Buy the full version' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout');
+  await page.goto('/records');
+  await expect(page.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Make accountant link' }).click();
+  await expect(page.getByText('A live accountant link needs the £99 licence. The CSV remains free.')).toBeVisible();
+});

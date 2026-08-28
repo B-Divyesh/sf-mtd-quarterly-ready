@@ -1,0 +1,32 @@
+# Demo sandbox
+
+## Entry point
+
+- Hosted: `https://mtd-quarterly-ready.sociobot.in/demo`
+- Local: `http://127.0.0.1:8080/demo`
+- Direct query links are not needed; `/demo` is a real route.
+
+## Sample data
+
+The demo opens “Maya Patel Tutoring” for 6 April to 5 July 2026. It has ten records across lesson income, travel, office costs, and professional fees.
+
+One bank transfer needs a category. One expense needs a receipt. These gaps make the review and completion states testable.
+
+## Isolation and reset
+
+Demo data uses the localStorage key `demo:quarterly-ready:document`. Real browser data uses `quarterly-ready:document` and a separate workspace ID.
+
+Demo actions never call the workspace or share APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture.
+
+Choose **Reset demo** in the persistent banner to restore the sample. Choose **Start for real** to discard the demo key and open an empty real quarter.
+
+## Verification paths
+
+- Change the unresolved category and watch the readiness dial move.
+- Attach a small image or PDF to “Whiteboard markers”.
+- Import a CSV with `date`, `description`, `amount`, `type`, and `category` columns.
+- Confirm the figures and download the accountant CSV or HMRC handoff JSON.
+- Make the demo accountant link and open its read-only pack.
+- Reload after disabling the network to verify the offline browser copy.
+
+The authoritative automated checks are listed in `.factory/claims.json`.
