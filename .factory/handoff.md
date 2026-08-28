@@ -1,3 +1,36 @@
+# Quarterly Ready — repair 2 handoff
+
+Work order: `mtd-quarterly-ready-repair-2`
+Completed: 2026-08-28
+Artifact: Rust/axum backend and Vite/TypeScript frontend in one container.
+
+## What changed
+
+- Reproduced the verifier's exact bypass before changing code: an unauthenticated `POST /api/share` returned `201` with a 30-day token. It now returns `402` before any share is stored. The regression is `@regression:unauthenticated-share` and the claim test is `@claim:server-licence-gate`.
+- Live accountant links now require an `x-sociobot-license` token and the backend calls Sociobot's product verification endpoint immediately before issuing the link. Browser cache is only a convenience; it is no longer an authority.
+- Added `POST /api/hmrc/submit`. It validates complete records, the checklist, an explicit final review confirmation, an active Sociobot subscription, and then sends an MTD ITSA periodic-update payload to the configured HTTPS approved integration. It accepts success only with a `submission_id` or `correlation_id`; failed/rejected/ambiguous requests state that no submission was made. A hash-chained audit entry records accepted requests.
+- Added the review dialog, keyboard focus path, accessible final confirmation, privacy/terms disclosure, and a test that opens the dialog with keyboard controls and runs Axe.
+- Replaced the inconsistent one-time offer with £12/month or £99/year subscription checkout links. CSV and JSON downloads remain free.
+- Updated README, claims, demo guidance, and copy audit. The researched brief file itself remains untouched.
+
+## Verification evidence
+
+- Clean install: `npm ci` completed with 0 reported vulnerabilities.
+- `npm test`: passed — TypeScript check, 4 Vitest tests, 8 Rust tests, production Vite build, and 24 Playwright tests.
+- `cargo clippy -- -D warnings` and `cargo build --release`: passed.
+- The approved-integration regression (`cargo test claim_hmrc_submission_uses_an_approved_integration_after_human_review`) uses a local mock of both Sociobot verification and the bridge; it asserts the reviewed `quarterly-ready-mtd-itsa-periodic-update-v1` payload and returned reference.
+- Desktop, 390×844 mobile, keyboard review-dialog path, and Axe serious/critical checks passed. The release-binary `verify-url.sh` check passed at 617 ms: title, `lang=en-GB`, one H1, main landmark, image alt text, and zero console/page errors.
+- Release binary with only `PORT`, `DATA_DIR`, and `FRONTEND_DIR` started on 8080-compatible ports and logged `quarterly_ready_started` with `encryption_key:"generated"` and `hmrc_integration:"not_configured"`, never a secret.
+- Offline/demo, rate-limit, response-policy, encryption, audit log, and anonymous-page-count coverage remain in the passing suite.
+
+## Deployment configuration
+
+The container still starts safely with only `PORT`, as required. A genuine live HMRC submission additionally needs the factory to supply two optional runtime secrets: `HMRC_INTEGRATION_URL` (HTTPS endpoint of the approved MTD ITSA integration) and `HMRC_INTEGRATION_TOKEN` (its bearer token). No approved integration credential exists in the available deployment configuration or Key Vault, so this repair intentionally refuses live submissions instead of falsely claiming a delivery. `SOCIOBOT_BILLING_URL` is optional and defaults to the production Sociobot API.
+
+The deployment script provided by the work order only sends `PORT`; deploy it after those two approved-integration values are provisioned, otherwise users retain the fully working record, export, and accountant-link flows but see the honest submission-unavailable response.
+
+---
+
 # Quarterly Ready — verification addendum: **FAIL**
 
 Independent verification on 2026-08-28 tested commit

@@ -2,9 +2,9 @@
 
 Turn UK business records into a checked quarterly update.
 
-Quarterly Ready is for sole traders, tutors, and landlords preparing for Making Tax Digital. It keeps one quarter focused: capture records, review categories, check totals, and prepare an accountant handoff.
+Quarterly Ready is for sole traders, tutors, and landlords preparing for Making Tax Digital. It keeps one quarter focused: capture records, review categories, check totals, submit through an approved integration, or prepare an accountant handoff.
 
-It does not give tax advice or submit directly to HMRC. The handoff file is for an accountant or HMRC-recognised software.
+It does not give tax advice. Before a live submission, you review every total, confirm the submission yourself, and the server sends an MTD-compatible periodic update only through the configured approved integration.
 
 ## Try the demo
 
@@ -22,11 +22,12 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 - Category and receipt checks with explicit human review.
 - A complete accountant CSV download.
 - A reviewed JSON handoff for HMRC-recognised software.
+- An MTD-compatible quarterly submission through a configured approved integration, after explicit human review.
 - Read-only accountant links with a 30-day expiry.
 - Encrypted SQLite documents and a hash-chained audit log.
 - An offline browser copy after the first visit.
 
-The free version keeps one working quarter and all downloads. A £99 one-time licence adds live accountant links. Checkout and licence checks use the Sociobot billing API.
+The free version keeps one working quarter and all downloads. A £12 monthly or £99 annual Sociobot subscription adds live accountant links and approved-integration submissions. Checkout and server-side subscription checks use the Sociobot billing API.
 
 ## Run locally
 
@@ -69,7 +70,9 @@ The container runs as a non-root user and listens on `PORT`. `/health` returns t
 
 The server defaults to `/data` in the container and `./data` locally. It creates its AES-256-GCM key on first boot and stores it with restricted permissions.
 
-Optional variables are `DATA_DIR` and `FRONTEND_DIR`. `PORT` defaults to `8080`.
+Optional variables are `DATA_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, and `HMRC_INTEGRATION_TOKEN`. `PORT` defaults to `8080`.
+
+For live submission, configure an HTTPS endpoint for an approved MTD ITSA integration and its bearer token. The integration must return a JSON `submission_id` or `correlation_id`; otherwise Quarterly Ready reports that no submission was made. With no integration configured, the app remains safe and usable for records, CSV, and handoff downloads but refuses live submission.
 
 See [privacy](https://mtd-quarterly-ready.sociobot.in/privacy), [terms](https://mtd-quarterly-ready.sociobot.in/terms), and [the visual thesis](.factory/design.md).
 

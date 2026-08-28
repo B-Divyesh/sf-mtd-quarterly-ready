@@ -38,12 +38,22 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
     None => "dev",
 };
 const MAX_DOCUMENT_BYTES: usize = 5 * 1024 * 1024;
+const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
 
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
     key: [u8; 32],
     limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
+    client: reqwest::Client,
+    billing_base_url: String,
+    hmrc_integration: Option<ApprovedIntegration>,
+}
+
+#[derive(Clone)]
+struct ApprovedIntegration {
+    url: String,
+    token: String,
 }
 
 #[derive(Serialize)]
@@ -61,6 +71,23 @@ struct WorkspaceDocument {
 struct ShareResult {
     token: String,
     expires_at: u64,
+}
+
+#[derive(Deserialize)]
+struct SubmissionRequest {
+    document: Value,
+    review_confirmed: bool,
+}
+
+#[derive(Deserialize)]
+struct LicenceVerdict {
+    valid: bool,
+}
+
+#[derive(Serialize)]
+struct SubmissionResult {
+    submission_id: String,
+    status: &'static str,
 }
 
 #[derive(Debug)]
@@ -114,17 +141,28 @@ async fn main() {
             }
         }
     });
+    let hmrc_integration = approved_integration_from_env();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .expect("build HTTP client");
     let state = AppState {
         db,
         key,
         limits: Arc::new(Mutex::new(HashMap::new())),
+        client,
+        billing_base_url: env::var("SOCIOBOT_BILLING_URL")
+            .unwrap_or_else(|_| "https://api.sociobot.in/api/v1".into()),
+        hmrc_integration,
     };
+    let integration_configured = state.hmrc_integration.is_some();
     let app = build_router(state, frontend_dir);
 
     info!(
         port,
         build_sha = BUILD_SHA,
         encryption_key = if generated { "generated" } else { "persisted" },
+        hmrc_integration = if integration_configured { "configured" } else { "not_configured" },
         "quarterly_ready_started"
     );
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
@@ -146,6 +184,7 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .route("/api/workspace", get(get_workspace).put(put_workspace))
         .route("/api/share", post(create_share))
         .route("/api/share/:token", get(get_share))
+        .route("/api/hmrc/submit", post(submit_to_hmrc))
         .route("/api/page-view", post(page_view))
         .fallback_service(ServeDir::new(frontend_dir).fallback(ServeFile::new(index)))
         .layer(DefaultBodyLimit::max(MAX_DOCUMENT_BYTES))
@@ -216,6 +255,8 @@ async fn create_share(
     request: Request<Body>,
 ) -> Result<(StatusCode, Json<ShareResult>), ApiError> {
     let id = workspace_id(&request)?;
+    let licence = licence_token(&request)?;
+    verify_licence_token(&state, &licence).await?;
     let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
         .await
         .map_err(|_| {
@@ -232,7 +273,7 @@ async fn create_share(
     })?;
     validate_document(&input.document)?;
     let token = Uuid::new_v4().simple().to_string();
-    let expires_at = unix_now() + 30 * 24 * 60 * 60;
+    let expires_at = unix_now() + SHARE_EXPIRY_SECONDS;
     let encrypted = encrypt_json(&state.key, &input.document)?;
     sqlx::query("INSERT INTO shares(token, workspace_id, payload, expires_at) VALUES(?, ?, ?, ?)")
         .bind(&token)
@@ -244,6 +285,188 @@ async fn create_share(
         .map_err(internal)?;
     write_audit(&state, &id, "accountant_link_created", token.as_bytes()).await?;
     Ok((StatusCode::CREATED, Json(ShareResult { token, expires_at })))
+}
+
+async fn submit_to_hmrc(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<SubmissionResult>, ApiError> {
+    let id = workspace_id(&request)?;
+    let licence = request.headers().get("x-sociobot-license").and_then(|value| value.to_str().ok()).map(str::trim).filter(|token| !token.is_empty() && token.len() <= 2048).map(str::to_owned);
+    let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
+        .await
+        .map_err(|_| ApiError(StatusCode::BAD_REQUEST, "The submission could not be read. Try again."))?;
+    let input: SubmissionRequest = serde_json::from_slice(&bytes)
+        .map_err(|_| ApiError(StatusCode::BAD_REQUEST, "The submission is not valid. Review the quarter and try again."))?;
+    let payload = hmrc_compatible_payload(&input.document, input.review_confirmed)?;
+    let licence = licence.ok_or(ApiError(
+        StatusCode::PAYMENT_REQUIRED,
+        "An active Sociobot subscription is required for live accountant links and HMRC submissions.",
+    ))?;
+    verify_licence_token(&state, &licence).await?;
+    let integration = state.hmrc_integration.as_ref().ok_or(ApiError(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "An approved HMRC integration is not configured for this service. Download the accountant pack or try again later.",
+    ))?;
+    let response = state
+        .client
+        .post(&integration.url)
+        .bearer_auth(&integration.token)
+        .header("x-quarterly-ready-submission", "mtd-itsa-periodic-update-v1")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|_| ApiError(StatusCode::BAD_GATEWAY, "The approved HMRC integration could not be reached. No submission was made."))?;
+    if !response.status().is_success() {
+        return Err(ApiError(StatusCode::BAD_GATEWAY, "The approved HMRC integration rejected the submission. No submission was made."));
+    }
+    let response: Value = response.json().await.map_err(|_| ApiError(
+        StatusCode::BAD_GATEWAY,
+        "The approved HMRC integration did not return a submission reference. No submission was made.",
+    ))?;
+    let submission_id = response
+        .get("submission_id")
+        .or_else(|| response.get("correlation_id"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or(ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The approved HMRC integration did not return a submission reference. No submission was made.",
+        ))?
+        .to_owned();
+    write_audit(&state, &id, "hmrc_submission_requested", submission_id.as_bytes()).await?;
+    Ok(Json(SubmissionResult { submission_id, status: "accepted" }))
+}
+
+fn licence_token(request: &Request<Body>) -> Result<String, ApiError> {
+    request
+        .headers()
+        .get("x-sociobot-license")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|token| !token.is_empty() && token.len() <= 2048)
+        .map(str::to_owned)
+        .ok_or(ApiError(
+            StatusCode::PAYMENT_REQUIRED,
+            "An active Sociobot subscription is required for live accountant links and HMRC submissions.",
+        ))
+}
+
+async fn verify_licence_token(state: &AppState, token: &str) -> Result<(), ApiError> {
+    let endpoint = format!(
+        "{}/products/mtd-quarterly-ready/verify",
+        state.billing_base_url.trim_end_matches('/')
+    );
+    let response = state
+        .client
+        .get(endpoint)
+        .query(&[("license", token)])
+        .send()
+        .await
+        .map_err(|_| ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The Sociobot licence service could not be reached. Try again before creating a live link.",
+        ))?;
+    if !response.status().is_success() {
+        return Err(ApiError(
+            StatusCode::PAYMENT_REQUIRED,
+            "Your Sociobot subscription is not active. Check the licence or choose a subscription.",
+        ));
+    }
+    let verdict: LicenceVerdict = response.json().await.map_err(|_| ApiError(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "The Sociobot licence service gave an unreadable response. Try again before creating a live link.",
+    ))?;
+    if verdict.valid {
+        Ok(())
+    } else {
+        Err(ApiError(
+            StatusCode::PAYMENT_REQUIRED,
+            "Your Sociobot subscription is not active. Check the licence or choose a subscription.",
+        ))
+    }
+}
+
+fn hmrc_compatible_payload(document: &Value, review_confirmed: bool) -> Result<Value, ApiError> {
+    validate_document(document)?;
+    if !review_confirmed {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Confirm that you reviewed the totals before submitting to HMRC.",
+        ));
+    }
+    let object = document.as_object().expect("validated document object");
+    if object.get("figuresReviewed").and_then(Value::as_bool) != Some(true)
+        || object.get("markedReady").and_then(Value::as_bool) != Some(true)
+    {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Complete the quarter checklist and mark the quarter ready before submitting.",
+        ));
+    }
+    let period_start = object.get("quarterStart").and_then(Value::as_str).filter(|value| is_iso_date(value)).ok_or(ApiError(
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "The quarter needs a valid start date before it can be submitted.",
+    ))?;
+    let period_end = object.get("quarterEnd").and_then(Value::as_str).filter(|value| is_iso_date(value)).ok_or(ApiError(
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "The quarter needs a valid end date before it can be submitted.",
+    ))?;
+    let transactions = object.get("transactions").and_then(Value::as_array).expect("validated transaction list");
+    if transactions.is_empty() {
+        return Err(ApiError(StatusCode::UNPROCESSABLE_ENTITY, "Add at least one transaction before submitting."));
+    }
+    let mut turnover_pence = 0_i64;
+    let mut expenses: HashMap<String, i64> = HashMap::new();
+    for transaction in transactions {
+        let entry = transaction.as_object().ok_or(ApiError(StatusCode::UNPROCESSABLE_ENTITY, "Each transaction must be a record."))?;
+        let amount = entry.get("amountPence").and_then(Value::as_i64).filter(|amount| *amount > 0).ok_or(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Every transaction needs an amount greater than zero before submission.",
+        ))?;
+        let kind = entry.get("kind").and_then(Value::as_str).ok_or(ApiError(StatusCode::UNPROCESSABLE_ENTITY, "Every transaction needs a type before submission."))?;
+        let category = entry.get("category").and_then(Value::as_str).map(str::trim).filter(|category| !category.is_empty()).ok_or(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Resolve every transaction category before submitting.",
+        ))?;
+        match kind {
+            "income" => turnover_pence += amount,
+            "expense" => {
+                if entry.get("receiptName").and_then(Value::as_str).map(str::trim).filter(|name| !name.is_empty()).is_none() {
+                    return Err(ApiError(StatusCode::UNPROCESSABLE_ENTITY, "Attach or check every expense receipt before submitting."));
+                }
+                *expenses.entry(category.to_lowercase().replace(' ', "_")).or_default() += amount;
+            }
+            _ => return Err(ApiError(StatusCode::UNPROCESSABLE_ENTITY, "Every transaction needs an income or expense type before submission.")),
+        }
+    }
+    let period_expenses = expenses.into_iter().map(|(category, pence)| (category, Value::from(pence as f64 / 100.0))).collect::<serde_json::Map<_, _>>();
+    Ok(json!({
+        "format": "quarterly-ready-mtd-itsa-periodic-update-v1",
+        "periodStartDate": period_start,
+        "periodEndDate": period_end,
+        "periodIncome": { "turnover": turnover_pence as f64 / 100.0 },
+        "periodExpenses": period_expenses,
+        "reviewedByUser": true,
+        "humanReviewConfirmedAt": unix_now(),
+    }))
+}
+
+fn is_iso_date(value: &str) -> bool {
+    value.len() == 10
+        && value.as_bytes().get(4) == Some(&b'-')
+        && value.as_bytes().get(7) == Some(&b'-')
+        && value.bytes().enumerate().all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+}
+
+fn approved_integration_from_env() -> Option<ApprovedIntegration> {
+    let url = env::var("HMRC_INTEGRATION_URL").ok()?;
+    let token = env::var("HMRC_INTEGRATION_TOKEN").ok()?;
+    if url.starts_with("https://") && !token.trim().is_empty() {
+        Some(ApprovedIntegration { url, token })
+    } else {
+        None
+    }
 }
 
 async fn get_share(
@@ -603,6 +826,9 @@ mod tests {
             db,
             key: [9u8; 32],
             limits: Arc::new(Mutex::new(HashMap::new())),
+            client: reqwest::Client::new(),
+            billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            hmrc_integration: None,
         };
         write_audit(&state, "workspace", "first", b"one")
             .await
@@ -626,5 +852,73 @@ mod tests {
     #[test]
     fn default_log_filter_keeps_startup_information_visible() {
         assert_eq!(log_filter(None).to_string(), "info");
+    }
+
+    #[test]
+    fn claim_accountant_link_expiry_is_thirty_days() {
+        assert_eq!(SHARE_EXPIRY_SECONDS, 30 * 24 * 60 * 60);
+    }
+
+    #[test]
+    fn hmrc_payload_requires_explicit_human_review() {
+        let error = hmrc_compatible_payload(&json!({"transactions": []}), false).unwrap_err();
+        assert_eq!(error.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(error.1, "Confirm that you reviewed the totals before submitting to HMRC.");
+    }
+
+    #[tokio::test]
+    async fn claim_hmrc_submission_uses_an_approved_integration_after_human_review() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::sync::mpsc;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (request_tx, mut request_rx) = mpsc::channel(2);
+        tokio::spawn(async move {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = vec![0; 8192];
+                let read = stream.read(&mut bytes).await.unwrap();
+                let request = String::from_utf8_lossy(&bytes[..read]).to_string();
+                request_tx.send(request.clone()).await.unwrap();
+                let body = if request.starts_with("GET /products/") {
+                    r#"{"valid":true}"#
+                } else {
+                    r#"{"submission_id":"mtd-test-123"}"#
+                };
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(), body
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+            }
+        });
+        let db = SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        migrate(&db).await.unwrap();
+        let state = AppState {
+            db,
+            key: [4u8; 32],
+            limits: Arc::new(Mutex::new(HashMap::new())),
+            client: reqwest::Client::new(),
+            billing_base_url: format!("http://{address}"),
+            hmrc_integration: Some(ApprovedIntegration { url: format!("http://{address}/submit"), token: "bridge-secret".into() }),
+        };
+        let document = json!({
+            "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",
+            "figuresReviewed": true, "markedReady": true,
+            "transactions": [{ "amountPence": 26000, "kind": "income", "category": "Sales" }]
+        });
+        let request = Request::builder()
+            .header("x-workspace-id", "15aa583d-84cf-43f1-8438-354ddbfd6358")
+            .header("x-sociobot-license", "active-subscription")
+            .body(Body::from(json!({ "document": document, "review_confirmed": true }).to_string()))
+            .unwrap();
+        let result = submit_to_hmrc(State(state), request).await.unwrap().0;
+        assert_eq!(result.submission_id, "mtd-test-123");
+        assert_eq!(result.status, "accepted");
+        assert!(request_rx.recv().await.unwrap().starts_with("GET /products/mtd-quarterly-ready/verify?license=active-subscription"));
+        let integration_request = request_rx.recv().await.unwrap();
+        assert!(integration_request.starts_with("POST /submit"));
+        assert!(integration_request.contains("quarterly-ready-mtd-itsa-periodic-update-v1"));
     }
 }

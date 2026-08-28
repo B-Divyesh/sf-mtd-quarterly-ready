@@ -56,14 +56,33 @@ async function saveRemote(document: QuarterDocument): Promise<void> {
   } catch { window.dispatchEvent(new CustomEvent('save-error')); }
 }
 
+function liveHeaders(): HeadersInit {
+  const licence = localStorage.getItem('sb_license:mtd-quarterly-ready');
+  return {
+    'content-type': 'application/json',
+    'x-workspace-id': workspaceId(),
+    ...(licence ? { 'x-sociobot-license': licence } : {})
+  };
+}
+
 export async function createShare(document: QuarterDocument): Promise<string> {
   const response = await fetch('/api/share', {
-    method: 'POST', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId() },
+    method: 'POST', headers: liveHeaders(),
     body: JSON.stringify({ document })
   });
-  if (!response.ok) throw new Error('The accountant link was not created. Check your connection and try again.');
-  const result = await response.json() as { token: string };
+  const result = await response.json().catch(() => ({})) as { token?: string; error?: string };
+  if (!response.ok || !result.token) throw new Error(result.error || 'The accountant link was not created. Check your connection and try again.');
   return `${location.origin}/share/${result.token}`;
+}
+
+export async function submitToHmrc(document: QuarterDocument): Promise<string> {
+  const response = await fetch('/api/hmrc/submit', {
+    method: 'POST', headers: liveHeaders(),
+    body: JSON.stringify({ document, review_confirmed: true })
+  });
+  const result = await response.json().catch(() => ({})) as { submission_id?: string; error?: string };
+  if (!response.ok || !result.submission_id) throw new Error(result.error || 'The HMRC submission could not be completed. No submission was made.');
+  return result.submission_id;
 }
 
 export async function loadShare(token: string): Promise<QuarterDocument> {

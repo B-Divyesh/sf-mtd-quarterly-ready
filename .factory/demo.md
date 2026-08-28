@@ -16,7 +16,7 @@ One bank transfer needs a category. One expense needs a receipt. These gaps make
 
 Demo data uses the localStorage key `demo:quarterly-ready:document`. Real browser data uses `quarterly-ready:document` and a separate workspace ID.
 
-Demo actions never call the workspace or share APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture.
+Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. The live submission control is disabled because sample records can never reach an approved integration.
 
 Choose **Reset demo** in the persistent banner to restore the sample. Choose **Start for real** to discard the demo key and open an empty real quarter.
 

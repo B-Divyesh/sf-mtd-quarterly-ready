@@ -36,3 +36,24 @@ test('keyboard path opens the demo without console errors', async ({ page }) => 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Check this quarter');
   expect(errors).toEqual([]);
 });
+
+test('submission review dialog is keyboard-operable and has no serious Axe findings', async ({ page }) => {
+  await page.goto('/records');
+  await page.evaluate(() => localStorage.setItem('quarterly-ready:document', JSON.stringify({
+    schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
+    quarterStart: '2026-04-06', quarterEnd: '2026-07-05', figuresReviewed: true, markedReady: true,
+    packDownloaded: true, updatedAt: new Date().toISOString(),
+    transactions: [{ id: 'income-1', date: '2026-04-09', description: 'Lesson', amountPence: 4500, kind: 'income', category: 'Sales' }]
+  })));
+  await page.reload();
+  await page.getByRole('button', { name: 'Review and submit to HMRC' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByLabel('I reviewed these totals and want to submit this quarter.')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Submit through approved integration' })).toBeEnabled();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact || ''))).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+});

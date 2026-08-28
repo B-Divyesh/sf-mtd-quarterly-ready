@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking @claim:no-direct-hmrc keeps sample changes separate from real records', async ({ page, context }) => {
+test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps sample changes separate from real records', async ({ page, context }) => {
   const outgoing: string[] = [];
   page.on('request', request => outgoing.push(request.url()));
   await page.goto('/demo');
@@ -26,8 +26,8 @@ test('@claim:accountant-csv exports every sample transaction', async ({ page }) 
 
 test('@claim:quarter-review shows totals and resolves the outstanding category', async ({ page }) => {
   await page.goto('/demo');
-  await expect(page.getByText('£260.00')).toBeVisible();
-  await expect(page.getByText('£155.83')).toBeVisible();
+  await expect(page.getByText('£260.00', { exact: true })).toBeVisible();
+  await expect(page.getByText('£155.83', { exact: true })).toBeVisible();
   await expect(page.getByText('1 transaction needs a category')).toBeVisible();
   await page.locator('tr', { hasText: 'Bank transfer from J. Clarke' }).locator('select').selectOption('Sales');
   await expect(page.getByText('Every transaction has a category').first()).toBeVisible();
@@ -72,17 +72,6 @@ test('@claim:accountant-link opens a read-only sample pack', async ({ page }) =>
   await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0);
 });
 
-test('@claim:accountant-link-expiry gives live packs a 30-day expiry', async ({ request }) => {
-  const workspace = '15aa583d-84cf-43f1-8438-354ddbfd6358';
-  const before = Math.floor(Date.now() / 1000);
-  const response = await request.post('/api/share', { headers: { 'x-workspace-id': workspace, 'x-forwarded-for': '203.0.113.10' }, data: { document: { transactions: [] } } });
-  expect(response.status()).toBe(201);
-  const result = await response.json();
-  expect(result.expires_at).toBeGreaterThanOrEqual(before + 30 * 86400 - 2);
-  expect(result.expires_at).toBeLessThanOrEqual(before + 30 * 86400 + 2);
-  expect((await request.get(`/api/share/${result.token}`, { headers: { 'x-forwarded-for': '203.0.113.11' } })).status()).toBe(200);
-});
-
 test('@claim:offline-browser-copy reloads the demo after the network is disabled', async ({ page, context }) => {
   await page.goto('/demo');
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -92,11 +81,12 @@ test('@claim:offline-browser-copy reloads the demo after the network is disabled
   await expect(page.getByText('Maya Patel Tutoring')).toBeVisible();
 });
 
-test('@claim:paid-tier uses Sociobot checkout and keeps CSV free', async ({ page }) => {
+test('@claim:paid-tier uses Sociobot subscription checkout and keeps CSV free', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Buy the full version' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout');
+  await expect(page.getByRole('link', { name: 'Choose monthly' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=monthly');
+  await expect(page.getByRole('link', { name: /Choose annual/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=annual');
   await page.goto('/records');
   await expect(page.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
   await page.getByRole('button', { name: 'Make accountant link' }).click();
-  await expect(page.getByText('A live accountant link needs the £99 licence. The CSV remains free.')).toBeVisible();
+  await expect(page.getByText('A live accountant link needs an active Sociobot subscription. The CSV remains free.')).toBeVisible();
 });
