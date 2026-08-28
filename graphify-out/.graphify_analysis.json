@@ -1,0 +1,340 @@
+{
+  "communities": {
+    "0": [
+      "frontend_src_main",
+      "frontend_src_main_addtransaction",
+      "frontend_src_main_bindhome",
+      "frontend_src_main_bindlinks",
+      "frontend_src_main_bindrecords",
+      "frontend_src_main_categories",
+      "frontend_src_main_categoryoptions",
+      "frontend_src_main_checklist",
+      "frontend_src_main_downloadblob",
+      "frontend_src_main_downloadhmrc",
+      "frontend_src_main_downloadpack",
+      "frontend_src_main_escapehtml",
+      "frontend_src_main_filetodataurl",
+      "frontend_src_main_footer",
+      "frontend_src_main_formatdate",
+      "frontend_src_main_handlelicensereturn",
+      "frontend_src_main_header",
+      "frontend_src_main_homepage",
+      "frontend_src_main_importcsv",
+      "frontend_src_main_islicensed",
+      "frontend_src_main_layout",
+      "frontend_src_main_notfoundpage",
+      "frontend_src_main_previewpanel",
+      "frontend_src_main_pricingsection",
+      "frontend_src_main_privacypage",
+      "frontend_src_main_recordspage",
+      "frontend_src_main_rendershare",
+      "frontend_src_main_rerenderrecords",
+      "frontend_src_main_route",
+      "frontend_src_main_saveandrender",
+      "frontend_src_main_setpage",
+      "frontend_src_main_sharepack",
+      "frontend_src_main_sharepage",
+      "frontend_src_main_storeandverifylicense",
+      "frontend_src_main_termspage",
+      "frontend_src_main_transactiontable",
+      "frontend_src_records_pounds",
+      "frontend_src_records_summarise",
+      "frontend_src_storage_createshare",
+      "frontend_src_storage_leavedemo",
+      "frontend_src_storage_loadshare"
+    ],
+    "1": [
+      "axe_core_playwright",
+      "package",
+      "package_devdependencies",
+      "package_devdependencies_axe_core_playwright",
+      "package_devdependencies_playwright_test",
+      "package_devdependencies_typescript",
+      "package_devdependencies_vite",
+      "package_devdependencies_vitest",
+      "package_name",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_serve",
+      "package_scripts_test",
+      "package_scripts_test_e2e",
+      "package_scripts_test_rust",
+      "package_scripts_test_unit",
+      "package_type",
+      "package_version",
+      "playwright_test",
+      "typescript",
+      "vite",
+      "vitest"
+    ],
+    "2": [
+      "frontend_src_main_refreshremote",
+      "frontend_src_records",
+      "frontend_src_records_accountantcsv",
+      "frontend_src_records_hmrchandoff",
+      "frontend_src_records_parsecsv",
+      "frontend_src_records_quotecsv",
+      "frontend_src_records_test",
+      "frontend_src_sample",
+      "frontend_src_sample_emptydocument",
+      "frontend_src_sample_sample_document",
+      "frontend_src_storage",
+      "frontend_src_storage_clone",
+      "frontend_src_storage_loaddocument",
+      "frontend_src_storage_loadremote",
+      "frontend_src_storage_resetdemo",
+      "frontend_src_storage_savedocument",
+      "frontend_src_storage_saveremote",
+      "frontend_src_storage_storagekeys",
+      "frontend_src_storage_workspaceid",
+      "frontend_src_types",
+      "frontend_src_types_category",
+      "frontend_src_types_quarterdocument",
+      "frontend_src_types_summary",
+      "frontend_src_types_transaction"
+    ],
+    "3": [
+      "ref_dom",
+      "ref_dom_iterable",
+      "ref_es2022",
+      "ref_frontend_src",
+      "ref_frontend_ts",
+      "ref_tests",
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_compileroptions_usedefineforclassfields",
+      "tsconfig_include"
+    ],
+    "4": [
+      "e",
+      "error",
+      "fspath",
+      "sqlitepool",
+      "src_main",
+      "src_main_claim_anonymous_page_count",
+      "src_main_claim_hash_chained_audit_log",
+      "src_main_cleanup_expired_shares",
+      "src_main_internal",
+      "src_main_load_or_create_key",
+      "src_main_main",
+      "src_main_migrate",
+      "src_main_shutdown_signal",
+      "src_main_validates_transaction_document"
+    ],
+    "5": [
+      "body",
+      "request",
+      "result",
+      "src_main_claim_encrypted_storage",
+      "src_main_decrypt_json",
+      "src_main_encrypt_json",
+      "src_main_get_workspace",
+      "src_main_put_workspace",
+      "src_main_validate_document",
+      "src_main_workspace_id",
+      "src_main_workspacedocument",
+      "value",
+      "vec"
+    ],
+    "6": [
+      "arc",
+      "hashmap",
+      "instant",
+      "mutex",
+      "pathbuf",
+      "router",
+      "src_main_appstate",
+      "src_main_build_router",
+      "src_main_shareresult",
+      "string",
+      "vecdeque"
+    ],
+    "7": [
+      "intoresponse",
+      "path",
+      "src_main_apierror",
+      "src_main_create_share",
+      "src_main_get_share",
+      "src_main_page_view",
+      "src_main_unix_now",
+      "src_main_write_audit",
+      "state",
+      "statuscode"
+    ],
+    "8": [
+      "json",
+      "next",
+      "response",
+      "src_main_apierror_into_response",
+      "src_main_health",
+      "src_main_rate_limit",
+      "src_main_security_headers"
+    ],
+    "9": [
+      "frontend_public_sw",
+      "frontend_public_sw_shell"
+    ],
+    "10": [
+      "frontend_vite_config"
+    ],
+    "11": [
+      "frontend_vitest_config"
+    ],
+    "12": [
+      "pkg_quarterly_ready"
+    ],
+    "13": [
+      "playwright_config"
+    ],
+    "14": [
+      "tests_accessibility_spec"
+    ],
+    "15": [
+      "tests_backend_spec"
+    ],
+    "16": [
+      "tests_claims_spec"
+    ]
+  },
+  "cohesion": {
+    "0": 0.12682926829268293,
+    "1": 0.08333333333333333,
+    "2": 0.15579710144927536,
+    "3": 0.11764705882352941,
+    "4": 0.24175824175824176,
+    "5": 0.32051282051282054,
+    "6": 0.18181818181818182,
+    "7": 0.37777777777777777,
+    "8": 0.42857142857142855,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0
+  },
+  "gods": [
+    {
+      "id": "src_main_appstate",
+      "label": "AppState",
+      "degree": 16
+    },
+    {
+      "id": "src_main_apierror",
+      "label": "ApiError",
+      "degree": 15
+    },
+    {
+      "id": "src_main_create_share",
+      "label": "create_share()",
+      "degree": 15
+    },
+    {
+      "id": "src_main_put_workspace",
+      "label": "put_workspace()",
+      "degree": 14
+    },
+    {
+      "id": "frontend_src_main_route",
+      "label": "route()",
+      "degree": 13
+    },
+    {
+      "id": "frontend_src_main_recordspage",
+      "label": "recordsPage()",
+      "degree": 12
+    },
+    {
+      "id": "frontend_src_main_bindrecords",
+      "label": "bindRecords()",
+      "degree": 11
+    },
+    {
+      "id": "src_main_get_workspace",
+      "label": "get_workspace()",
+      "degree": 11
+    },
+    {
+      "id": "src_main_get_share",
+      "label": "get_share()",
+      "degree": 10
+    },
+    {
+      "id": "frontend_src_main_layout",
+      "label": "layout()",
+      "degree": 9
+    }
+  ],
+  "surprises": [
+    {
+      "source": "recordsPage()",
+      "target": "loadDocument()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "bindRecords()",
+      "target": "resetDemo()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "importCsv()",
+      "target": "parseCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "downloadPack()",
+      "target": "accountantCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "downloadHmrc()",
+      "target": "hmrcHandoff()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}
