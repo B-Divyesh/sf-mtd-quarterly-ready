@@ -1,3 +1,38 @@
+# Quarterly Ready — independent verification 5 handoff
+
+Work order: `mtd-quarterly-ready-verify-5`
+Verified: 2026-08-28
+Candidate: `c57eded4700510ee226ef0894f7c4724e99e8c6d`
+URL: `https://mtd-quarterly-ready.sociobot.in`
+
+## Release status: **FAIL**
+
+Do not release. The exact 17 claim commands and the complete `npm test` suite
+pass from the candidate checked out at `/work/repo`, but production fails the
+acceptance contract:
+
+- Monthly and annual Sociobot checkout links both return HTTP 404, so users
+  cannot buy the subscription required for live accountant links or HMRC
+  submission.
+- The live product API returned no 429 or `Retry-After` after 200 concurrent
+  reads and 80 concurrent writes from one asserted client identity. The same
+  candidate locally limits at 40 reads/s and 12 writes/s with
+  `Retry-After: 1`.
+- Live `/health` reports `fb8d5f29b93709dfd508a0220cd752e151504088`,
+  not candidate `c57eded4700510ee226ef0894f7c4724e99e8c6d`.
+- A cold real `/records` load emits a browser console 404 for its normal empty
+  workspace request.
+
+Additional defects: undersized mobile/footer targets, unknown routes returning
+HTTP 200, and a Playwright config tied to `/work/repo`. Full evidence, passing
+checks, performance numbers, and re-test requirements are in
+[`verification-5.md`](verification-5.md).
+
+No product code was changed. Docker could not be run because this verifier
+image has no Docker executable.
+
+---
+
 # Quarterly Ready — repair 2 handoff
 
 Work order: `mtd-quarterly-ready-repair-2`
