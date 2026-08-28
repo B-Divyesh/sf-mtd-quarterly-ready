@@ -27,7 +27,9 @@ Artifact: Rust/axum backend and Vite/TypeScript frontend in one container.
 
 The container still starts safely with only `PORT`, as required. A genuine live HMRC submission additionally needs the factory to supply two optional runtime secrets: `HMRC_INTEGRATION_URL` (HTTPS endpoint of the approved MTD ITSA integration) and `HMRC_INTEGRATION_TOKEN` (its bearer token). No approved integration credential exists in the available deployment configuration or Key Vault, so this repair intentionally refuses live submissions instead of falsely claiming a delivery. `SOCIOBOT_BILLING_URL` is optional and defaults to the production Sociobot API.
 
-The deployment script provided by the work order only sends `PORT`; deploy it after those two approved-integration values are provisioned, otherwise users retain the fully working record, export, and accountant-link flows but see the honest submission-unavailable response.
+Deployed through the container work-order script. ACR image `sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:c57eded47005` and `https://mtd-quarterly-ready.sociobot.in/health` both report `c57eded4700510ee226ef0894f7c4724e99e8c6d`. Live `verify-url.sh` passed in 634 ms with zero console/page errors; title, language, one H1, main landmark, and image-alt checks passed. The exact live unauthenticated share regression now returns `402` with the server-side subscription message.
+
+The deployment script provided by the work order only sends `PORT`, so the live submission endpoint correctly reports its approved-integration configuration as unavailable until the two integration values above are provisioned. Records, export, demo, and subscription-gated accountant links are deployed and working.
 
 ---
 
