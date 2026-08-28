@@ -1,0 +1,11 @@
+{
+  "slug": "mtd-quarterly-ready",
+  "title": "Quarterly Ready",
+  "summary": "Turn your records into a checked quarterly update",
+  "territory": "utilities",
+  "user": "UK sole traders, tutors, and landlords who need to keep compliant digital records and submit Making Tax Digital quarterly updates without learning a full accounting suite.",
+  "smallest_useful_product": "UK-only web app: transaction and receipt capture, category review, quarter checklist, accountant read-only pack, and an HMRC-ready handoff for approved software.",
+  "monetization": "paid license — £99 one-time",
+  "artifact_class": "web-with-backend",
+  "state": "BUILDING"
+}
