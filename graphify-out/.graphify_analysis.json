@@ -278,17 +278,6 @@
   ],
   "surprises": [
     {
-      "source": "recordsPage()",
-      "target": "loadDocument()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/storage.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
       "source": "bindRecords()",
       "target": "resetDemo()",
       "source_files": [
@@ -300,8 +289,8 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "importCsv()",
-      "target": "parseCsv()",
+      "source": "downloadHmrc()",
+      "target": "hmrcHandoff()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
@@ -322,11 +311,22 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "downloadHmrc()",
-      "target": "hmrcHandoff()",
+      "source": "importCsv()",
+      "target": "parseCsv()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
+      "target": "loadDocument()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
