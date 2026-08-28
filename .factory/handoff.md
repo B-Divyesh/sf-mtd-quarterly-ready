@@ -43,6 +43,7 @@ Completed in this repair worker:
 - Release-binary response policy: CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and Permissions-Policy were present.
 - `PORT`-only startup: `/health` returned `{"status":"ok","build_sha":"dev"}` and the required JSON startup line was emitted.
 - Docker is unavailable in this worker. The added CI workflow covers a real Docker build and container health check; the factory deployment performs the ACR build.
+- Production deployment: ACR built `da275742e70512cd6bc99ba7c3fdd2bdcd8645eb` successfully and `https://mtd-quarterly-ready.sociobot.in/health` reports that exact SHA. Live `verify-url.sh` passed in 666 ms with no console errors; the live write allowance returned 12 × 204 then 429 with `Retry-After: 1`.
 
 ## Product capabilities preserved
 
