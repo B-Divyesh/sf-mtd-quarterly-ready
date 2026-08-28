@@ -24,3 +24,15 @@ test('all internal links return successful pages', async ({ page, request }) => 
   const links = await page.locator('a[href]').evaluateAll(items => [...new Set(items.map(item => (item as HTMLAnchorElement).href).filter(href => new URL(href).origin === location.origin))]);
   for (const link of links) expect((await request.get(link)).status(), link).toBeLessThan(400);
 });
+
+test('keyboard path opens the demo without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Try it with sample data' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Check this quarter');
+  expect(errors).toEqual([]);
+});

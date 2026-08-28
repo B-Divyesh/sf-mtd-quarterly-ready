@@ -20,3 +20,10 @@ test('rate limiting returns 429 with Retry-After', async ({ request }) => {
   expect(limited).toBeTruthy();
   expect(limited?.headers()['retry-after']).toBe('1');
 });
+
+test('write endpoints use the stricter allowance', async ({ request }) => {
+  const responses = await Promise.all(Array.from({ length: 16 }, () => request.post('/api/page-view', { headers: { 'x-forwarded-for': '203.0.113.98' } })));
+  const limited = responses.find(response => response.status() === 429);
+  expect(limited).toBeTruthy();
+  expect(limited?.headers()['retry-after']).toBe('1');
+});

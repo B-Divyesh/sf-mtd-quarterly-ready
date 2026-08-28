@@ -17,7 +17,7 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 ## What v1 includes
 
 - Manual transaction and receipt capture.
-- Bank CSV import with clear row errors.
+- Bank CSV import.
 - Income, cost, and net quarter totals.
 - Category and receipt checks with explicit human review.
 - A complete accountant CSV download.
@@ -30,7 +30,7 @@ The free version keeps one working quarter and all downloads. A £99 one-time li
 
 ## Run locally
 
-Requirements: Node 22+, npm, and Rust 1.85+.
+Requirements: Node 22+, npm, and Rust 1.88+.
 
 ```sh
 npm install

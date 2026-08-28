@@ -6,7 +6,7 @@ COPY tsconfig.json ./
 COPY frontend ./frontend
 RUN npm run build
 
-FROM rust:1.85-alpine AS server
+FROM rust:1.88-alpine AS server
 RUN apk add --no-cache musl-dev
 WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
@@ -24,4 +24,3 @@ USER app
 ENV PORT=8080 DATA_DIR=/data FRONTEND_DIR=/app/dist
 EXPOSE 8080
 CMD ["/app/quarterly-ready"]
-

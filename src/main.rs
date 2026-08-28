@@ -101,6 +101,19 @@ async fn main() {
         .await
         .expect("open database");
     migrate(&db).await.expect("run database migrations");
+    cleanup_expired_shares(&db)
+        .await
+        .expect("clean expired accountant links");
+    let cleanup_db = db.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
+        loop {
+            interval.tick().await;
+            if let Err(error) = cleanup_expired_shares(&cleanup_db).await {
+                error!(%error, "expired_share_cleanup_failed");
+            }
+        }
+    });
     let state = AppState {
         db,
         key,
@@ -278,6 +291,7 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
     if request.uri().path() == "/health" {
         return next.run(request).await;
     }
+    let write_request = request.method() != axum::http::Method::GET;
     let key = request
         .headers()
         .get("x-forwarded-for")
@@ -286,7 +300,9 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .unwrap_or("direct")
-        .to_owned();
+        .to_owned()
+        + if write_request { ":write" } else { ":read" };
+    let allowance = if write_request { 12 } else { 40 };
     let now = Instant::now();
     let mut limits = state.limits.lock().await;
     let hits = limits.entry(key).or_default();
@@ -296,7 +312,7 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
     {
         hits.pop_front();
     }
-    if hits.len() >= 40 {
+    if hits.len() >= allowance {
         drop(limits);
         let mut response = (
             StatusCode::TOO_MANY_REQUESTS,
@@ -314,6 +330,7 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
 }
 
 async fn security_headers(request: Request<Body>, next: Next) -> Response {
+    let immutable_asset = request.uri().path().starts_with("/assets/");
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
     headers.insert(
@@ -329,6 +346,12 @@ async fn security_headers(request: Request<Body>, next: Next) -> Response {
         HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
     );
     headers.insert(HeaderName::from_static("content-security-policy"), HeaderValue::from_static("default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.sociobot.in; object-src 'none'; base-uri 'self'; form-action 'self' https://api.sociobot.in; frame-ancestors 'none'"));
+    if immutable_asset {
+        headers.insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=31536000, immutable"),
+        );
+    }
     response
 }
 
@@ -485,6 +508,14 @@ async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+async fn cleanup_expired_shares(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM shares WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
 fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -548,5 +579,37 @@ mod tests {
             .unwrap();
         let names: Vec<String> = columns.into_iter().map(|row| row.get("name")).collect();
         assert_eq!(names, vec!["day", "count"]);
+    }
+
+    #[tokio::test]
+    async fn claim_hash_chained_audit_log() {
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        migrate(&db).await.unwrap();
+        let state = AppState {
+            db,
+            key: [9u8; 32],
+            limits: Arc::new(Mutex::new(HashMap::new())),
+        };
+        write_audit(&state, "workspace", "first", b"one")
+            .await
+            .unwrap();
+        write_audit(&state, "workspace", "second", b"two")
+            .await
+            .unwrap();
+        let hashes = sqlx::query("SELECT hash FROM audit_log ORDER BY id")
+            .fetch_all(&state.db)
+            .await
+            .unwrap();
+        let first: String = hashes[0].get("hash");
+        let second: String = hashes[1].get("hash");
+        let mut expected = Sha256::new();
+        expected.update(first.as_bytes());
+        expected.update(b"second");
+        expected.update(b"two");
+        assert_eq!(second, format!("{:x}", expected.finalize()));
     }
 }
