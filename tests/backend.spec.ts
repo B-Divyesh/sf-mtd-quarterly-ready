@@ -145,6 +145,7 @@ test('@regression:shared-write-limit allows 12 writes then returns 429 with Retr
 });
 
 test('@regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit', async ({ request }) => {
+  test.skip(Boolean(process.env.VERIFY_ORIGIN), 'The public ingress supplies X-Forwarded-For, so the direct-origin fallback header is intentionally not used.');
   const firstBrowser = '0d0bde02-f4f3-46db-9b6d-08f10f1b48c1';
   const secondBrowser = '4185d12f-873b-4882-bdb6-c302cb694ef1';
   for (let index = 0; index < 12; index += 1) {
