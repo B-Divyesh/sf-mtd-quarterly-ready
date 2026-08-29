@@ -173,9 +173,10 @@ async fn main() {
         .expect("load encryption key");
     let database_url = format!("sqlite://{}?mode=rwc", database_path.display());
     let db = SqlitePoolOptions::new()
-        // The deployed database is a single SQLite file on the mounted Azure
-        // Files share. One connection avoids self-contention and makes a
-        // rolling revision hand-off safe.
+        // Keep SQLite on the container's local filesystem: Azure Files cannot
+        // safely host its locking protocol. Mutations are serialized and then
+        // copied to the mounted /data snapshot for the next one-replica
+        // revision hand-off.
         .max_connections(1)
         .connect(&database_url)
         .await

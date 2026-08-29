@@ -76,23 +76,28 @@ unset STORAGE_KEY
 echo "== container app (one replica, mounted /data)"
 # SQLite and the built-in limiter are serial process resources. A one-replica
 # hand-off prevents divergent records or multiplied per-client allowances.
-READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.latestReadyRevisionName' -o tsv 2>/dev/null || true)"
-if [[ -n "${READY_REVISION}" ]]; then
-  az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --only-show-errors -o none || true
-  STOPPED=0
+stop_revision_for_snapshot_handoff() {
+  local revision="$1"
+  if [[ -z "${revision}" ]]; then
+    return 0
+  fi
+
+  az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${revision}" --only-show-errors -o none || true
   for _ in $(seq 1 36); do
-    RUNNING="$(az containerapp replica list --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --query "length([?properties.runningState=='Running'])" -o tsv 2>/dev/null || echo 0)"
-    if [[ "${RUNNING}" == "0" ]]; then
-      STOPPED=1
-      break
+    local running
+    running="$(az containerapp replica list --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${revision}" --query "length([?properties.runningState=='Running'])" -o tsv 2>/dev/null || echo 0)"
+    if [[ "${running}" == "0" ]]; then
+      return 0
     fi
     sleep 5
   done
-  if [[ "${STOPPED}" != "1" ]]; then
-    echo "previous revision did not stop; refusing concurrent SQLite snapshot writers" >&2
-    exit 1
-  fi
-fi
+
+  echo "revision ${revision} did not stop; refusing concurrent SQLite snapshot writers" >&2
+  exit 1
+}
+
+READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.latestReadyRevisionName' -o tsv 2>/dev/null || true)"
+stop_revision_for_snapshot_handoff "${READY_REVISION}"
 az rest --method patch --url "${APP_URL}" --headers "Content-Type=application/json" --body "$(cat <<JSON
 {
   "properties": {
@@ -164,6 +169,11 @@ done
 DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 
 echo "== prove persistence across a revision replacement"
+# A normal single-revision rollout can overlap an old and a new pod while the
+# old one drains. That is unsafe for a local SQLite database whose durable
+# copy is an Azure Files snapshot, so use the same explicit stop-before-start
+# hand-off that protects the image rollout above.
+stop_revision_for_snapshot_handoff "${CURRENT_REVISION}"
 az containerapp update --resource-group "${RESOURCE_GROUP}" --name "${APP}" \
   --set-env-vars "PERSISTENCE_PROBE_SHA=${SOURCE_SHA}" --only-show-errors -o none
 for _ in $(seq 1 36); do

@@ -53,6 +53,12 @@ if (!/^ENV .*DATA_DIR=\/data DATABASE_DIR=\/tmp\/quarterly-ready .*SAFE_QA_FIXTU
 if (deployment.indexOf('missing approved HMRC integration secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
   throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');
 }
+const revisionReplacement = deployment.indexOf('echo "== prove persistence across a revision replacement"');
+const protectedReplacement = deployment.indexOf('stop_revision_for_snapshot_handoff "${CURRENT_REVISION}"', revisionReplacement);
+const replacementUpdate = deployment.indexOf('az containerapp update', revisionReplacement);
+if (revisionReplacement === -1 || protectedReplacement === -1 || replacementUpdate === -1 || protectedReplacement > replacementUpdate) {
+  throw new Error('Revision-replacement durability verification must stop the current replica before creating its successor.');
+}
 if (packageJson.scripts['verify:release'] !== 'VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs') {
   throw new Error('Release verification must require both the live Azure topology and approved HMRC capability.');
 }
