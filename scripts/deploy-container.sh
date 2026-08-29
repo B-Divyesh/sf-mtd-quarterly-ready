@@ -42,26 +42,26 @@ unset STORAGE_KEY
 echo "== container app (one replica, mounted /data)"
 az rest --method patch --url "${APP_URL}" --body "$(cat <<JSON
 {
-  \"properties\": {
-    \"configuration\": {
-      \"ingress\": {
-        \"customDomains\": [{
-          \"name\": \"${SLUG}.sociobot.in\",
-          \"bindingType\": \"SniEnabled\",
-          \"certificateId\": \"${CERTIFICATE_ID}\"
+  "properties": {
+    "configuration": {
+      "ingress": {
+        "customDomains": [{
+          "name": "${SLUG}.sociobot.in",
+          "bindingType": "SniEnabled",
+          "certificateId": "${CERTIFICATE_ID}"
         }]
       }
     },
-    \"template\": {
-      \"containers\": [{
-        \"name\": \"app\",
-        \"image\": \"${IMAGE}\",
-        \"resources\": {\"cpu\": 0.5, \"memory\": \"1Gi\"},
-        \"env\": [{\"name\": \"PORT\", \"value\": \"${PORT}\"}],
-        \"volumeMounts\": [{\"volumeName\": \"workspace-data\", \"mountPath\": \"/data\"}]
+    "template": {
+      "containers": [{
+        "name": "app",
+        "image": "${IMAGE}",
+        "resources": {"cpu": 0.5, "memory": "1Gi"},
+        "env": [{"name": "PORT", "value": "${PORT}"}],
+        "volumeMounts": [{"volumeName": "workspace-data", "mountPath": "/data"}]
       }],
-      \"scale\": {\"minReplicas\": 1, \"maxReplicas\": 1},
-      \"volumes\": [{\"name\": \"workspace-data\", \"storageType\": \"AzureFile\", \"storageName\": \"${ENV_STORAGE}\"}]
+      "scale": {"minReplicas": 1, "maxReplicas": 1},
+      "volumes": [{"name": "workspace-data", "storageType": "AzureFile", "storageName": "${ENV_STORAGE}"}]
     }
   }
 }
