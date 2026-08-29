@@ -57,9 +57,13 @@ npm run dev
 npm test
 npm run typecheck
 npm run verify:live
+# with the server running locally or a deployed URL
+npm run verify:url -- http://127.0.0.1:8080/demo
 ```
 
 This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright claim tests, and Axe checks. Claim definitions live in [`.factory/claims.json`](.factory/claims.json).
+
+`verify:url` is the repeatable browser smoke check used by release QA. It checks the title, language, one main landmark, one H1, image alt attributes, and browser console/page errors for the URL supplied.
 
 Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity, HMRC capability disclosure, checkout, 404, empty-workspace, and rate-limit policies. Run `npm run verify:topology` with Azure access to assert one running replica and an Azure Files mount at `/data`.
 

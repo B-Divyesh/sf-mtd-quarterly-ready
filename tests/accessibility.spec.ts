@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 
 function submissionLabels(mode: string) {
   return mode === 'hmrc_sandbox_no_filing'
@@ -25,6 +26,22 @@ for (const path of ['/', '/demo', '/privacy', '/terms']) {
     expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact || ''))).toEqual([]);
   });
 }
+
+test('@regression:verify-url-helper checks title, language, landmark, image text, and browser errors', () => {
+  const origin = process.env.VERIFY_ORIGIN || 'http://127.0.0.1:4173';
+  const output = execFileSync('bash', ['scripts/verify-url.sh', `${origin}/demo`], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    timeout: 20_000,
+  });
+  expect(JSON.parse(output)).toMatchObject({
+    language: 'en-GB',
+    mainCount: 1,
+    headingCount: 1,
+    console_errors: 0,
+    status: 'ok',
+  });
+});
 
 test('mobile layout does not overflow at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

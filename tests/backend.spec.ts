@@ -160,3 +160,20 @@ test('@regression:unknown-route returns the designed page with a genuine 404', a
   expect(response.status()).toBe(404);
   expect(await response.text()).toContain('This page is not on the panel');
 });
+
+test('@regression:response-policy protects HTML and service-worker responses', async ({ request }) => {
+  const page = await request.get('/');
+  expect(page.status()).toBe(200);
+  expect(page.headers()).toMatchObject({
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'strict-origin-when-cross-origin',
+    'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+    'cache-control': 'no-cache',
+  });
+  expect(page.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(page.headers()['content-security-policy']).toContain("connect-src 'self' https://api.sociobot.in");
+
+  const serviceWorker = await request.get('/sw.js');
+  expect(serviceWorker.status()).toBe(200);
+  expect(serviceWorker.headers()['cache-control']).toBe('no-cache');
+});
