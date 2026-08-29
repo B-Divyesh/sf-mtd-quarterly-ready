@@ -14,11 +14,11 @@ One bank transfer needs a category. One expense needs a receipt. These gaps make
 
 ## Isolation and reset
 
-Demo data uses the localStorage key `demo:quarterly-ready:document`. Real browser data uses `quarterly-ready:document:<quarter-start>` and a separate workspace ID for each quarter.
+Demo transaction metadata uses the localStorage key `demo:quarterly-ready:document`. Receipt files use the `quarterly-ready-receipts-v1` IndexedDB database with `demo:` keys. Real browser data uses `quarterly-ready:document:<quarter-start>`, `real:` receipt keys, and a separate workspace ID for each quarter.
 
-Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. The live submission control is disabled because sample records can never reach an approved integration.
+Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. A direct submission control appears only when the server confirms an approved integration is configured, and it remains disabled in demo mode.
 
-Choose **Reset demo** in the persistent banner to restore the sample. Choose **Start for real** to discard the demo key and open an empty real quarter.
+Choose **Reset demo** in the persistent banner to restore the sample and clear its receipt files. Choose **Start for real** to discard all demo storage and open an empty real quarter.
 
 ## Verification paths
 

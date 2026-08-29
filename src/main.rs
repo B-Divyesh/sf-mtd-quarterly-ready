@@ -83,6 +83,7 @@ struct Health<'a> {
     status: &'a str,
     build_sha: &'a str,
     safe_qa_fixtures: bool,
+    hmrc_integration_configured: bool,
 }
 
 #[derive(Deserialize)]
@@ -263,6 +264,7 @@ async fn health(State(state): State<AppState>) -> Json<Health<'static>> {
         status: "ok",
         build_sha: BUILD_SHA,
         safe_qa_fixtures: state.safe_qa_fixtures,
+        hmrc_integration_configured: state.hmrc_integration.is_some(),
     })
 }
 

@@ -1,6 +1,7 @@
 import { emptyDocument, SAMPLE_DOCUMENT } from './sample';
 import { currentUkQuarter, quarterFromStart } from './quarters';
 import { validateTransaction } from './records';
+import { clearDemoReceipts } from './receipts';
 import type { QuarterDocument } from './types';
 
 const DEMO_KEY = 'demo:quarterly-ready:document';
@@ -33,17 +34,27 @@ export function loadDocument(demo: boolean): QuarterDocument {
 
 export function saveDocument(document: QuarterDocument, demo: boolean): void {
   document.updatedAt = new Date().toISOString();
-  localStorage.setItem(demo ? DEMO_KEY : `${REAL_PREFIX}${document.quarterStart}`, JSON.stringify(document));
-  if (!demo) localStorage.setItem(ACTIVE_QUARTER_KEY, document.quarterStart);
+  const browserDocument = clone(document);
+  for (const transaction of browserDocument.transactions) delete transaction.receiptData;
+  try {
+    localStorage.setItem(demo ? DEMO_KEY : `${REAL_PREFIX}${document.quarterStart}`, JSON.stringify(browserDocument));
+    if (!demo) localStorage.setItem(ACTIVE_QUARTER_KEY, document.quarterStart);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      throw new Error('This browser could not save the record because its local storage is full. The change was not saved. Export a CSV, clear space, and try again.', { cause: error });
+    }
+    throw error;
+  }
   if (!demo && navigator.onLine) void saveRemote(document);
 }
 
 export function resetDemo(): QuarterDocument {
   localStorage.removeItem(DEMO_KEY);
+  void clearDemoReceipts();
   return loadDocument(true);
 }
 
-export function leaveDemo(): void { localStorage.removeItem(DEMO_KEY); }
+export function leaveDemo(): void { localStorage.removeItem(DEMO_KEY); void clearDemoReceipts(); }
 
 export function selectQuarter(quarterStart: string): QuarterDocument {
   if (!quarterFromStart(quarterStart)) throw new Error('Choose a standard UK quarter.');
@@ -87,9 +98,11 @@ export async function loadRemote(): Promise<QuarterDocument | null> {
 
 async function saveRemote(document: QuarterDocument): Promise<void> {
   try {
+    const serverDocument = clone(document);
+    for (const transaction of serverDocument.transactions) delete transaction.receiptData;
     const response = await fetch('/api/workspace', {
       method: 'PUT', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId(document.quarterStart) },
-      body: JSON.stringify({ document })
+      body: JSON.stringify({ document: serverDocument })
     });
     if (!response.ok) window.dispatchEvent(new CustomEvent('save-error'));
   } catch { window.dispatchEvent(new CustomEvent('save-error')); }
@@ -105,9 +118,11 @@ function liveHeaders(document: QuarterDocument): HeadersInit {
 }
 
 export async function createShare(document: QuarterDocument): Promise<string> {
+  const sharedDocument = clone(document);
+  for (const transaction of sharedDocument.transactions) delete transaction.receiptData;
   const response = await fetch('/api/share', {
     method: 'POST', headers: liveHeaders(document),
-    body: JSON.stringify({ document })
+    body: JSON.stringify({ document: sharedDocument })
   });
   const result = await response.json().catch(() => ({})) as { token?: string; error?: string };
   if (!response.ok || !result.token) throw new Error(result.error || 'The accountant link was not created. Check your connection and try again.');
@@ -115,9 +130,11 @@ export async function createShare(document: QuarterDocument): Promise<string> {
 }
 
 export async function submitToHmrc(document: QuarterDocument): Promise<string> {
+  const submittedDocument = clone(document);
+  for (const transaction of submittedDocument.transactions) delete transaction.receiptData;
   const response = await fetch('/api/hmrc/submit', {
     method: 'POST', headers: liveHeaders(document),
-    body: JSON.stringify({ document, review_confirmed: true })
+    body: JSON.stringify({ document: submittedDocument, review_confirmed: true })
   });
   const result = await response.json().catch(() => ({})) as { submission_id?: string; error?: string };
   if (!response.ok || !result.submission_id) throw new Error(result.error || 'The HMRC submission could not be completed. No submission was made.');

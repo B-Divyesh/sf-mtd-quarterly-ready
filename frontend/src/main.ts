@@ -1,6 +1,7 @@
 import './styles.css';
 import { accountantCsv, CATEGORIES, hmrcHandoff, parseCsv, pounds, summarise, validateTransaction } from './records';
 import { availableQuarters, nextUkQuarter, quarterFromStart } from './quarters';
+import { deleteReceipt, migrateLegacyReceipts, saveReceipt } from './receipts';
 import { createShare, leaveDemo, loadDocument, loadRemote, loadShare, resetDemo, saveDocument, selectQuarter, submitToHmrc } from './storage';
 import type { Category, QuarterDocument, Transaction } from './types';
 
@@ -12,6 +13,8 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 let currentDocument: QuarterDocument | null = null;
 let currentDemo = false;
 let notice = '';
+let hmrcIntegrationConfigured = false;
+const attemptedReceiptMigrations = new Set<string>();
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]!);
@@ -40,13 +43,13 @@ function homePage(): string {
         <h1 tabindex="-1">Turn records into a checked quarterly update</h1>
         <p class="lede">For UK sole traders, tutors and landlords who need MTD records without a full accounting suite.</p>
         <div class="hero-action"><a class="primary-button" href="/demo" data-link>Try it with sample data</a><span>Opens a private sample quarter. No account needed.</span></div>
-        <ul class="plain-facts"><li><span class="lamp teal"></span>Demo changes never enter your records.</li><li><span class="lamp orange"></span>Accountant pack downloads as a CSV.</li><li><span class="lamp brass"></span>Live links and submissions from £12 a month.</li></ul>
+        <ul class="plain-facts"><li><span class="lamp teal"></span>Demo changes never enter your records.</li><li><span class="lamp orange"></span>Accountant pack downloads as a CSV.</li><li><span class="lamp brass"></span>Read-only links from £12 a month.</li></ul>
       </div>
       <figure class="hero-art"><picture><source media="(max-width: 720px)" srcset="/assets/instrument-panel-720.webp"><img src="/assets/instrument-panel.webp" width="1200" height="800" fetchpriority="high" alt="A four-part quarterly dial on a paper bookkeeping machine."></picture><figcaption>One quarter. Four checks. A clear handoff.</figcaption></figure>
     </section>
     <section class="preview-section" aria-labelledby="preview-title"><div class="section-label"><span>LIVE READOUT</span><h2 id="preview-title">See what still needs attention</h2></div>${previewPanel()}</section>
-    <section class="how-section" aria-labelledby="how-title"><div class="section-label"><span>OPERATING SEQUENCE</span><h2 id="how-title">How it works</h2></div><ol class="steps"><li><b>1</b><div><h3>Add records</h3><p>Enter a payment, attach a receipt, or import a bank CSV.</p></div></li><li><b>2</b><div><h3>Review the quarter</h3><p>Resolve each check and confirm the figures yourself.</p></div></li><li><b>3</b><div><h3>Submit or hand over</h3><p>Send through the approved integration or share a CSV.</p></div></li></ol></section>
-    <section class="limits-section" aria-labelledby="limits-title"><div><p class="eyebrow">CLEAR LIMITS</p><h2 id="limits-title">Records and checks, not tax advice</h2><p>Quarterly Ready does not run payroll or decide what you can claim.</p><p>You review every figure before an approved integration sends a compatible quarterly update.</p></div><div class="privacy-plate"><span class="plate-title">DATA POSITION</span><p>Real records use encrypted server storage. Demo data stays in a separate browser key.</p><a href="/privacy" data-link>Read the privacy notice</a></div></section>
+    <section class="how-section" aria-labelledby="how-title"><div class="section-label"><span>OPERATING SEQUENCE</span><h2 id="how-title">How it works</h2></div><ol class="steps"><li><b>1</b><div><h3>Add records</h3><p>Enter a payment, attach a receipt, or import a bank CSV.</p></div></li><li><b>2</b><div><h3>Review the quarter</h3><p>Resolve each check and confirm the figures yourself.</p></div></li><li><b>3</b><div><h3>Prepare the handoff</h3><p>Download a reviewed HMRC handoff or share a CSV.</p></div></li></ol></section>
+    <section class="limits-section" aria-labelledby="limits-title"><div><p class="eyebrow">CLEAR LIMITS</p><h2 id="limits-title">Records and checks, not tax advice</h2><p>Quarterly Ready does not run payroll or decide what you can claim.</p><p>You review every figure before exporting a compatible quarterly handoff.</p></div><div class="privacy-plate"><span class="plate-title">DATA POSITION</span><p>Real records use encrypted server storage. Receipt files stay in this browser.</p><a href="/privacy" data-link>Read the privacy notice</a></div></section>
     ${pricingSection()}
   </main>`);
 }
@@ -56,7 +59,7 @@ function previewPanel(): string {
 }
 
 function pricingSection(): string {
-  return `<section class="pricing-section" aria-labelledby="price-title"><div><p class="eyebrow">LIVE SERVICE</p><h2 id="price-title">Submit and share from £12 a month</h2><p>A subscription adds verified accountant links and approved-integration submissions.</p><p>The free version keeps your quarter and every download.</p></div><div class="price-control"><strong><span>£</span>12</strong><span>per month · or £99 per year</span><button class="primary-button" type="button" data-checkout="monthly">Choose monthly</button><button class="text-button" type="button" data-checkout="annual">Choose annual · £99</button><p id="checkout-result" class="form-message" aria-live="polite"></p><button class="text-button" id="show-license">Have a subscription? Paste it</button><form id="license-form" class="license-form" hidden><label for="license-token">Subscription token</label><div><input id="license-token" name="license" autocomplete="off" required><button type="submit">Verify subscription</button></div></form><p id="license-result" class="form-message" aria-live="polite"></p><small>Sociobot is the merchant of record. Refunds are handled there.</small></div></section>`;
+  return `<section class="pricing-section" aria-labelledby="price-title"><div><p class="eyebrow">LIVE SERVICE</p><h2 id="price-title">Share with an accountant from £12 a month</h2><p>A subscription adds verified, read-only accountant links.</p><p>The free version keeps your quarter and every download.</p></div><div class="price-control"><strong><span>£</span>12</strong><span>per month · or £99 per year</span><button class="primary-button" type="button" data-checkout="monthly">Choose monthly</button><button class="text-button" type="button" data-checkout="annual">Choose annual · £99</button><p id="checkout-result" class="form-message" aria-live="polite"></p><button class="text-button" id="show-license">Have a subscription? Paste it</button><form id="license-form" class="license-form" hidden><label for="license-token">Subscription token</label><div><input id="license-token" name="license" autocomplete="off" required><button type="submit">Verify subscription</button></div></form><p id="license-result" class="form-message" aria-live="polite"></p><small>Sociobot is the merchant of record. Refunds are handled there.</small></div></section>`;
 }
 
 function recordsPage(demo: boolean): string {
@@ -82,9 +85,9 @@ function recordsPage(demo: boolean): string {
       ${transactionTable(doc.transactions)}
     </section>
     <section class="review-section" aria-labelledby="review-title"><div class="section-label"><span>HUMAN REVIEW</span><h2 id="review-title">Quarter checklist</h2></div><ol class="checklist">${checklist(doc).map((item, index) => `<li class="${item.done ? 'done' : ''}"><span>${item.done ? '✓' : index + 1}</span><div><strong>${item.title}</strong><small>${item.detail}</small></div>${item.control || ''}</li>`).join('')}</ol><div class="ready-control"><button id="mark-ready" ${completion < 4 ? 'disabled' : ''}>Mark quarter ready</button><p>${doc.markedReady ? '<strong>Quarter marked ready.</strong> You can now confirm and submit the figures yourself.' : 'Complete all four checks before marking the quarter ready.'}</p></div></section>
-    <section class="handoff-section" aria-labelledby="handoff-title"><div><p class="eyebrow">OUTPUT BAY</p><h2 id="handoff-title">Submit or prepare a pack</h2><p>Downloads stay available in the free version.</p></div><div class="output-controls"><button id="download-pack">Download accountant CSV</button><button id="share-pack" ${!demo && !isLicensed() ? 'aria-describedby="share-note"' : ''}>Make accountant link</button><button id="download-hmrc" ${sum.unresolved || !doc.figuresReviewed ? 'disabled' : ''}>Download HMRC handoff</button><button id="submit-hmrc" ${demo || !doc.markedReady || sum.unresolved || sum.missingReceipts || !doc.figuresReviewed ? 'disabled' : ''}>Review and submit to HMRC</button><p id="share-note">${demo ? 'Demo data cannot be submitted or made into a live link.' : !isLicensed() ? 'Live links and submissions need an active Sociobot subscription. The CSV remains free.' : 'Accountant links expire after 30 days. Submission needs a final review.'}</p><p id="output-result" class="form-message" aria-live="polite"></p></div></section>
-    <aside class="submission-note"><strong>Approved-integration submission</strong><p>Before anything is sent, you review the totals again and confirm the submission. The server verifies your active Sociobot subscription and sends only through the configured approved integration.</p></aside>
-    <dialog id="submission-dialog" aria-labelledby="submission-title"><form method="dialog"><h2 id="submission-title">Confirm this HMRC submission</h2><p>You are about to send this reviewed quarterly update through the approved integration.</p><p>Income: ${pounds(sum.incomePence)}. Costs: ${pounds(sum.expensePence)}. Net: ${pounds(sum.netPence)}.</p><label class="switch-label"><input id="submission-review-confirmed" type="checkbox">I reviewed these totals and want to submit this quarter.</label><p id="submission-error" class="form-message" aria-live="polite"></p><div class="form-actions"><button type="button" id="cancel-submission" class="text-button">Cancel</button><button type="submit" id="confirm-submission" disabled>Submit through approved integration</button></div></form></dialog>
+    <section class="handoff-section" aria-labelledby="handoff-title"><div><p class="eyebrow">OUTPUT BAY</p><h2 id="handoff-title">Prepare a quarter pack</h2><p>Downloads stay available in the free version.</p></div><div class="output-controls"><button id="download-pack">Download accountant CSV</button><button id="share-pack" ${!demo && !isLicensed() ? 'aria-describedby="share-note"' : ''}>Make accountant link</button><button id="download-hmrc" ${sum.unresolved || !doc.figuresReviewed ? 'disabled' : ''}>Download HMRC handoff</button>${hmrcIntegrationConfigured ? `<button id="submit-hmrc" ${demo || !doc.markedReady || sum.unresolved || sum.missingReceipts || !doc.figuresReviewed ? 'disabled' : ''}>Review and submit to HMRC</button>` : ''}<p id="share-note">${demo ? 'Demo data cannot become a live accountant link or submission.' : !isLicensed() ? 'A live accountant link needs an active Sociobot subscription. The CSV and handoff remain free.' : 'Accountant links expire after 30 days.'}</p><p id="output-result" class="form-message" aria-live="polite"></p></div></section>
+    ${hmrcIntegrationConfigured ? `<aside class="submission-note"><strong>Approved-integration submission</strong><p>Before anything is sent, you review the totals again and confirm the submission. The server verifies your active Sociobot subscription and sends only through the configured approved integration.</p></aside>
+    <dialog id="submission-dialog" aria-labelledby="submission-title"><form method="dialog"><h2 id="submission-title">Confirm this HMRC submission</h2><p>You are about to send this reviewed quarterly update through the approved integration.</p><p>Income: ${pounds(sum.incomePence)}. Costs: ${pounds(sum.expensePence)}. Net: ${pounds(sum.netPence)}.</p><label class="switch-label"><input id="submission-review-confirmed" type="checkbox">I reviewed these totals and want to submit this quarter.</label><p id="submission-error" class="form-message" aria-live="polite"></p><div class="form-actions"><button type="button" id="cancel-submission" class="text-button">Cancel</button><button type="submit" id="confirm-submission" disabled>Submit through approved integration</button></div></form></dialog>` : `<aside class="submission-note"><strong>HMRC handoff</strong><p>No approved direct-submission integration is configured. Download the reviewed handoff and use it with recognised software. Quarterly Ready will not pretend a submission was made.</p></aside>`}
   </main>`, demo);
 }
 
@@ -108,11 +111,11 @@ function checklist(doc: QuarterDocument): { title: string; detail: string; done:
 }
 
 function privacyPage(): string {
-  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 28 AUGUST 2026</p><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>We store your transaction document under a random browser workspace ID. The server encrypts that document before writing it to SQLite.</p><p>Receipt file contents stay in the document when you attach them. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in a separate browser storage key. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>When you choose Submit, the server sends the reviewed periodic update and subscription token only to Sociobot and the configured approved HMRC integration.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete your browser data to remove its local copy. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to request deletion of server records.</p></main>`);
+  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>We store your transaction document under a random browser workspace ID. The server encrypts that document before writing it to SQLite.</p><p>Receipt files use this browser's IndexedDB storage and are not copied into localStorage or the server record. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in separate browser storage. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>A direct submission control appears only when the server confirms an approved integration is configured. Without one, the product only downloads a handoff.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete this site's browser data to remove local records and receipts. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to request deletion of server records.</p></main>`);
 }
 
 function termsPage(): string {
-  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 28 AUGUST 2026</p><h1 tabindex="-1">Terms for using Quarterly Ready</h1><p class="lede">These terms cover the records tool and the £12 monthly or £99 annual subscription.</p><h2>Use of the service</h2><p>You may use Quarterly Ready for lawful UK business records. Keep your own backups of important exports.</p><h2>No tax advice</h2><p>The tool organises figures but does not decide tax treatment. You remain responsible for checking records and meeting deadlines.</p><h2>HMRC submission</h2><p>You must review each total and explicitly confirm before the configured approved integration submits a periodic update. A submission reference means the integration accepted the request, not that HMRC accepted your tax position.</p><h2>Subscription</h2><p>The £12 monthly or £99 annual subscription enables live accountant links and approved-integration submissions. Sociobot is the merchant of record and handles refunds.</p><h2>Availability</h2><p>We aim to keep the service available but cannot promise uninterrupted access. The free CSV export helps you keep a portable copy.</p><h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> with service or subscription questions.</p></main>`);
+  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Terms for using Quarterly Ready</h1><p class="lede">These terms cover the records tool and the £12 monthly or £99 annual subscription.</p><h2>Use of the service</h2><p>You may use Quarterly Ready for lawful UK business records. Keep your own backups of important exports.</p><h2>No tax advice</h2><p>The tool organises figures but does not decide tax treatment. You remain responsible for checking records and meeting deadlines.</p><h2>HMRC handoff and submission</h2><p>The handoff is for recognised software. Direct submission is unavailable unless the product shows a configured approved-integration control.</p><h2>Subscription</h2><p>The £12 monthly or £99 annual subscription enables live accountant links. Sociobot is the merchant of record and handles refunds.</p><h2>Availability</h2><p>We aim to keep the service available but cannot promise uninterrupted access. The free CSV export helps you keep a portable copy.</p><h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> with service or subscription questions.</p></main>`);
 }
 
 function sharePage(token: string): string {
@@ -190,6 +193,16 @@ async function startCheckout(plan: 'monthly' | 'annual'): Promise<void> {
 }
 
 function bindRecords(): void {
+  const migrationKey = `${currentDemo ? 'demo' : 'real'}:${currentDocument!.quarterStart}`;
+  if (!attemptedReceiptMigrations.has(migrationKey)) {
+    attemptedReceiptMigrations.add(migrationKey);
+    void migrateLegacyReceipts(currentDocument!, currentDemo).then(migrated => {
+      if (migrated) saveDocument(currentDocument!, currentDemo);
+    }).catch(error => {
+      notice = error instanceof Error ? error.message : 'An older receipt could not be moved into browser storage.';
+      rerenderRecords();
+    });
+  }
   document.querySelector<HTMLSelectElement>('#quarter-select')?.addEventListener('change', event => {
     currentDocument = selectQuarter((event.target as HTMLSelectElement).value);
     notice = `Opened ${currentDocument.quarterLabel}.`;
@@ -216,13 +229,21 @@ function bindRecords(): void {
   }));
   document.querySelectorAll<HTMLButtonElement>('[data-delete]').forEach(button => button.addEventListener('click', () => {
     const row = button.closest<HTMLTableRowElement>('tr')!; const transaction = currentDocument!.transactions.find(t => t.id === row.dataset.id)!;
-    if (confirm(`Delete “${transaction.description}”? This cannot be undone.`)) { currentDocument!.transactions = currentDocument!.transactions.filter(t => t.id !== transaction.id); saveAndRender('Transaction deleted.'); }
+    if (confirm(`Delete “${transaction.description}”? This cannot be undone.`)) { void deleteReceipt(currentDocument!, currentDemo, transaction.id); currentDocument!.transactions = currentDocument!.transactions.filter(t => t.id !== transaction.id); saveAndRender('Transaction deleted.'); }
   }));
   document.querySelectorAll<HTMLInputElement>('[data-receipt]').forEach(input => input.addEventListener('change', async () => {
     const file = input.files?.[0]; if (!file) return;
     if (file.size > 1_500_000) { notice = 'The receipt is larger than 1.5 MB. Choose a smaller image or PDF.'; rerenderRecords(); return; }
     const row = input.closest<HTMLTableRowElement>('tr')!; const transaction = currentDocument!.transactions.find(t => t.id === row.dataset.id)!;
-    transaction.receiptName = file.name; transaction.receiptData = await fileToDataUrl(file); saveAndRender('Receipt attached.');
+    try {
+      await saveReceipt(file, file.name, currentDocument!, currentDemo, transaction.id);
+      transaction.receiptName = file.name;
+      delete transaction.receiptData;
+      saveAndRender('Receipt attached.');
+    } catch (error) {
+      notice = error instanceof Error ? error.message : 'The receipt could not be saved. The transaction was not changed.';
+      rerenderRecords();
+    }
   }));
   document.querySelector<HTMLInputElement>('#figures-reviewed')?.addEventListener('change', event => { currentDocument!.figuresReviewed = (event.target as HTMLInputElement).checked; saveAndRender('Review choice saved.'); });
   document.querySelector('#download-pack')?.addEventListener('click', downloadPack);
@@ -242,13 +263,20 @@ async function addTransaction(event: Event): Promise<void> {
   const message = form.querySelector<HTMLParagraphElement>('#add-error')!;
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) { message.textContent = 'The amount must be between £0.01 and £1,000,000.'; return; }
   if (file?.size > 1_500_000) { message.textContent = 'The receipt is larger than 1.5 MB. Choose a smaller image or PDF.'; return; }
-  let receiptData = '';
-  if (file?.size) receiptData = await fileToDataUrl(file);
-  const transaction: Omit<Transaction, 'id'> = { date: String(data.get('date')), description: String(data.get('description')).trim(), amountPence: Math.round(amount * 100), kind: data.get('kind') as Transaction['kind'], category: data.get('category') as Category, receiptName: file?.size ? file.name : undefined, receiptData: receiptData || undefined };
+  const transaction: Transaction = { id: crypto.randomUUID(), date: String(data.get('date')), description: String(data.get('description')).trim(), amountPence: Math.round(amount * 100), kind: data.get('kind') as Transaction['kind'], category: data.get('category') as Category, receiptName: file?.size ? file.name : undefined };
   try { validateTransaction(transaction, currentDocument!.quarterStart, currentDocument!.quarterEnd); }
   catch (error) { message.textContent = error instanceof Error ? error.message : 'The transaction is not valid.'; return; }
-  currentDocument!.transactions.push({ ...transaction, id: crypto.randomUUID() });
-  saveAndRender('Transaction added.');
+  try {
+    if (file?.size) await saveReceipt(file, file.name, currentDocument!, currentDemo, transaction.id);
+    currentDocument!.transactions.push(transaction);
+    saveDocument(currentDocument!, currentDemo);
+    notice = 'Transaction added.';
+    rerenderRecords();
+  } catch (error) {
+    if (file?.size) await deleteReceipt(currentDocument!, currentDemo, transaction.id).catch(() => undefined);
+    currentDocument!.transactions = currentDocument!.transactions.filter(item => item.id !== transaction.id);
+    message.textContent = error instanceof Error ? error.message : 'The transaction could not be saved. Check browser storage and try again.';
+  }
 }
 
 async function importCsv(event: Event): Promise<void> {
@@ -305,7 +333,11 @@ async function submitHmrc(event: Event): Promise<void> {
   }
 }
 
-function saveAndRender(message: string): void { saveDocument(currentDocument!, currentDemo); notice = message; rerenderRecords(); }
+function saveAndRender(message: string): void {
+  try { saveDocument(currentDocument!, currentDemo); notice = message; }
+  catch (error) { notice = error instanceof Error ? error.message : 'The change could not be saved. Check browser storage and try again.'; }
+  rerenderRecords();
+}
 function rerenderRecords(): void { setPage(currentDemo ? 'Demo — Quarterly Ready' : 'Records — Quarterly Ready', recordsPage(currentDemo)); bindRecords(); bindLinks(); }
 
 async function refreshRemote(): Promise<void> {
@@ -328,7 +360,6 @@ function downloadBlob(name: string, contents: string, type: string): void {
   link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function fileToDataUrl(file: File): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('The receipt could not be read. Choose it again.')); reader.readAsDataURL(file); }); }
 function formatDate(value: string): string { return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00Z`)); }
 
 const LICENSE_KEY = `sb_license:${SLUG}`;
@@ -365,4 +396,10 @@ addEventListener('save-error', () => { if (!currentDemo) { notice = 'The server 
 
 handleLicenseReturn();
 route();
+void fetch('/health').then(response => response.ok ? response.json() : null).then((health: { hmrc_integration_configured?: boolean } | null) => {
+  if (health?.hmrc_integration_configured && !hmrcIntegrationConfigured) {
+    hmrcIntegrationConfigured = true;
+    if (location.pathname === '/records' || location.pathname === '/demo') route();
+  }
+}).catch(() => undefined);
 if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => void navigator.serviceWorker.register('/sw.js'));

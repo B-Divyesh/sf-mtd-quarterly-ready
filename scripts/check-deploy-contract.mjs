@@ -8,6 +8,7 @@ const required = [
   '"mountPath": "/data"',
   '"storageType": "AzureFile"',
   '"minReplicas": 1, "maxReplicas": 1',
+  '"activeRevisionsMode": "Single"',
   '"bindingType": "SniEnabled"',
   'BUILD_SHA=${SOURCE_SHA}',
   'az containerapp revision deactivate',
@@ -16,6 +17,11 @@ const required = [
   '/api/qa/entitlement',
   '"charges":false',
   '"files_with_hmrc":false',
+  'scripts/verify-azure-topology.sh',
+  'prove persistence across a replica restart',
+  'prove persistence across a revision replacement',
+  'mtd-quarterly-ready-hmrc-integration-url',
+  'mtd-quarterly-ready-hmrc-integration-token',
 ];
 
 for (const text of required) {

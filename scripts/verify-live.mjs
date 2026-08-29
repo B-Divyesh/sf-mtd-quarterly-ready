@@ -16,6 +16,7 @@ assert(healthResponse.status === 200, `/health returned ${healthResponse.status}
 const health = await healthResponse.json();
 assert(health.status === 'ok', '/health did not report ok');
 assert(health.safe_qa_fixtures === true, '/health reports SAFE_QA_FIXTURES is not enabled');
+assert(typeof health.hmrc_integration_configured === 'boolean', '/health omitted the HMRC integration capability');
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }
@@ -103,4 +104,4 @@ async function assertLimit(kind, allowance, clientIp) {
 await assertLimit('read', 40, '203.0.113.242');
 await assertLimit('write', 12, '203.0.113.243');
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, status: 'ok' }));

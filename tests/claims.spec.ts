@@ -83,14 +83,108 @@ test('@claim:free-quarter-persistence @regression:current-and-future-quarters re
   expect(keys).toContain(`quarterly-ready:document:${nextStart}`);
 });
 
-test('@claim:receipt-capture attaches a receipt to an existing expense', async ({ page }) => {
+test('@regression:receipt-small attaches a receipt to an existing expense', async ({ page }) => {
   await page.goto('/demo');
   const row = page.locator('tr', { hasText: 'Whiteboard markers' });
   await row.locator('[data-receipt]').setInputFiles({ name: 'markers-receipt.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 sample receipt') });
   await expect(page.getByText('Receipt attached.')).toBeVisible();
   await expect(page.locator('tr', { hasText: 'Whiteboard markers' }).getByText('Receipt · markers-receipt.pdf')).toBeVisible();
   const stored = await page.evaluate(() => localStorage.getItem('demo:quarterly-ready:document'));
-  expect(stored).toContain('data:application/pdf;base64');
+  expect(stored).not.toContain('data:application/pdf;base64');
+  const receiptCount = await page.evaluate(async () => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open('quarterly-ready-receipts-v1');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const count = open.result.transaction('receipts').objectStore('receipts').count();
+      count.onerror = () => reject(count.error);
+      count.onsuccess = () => resolve(count.result);
+    };
+  }));
+  expect(receiptCount).toBe(1);
+});
+
+test('@claim:receipt-capture @regression:receipt-quota stores three valid near-limit receipts outside localStorage', async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await page.goto('/demo');
+  await page.evaluate(() => {
+    const original = JSON.parse(localStorage.getItem('demo:quarterly-ready:document') || '{}');
+    original.transactions = [1, 2, 3].map(index => ({
+      id: `quota-expense-${index}`,
+      date: '2026-04-10',
+      description: `Near-limit receipt ${index}`,
+      amountPence: 1000,
+      kind: 'expense',
+      category: 'Office costs',
+    }));
+    localStorage.setItem('demo:quarterly-ready:document', JSON.stringify(original));
+  });
+  await page.reload();
+  const receipt = Buffer.alloc(1_400_000, 0x25);
+  for (let index = 1; index <= 3; index += 1) {
+    await page.locator('tr', { hasText: `Near-limit receipt ${index}` }).locator('[data-receipt]').setInputFiles({
+      name: `near-limit-${index}.pdf`, mimeType: 'application/pdf', buffer: receipt,
+    });
+    await expect(page.locator('tr', { hasText: `Near-limit receipt ${index}` }).getByText(`Receipt · near-limit-${index}.pdf`)).toBeVisible();
+  }
+  const stored = await page.evaluate(() => localStorage.getItem('demo:quarterly-ready:document') || '');
+  expect(stored).not.toContain('data:application/pdf;base64');
+  const receiptSizes = await page.evaluate(async () => new Promise<number[]>((resolve, reject) => {
+    const open = indexedDB.open('quarterly-ready-receipts-v1');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const records = open.result.transaction('receipts').objectStore('receipts').getAll();
+      records.onerror = () => reject(records.error);
+      records.onsuccess = () => resolve(records.result.map(record => record.size));
+    };
+  }));
+  expect(receiptSizes).toEqual([1_400_000, 1_400_000, 1_400_000]);
+  expect(browserErrors).toEqual([]);
+});
+
+test('@regression:receipt-quota-error keeps the transaction unchanged and announces recovery', async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await page.addInitScript(() => {
+    const originalPut = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
+      if (this.name === 'receipts') throw new DOMException('Synthetic storage boundary', 'QuotaExceededError');
+      return originalPut.apply(this, args);
+    };
+  });
+  await page.goto('/demo');
+  const row = page.locator('tr', { hasText: 'Whiteboard markers' });
+  await row.locator('[data-receipt]').setInputFiles({
+    name: 'quota-boundary.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 quota boundary'),
+  });
+  await expect(page.getByText(/browser does not have enough space/)).toBeVisible();
+  await expect(page.locator('tr', { hasText: 'Whiteboard markers' }).locator('[data-receipt]')).toBeVisible();
+  await expect(page.getByText('Receipt · quota-boundary.pdf')).toHaveCount(0);
+  expect(browserErrors).toEqual([]);
+});
+
+test('@regression:legacy-receipt-data migrates from localStorage to IndexedDB', async ({ page }) => {
+  await page.goto('/demo');
+  await page.evaluate(() => {
+    const document = JSON.parse(localStorage.getItem('demo:quarterly-ready:document') || '{}');
+    document.transactions[0].receiptName = 'older-receipt.pdf';
+    document.transactions[0].receiptData = 'data:application/pdf;base64,JVBERi0xLjQ=';
+    localStorage.setItem('demo:quarterly-ready:document', JSON.stringify(document));
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('demo:quarterly-ready:document') || ''))
+    .not.toContain('receiptData');
+  const names = await page.evaluate(async () => new Promise<string[]>((resolve, reject) => {
+    const open = indexedDB.open('quarterly-ready-receipts-v1');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const records = open.result.transaction('receipts').objectStore('receipts').getAll();
+      records.onerror = () => reject(records.error);
+      records.onsuccess = () => resolve(records.result.map(record => record.name));
+    };
+  }));
+  expect(names).toContain('older-receipt.pdf');
 });
 
 test('@claim:hmrc-handoff creates reviewed period totals for recognised software', async ({ page }) => {

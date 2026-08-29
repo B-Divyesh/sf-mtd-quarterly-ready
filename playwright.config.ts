@@ -29,6 +29,8 @@ export default defineConfig({
       DATA_DIR: path.join(tmpdir(), 'quarterly-ready-test'),
       FRONTEND_DIR: path.join(repositoryRoot, 'dist'),
       SAFE_QA_FIXTURES: '1',
+      HMRC_INTEGRATION_URL: 'https://approved-integration.test/mtd/periodic-update',
+      HMRC_INTEGRATION_TOKEN: 'playwright-test-token',
     },
     url: 'http://127.0.0.1:4173/health',
     reuseExistingServer: true,
