@@ -1,80 +1,116 @@
-# Quarterly Ready — verification 15 handoff
+# Quarterly Ready — repair 15 handoff
 
-## Independent release status: **FAIL**
+## Deployment and release status
 
-Independent QA on 2026-08-29 found that the live backend at
-<https://mtd-quarterly-ready.sociobot.in> does not retain acknowledged real
-workspace saves across an immediate read, and its client rate limit is split
-across three instances (36 writes / 120 reads accepted instead of 12 / 40).
-The requested candidate SHA `77e46dc1b7467b70f9cecd0ca2789eb221963185` is not
-present in the repository and is not deployed; `/health` reports
-`77e46d4de4f96d28753dbf017a7d7067df737e0f`. Production also reports no
-approved HMRC integration, so it is not the complete end-to-end product in the
-researched brief. See [verification-15.md](verification-15.md) for exact
-commands, pass evidence, and defects.
+**Deployed repair:** <https://mtd-quarterly-ready.sociobot.in>
+**Source / live build SHA:** `958d708d0022894d2c231f1a09eea1799f2f30ed`
+**ACR build:** `ch160` — succeeded 2026-08-29 18:44 UTC
+**Container Apps revision:** `sf-mtd-quarterly-ready--0000048` — Healthy
 
-Do not release until the deployment is restored to a single durable state
-owner (or equivalent shared persistence/rate limiting), the intended SHA is
-deployed, and an approved HMRC integration passes the release gate.
+The deployed configuration now has one active revision, exactly one running
+replica (`minReplicas: 1`, `maxReplicas: 1`), and a read/write Azure Files
+mount at `/data`. The server keeps SQLite on its local filesystem and persists
+an encrypted snapshot plus its encryption key to that durable mount after each
+serialized mutation. The deployer stops the predecessor before starting a
+successor, so two SQLite writers cannot overlap.
 
----
+This is a truthful **handoff-only** deployment. It fixes the verifier's live
+data-loss, split-rate-limit, deployment-identity, and missing URL-check
+findings. It is not a filing release: an approved HMRC provider integration is
+not configured, so direct submission is hidden and the app offers the reviewed
+HMRC handoff instead.
 
-## Deployment status
+## Repairs completed
 
-The repair is deployed to <https://mtd-quarterly-ready.sociobot.in>.
-
-- Source/runtime build: `9a7bff37887634764a61909c88611381b7109b3b`
-- Image: `sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:9a7bff378876`
-- Azure Container Apps revision: `sf-mtd-quarterly-ready--0000045`
-- ACR build: `ch151`, succeeded at `2026-08-29T17:03:39Z`
-- Deployment mode: explicit `handoff-only`; `/health` reports `safe_qa_fixtures: true`, `hmrc_integration_configured: false`, and `hmrc_integration_mode: "not_configured"`.
-
-This is an honest handoff-only deployment, not an approved live HMRC-filing release. The non-filing placeholder integration was removed from deployment, copy, and release verification.
-
-## Repairs made
-
-1. **HMRC capability and copy.** The release script now defaults to fail-closed `approved` mode and requires only Key Vault references named `mtd-quarterly-ready-approved-hmrc-url` and `mtd-quarterly-ready-approved-hmrc-token`; it never reads or logs them. The explicit `handoff-only` mode has no integration binding. README, privacy, terms, and the in-product output state now say that direct submission appears only with an approved integration and otherwise offer the reviewed handoff. The stale fake sandbox provisioner was removed. Regression: `@regression:hmrc-copy`, `@regression:hmrc-capability`, and `@claim:conditional-submission`.
-2. **Durable, single-process state.** SQLite remains on the container-local filesystem (Azure Files cannot safely host SQLite locks). Every serialized mutation copies a durable snapshot and encryption key to mounted `/data`. Production uses Azure Files `mtd-quarterly-ready-data-v3`, one minimum/maximum replica, and `activeRevisionsMode: Single`. The deployer explicitly waits for the old revision to have zero running replicas before any image or durability-probe replacement, preventing two local SQLite databases from writing the same snapshot. Regression: `workspace_snapshot_is_restored_after_a_restart`, `durable_snapshot_restores_key_records_links_audit_and_page_count`, deployment-contract assertion for the stop-before-start replacement, and the deployed restart/revision durability probes.
-3. **Rate limiting.** The live deployment is one process and keys production clients from the first `X-Forwarded-For` hop. It enforces exactly 40 read requests or 12 write requests, then returns `429` and `Retry-After: 1`. A UUID browser-session fallback prevents local direct-origin page-view tests from sharing one `direct` bucket; that fallback test is intentionally skipped only through a public ingress, where `X-Forwarded-For` is correctly authoritative. Regression: `@regression:shared-read-limit`, `@regression:shared-write-limit`, and `@regression:anonymous-page-view-fallback`.
-4. **Paid claim navigation race.** The paid-tier claim now uses fresh pages after checkout navigation instead of using a document being replaced by a cross-origin checkout. Regression: `@regression:paid-tier-checkout-navigation`; the exact paid-tier claim passed 20 consecutive local repetitions.
+1. **Durable real records and one authoritative limiter.** Applied the
+   committed Azure Files `/data` mount and `Single`, 1/1-replica topology to
+   the live Container App. The live verifier now proves a saved workspace is
+   returned immediately, and the public ingress enforces exactly 40 API reads
+   or 12 writes per client per second before `429` with `Retry-After: 1`.
+2. **Deployable identity.** Pushed and deployed the exact repair commit. The
+   ACR build receives the full commit through `BUILD_SHA`; `/health` returns
+   that same full SHA. The non-resolvable requested SHA from verification 15
+   is superseded by this pushed, verifiable commit.
+3. **Receipt-storage regression retained.** The existing IndexedDB receipt
+   implementation and `@claim:receipt-capture` regression pass with three
+   1.4 MB PDFs. Receipt bytes remain out of localStorage and server documents;
+   quota errors preserve the form and announce recovery.
+4. **Repeatable URL accessibility smoke check.** Added executable
+   `scripts/verify-url.sh` plus `scripts/verify-url.mjs`, exposed as
+   `npm run verify:url -- <url>`. It uses Chromium to assert a title, `lang`,
+   exactly one `<main>`, one `<h1>`, alt attributes for all images, and no
+   console/page errors. `@regression:verify-url-helper` executes it in the
+   Playwright suite.
+5. **Response-policy regression.** Added
+   `@regression:response-policy`, covering CSP frame protection and connect
+   policy, `nosniff`, referrer and permissions policies, and no-cache HTML/
+   service-worker responses.
 
 ## Verification evidence
 
-All commands ran on 2026-08-29 from this checkout after `npm ci` (60 packages, 0 vulnerabilities).
+All local commands were run after a clean `npm ci` (60 packages, 0 reported
+vulnerabilities) on 2026-08-29.
 
 | Check | Result |
 | --- | --- |
-| `npm test` | PASS — TypeScript, 11 Vitest tests, 16 Rust tests, deployment contract, production Vite build, and 47 local Playwright tests. |
+| `npm test` | PASS — typecheck, 11 Vitest tests, 16 Rust tests, deploy-contract check, production build, and 49 Playwright tests. |
 | `cargo fmt -- --check` | PASS |
 | `cargo clippy --all-targets -- -D warnings` | PASS |
-| `BUILD_SHA=9a7bff… cargo build --release` | PASS |
-| `npx playwright test tests/claims.spec.ts --grep '@claim:paid-tier' --repeat-each=20` | PASS — 20/20. |
-| ACR container build `ch151` | PASS — production multi-stage image built from the committed source. |
-| `npm run verify:topology` | PASS — `Single`, min/max `1/1`, exactly one running replica, read/write Azure Files `/data`. |
-| `EXPECTED_BUILD_SHA=9a7bff… VERIFY_AZURE_TOPOLOGY=1 node scripts/verify-live.mjs` | PASS — live build identity, durable workspace, 40/12 limits, non-charging/non-filing fixture, topology. |
-| Live Playwright (`VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in`) | PASS — 46 passed, 1 documented ingress-only skip. Covers desktop, 390 px mobile, keyboard, Axe serious/critical, privacy requests/cookies, response policy, offline demo reload, service-worker update, billing navigation, records, and rate limits. |
-| Lighthouse mobile, live URL | PASS — performance 100, accessibility 100, best practices 100, SEO 100; LCP 1.4 s, TBT 30 ms, CLS 0, 92 KiB transfer. |
-| `EXPECTED_BUILD_SHA=9a7bff… npm run verify:release` | EXPECTED FAIL — `production has no approved HMRC integration configured`; the required fail-closed release gate works. |
+| `BUILD_SHA=local-repair cargo build --release` | PASS |
+| `npx playwright test --grep '@claim:'` | PASS — 13 browser claim tests covering all browser claim IDs. |
+| Each declared Rust claim command | PASS — approved-integration payload/human review, 30-day links, encrypted storage, hash chain, anonymous page count, and non-filing sandbox. |
+| Production Vite build | PASS — JS 46.24 kB / 14.99 kB gzip; CSS 21.71 kB / 5.33 kB gzip. |
+| ACR production container build | PASS — `ch160`, including the committed multi-stage Dockerfile. |
+| `npm run verify:topology` | PASS — `Single`, 1/1 replicas, one running replica, Azure Files mounted at `/data`. |
+| `EXPECTED_BUILD_SHA=958d708… VERIFY_AZURE_TOPOLOGY=1 npm run verify:live` | PASS — exact identity, workspace save/read, malformed-input rejection, checkout, safe non-charging/non-filing fixture, 40/12 rate limits, and topology. |
+| `npm run verify:url -- https://mtd-quarterly-ready.sociobot.in` and `/demo` | PASS — title, language, one main/H1, alt text, no browser errors. |
+| Live Playwright | PASS — 48 passed, 1 documented ingress-only skip. Covers desktop, 390px mobile, keyboard, Axe serious/critical, privacy/cookies/requests, offline reload and service-worker update, response policies, records, receipt quota/recovery, and rate limits. |
+| Live Lighthouse mobile | PASS — 100 performance, 100 accessibility, 100 best practices, 100 SEO; LCP 1,353 ms, TBT 3 ms, CLS 0, 94,171 bytes transferred. Evidence: `.factory/repair-15-evidence/lighthouse.json`. |
 
-The first full local browser run during an ACR compile had one Chromium `SIGSEGV` while creating a context. A complete rerun after the build was idle passed all 47 tests; the later live run passed all applicable checks.
+The mobile evidence in `.factory/repair-15-evidence/live-demo-mobile-390.png`
+and desktop evidence in `.factory/repair-15-evidence/live-cold-desktop.png`
+are captured from the deployed build.
 
-## Remaining external prerequisite
+## Known external prerequisite — still release-blocking for filing
 
-No authorised HMRC/provider credentials or taxpayer authority were available in this work order. Existing Key Vault entries explicitly described a non-filing sandbox, so using them to claim a submission would have been false and unsafe. A live filing release still requires the product owner to provision the approved provider URL/token under the two Key Vault reference names above, confirm the provider's HMRC authority and taxpayer consent flow, deploy with `DEPLOYMENT_MODE=approved`, and pass `npm run verify:release` plus an authorised end-to-end filing check. Until then, the deployed product truthfully supports quarter checking, CSV/accountant exports, and a reviewed recognised-software handoff only.
+`EXPECTED_BUILD_SHA=958d708… npm run verify:release` correctly exits 1 with
+`production has no approved HMRC integration configured`. The required Key
+Vault references `mtd-quarterly-ready-approved-hmrc-url` and
+`mtd-quarterly-ready-approved-hmrc-token` do not exist. Two legacy secrets
+with different names were intentionally not used because they were previously
+identified as a non-filing sandbox; configuring them as a live provider would
+be false and unsafe.
 
-## Run and deploy
+To make the researched end-to-end HMRC submission capability releasable, the
+product owner must provision an approved MTD ITSA provider URL/token under
+those exact Key Vault names, confirm taxpayer authority/consent and a safe
+authorised acceptance path, then deploy in default `approved` mode and run
+`EXPECTED_BUILD_SHA=<deployed-sha> npm run verify:release`. Until then,
+Quarterly Ready is correctly limited to records, CSV/accountant exports, and a
+reviewed recognised-software handoff.
 
-```bash
+## Run, verify, and deploy
+
+```sh
 npm ci
 npm test
+cargo fmt -- --check
 cargo clippy --all-targets -- -D warnings
 BUILD_SHA=dev cargo build --release
 
-# Requires approved Key Vault references; otherwise exits before changing Azure.
+# Start locally in another terminal, then run the repeatable browser smoke check.
+PORT=8080 cargo run
+npm run verify:url -- http://127.0.0.1:8080/demo
+
+# Requires Azure access.
+npm run verify:topology
+EXPECTED_BUILD_SHA=<sha> VERIFY_AZURE_TOPOLOGY=1 npm run verify:live
+
+# Approved provider secrets are required; this is the normal filing release.
 bash scripts/deploy-container.sh
 
-# Explicit truthful fallback used for this repair deployment.
+# Explicit safe fallback when the approved provider is unavailable.
 DEPLOYMENT_MODE=handoff-only bash scripts/deploy-container.sh
 ```
 
-Pre-existing dirty `graphify-out/` files were left untouched.
+Pre-existing dirty `graphify-out/` files remain untouched.
