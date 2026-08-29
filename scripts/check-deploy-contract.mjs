@@ -47,8 +47,8 @@ for (const text of [
   if (!topologyVerifier.includes(text)) throw new Error(`Topology regression check is missing ${text}`);
 }
 
-if (!/^ENV .*DATA_DIR=\/data DATABASE_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile)) {
-  throw new Error('Container runtime defaults must include SAFE_QA_FIXTURES=1');
+if (!/^ENV .*DATA_DIR=\/data DATABASE_DIR=\/tmp\/quarterly-ready .*SAFE_QA_FIXTURES=1/m.test(dockerfile)) {
+  throw new Error('Container runtime must keep the live SQLite file local and its durable snapshot under /data.');
 }
 if (deployment.indexOf('missing approved HMRC integration secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
   throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');

@@ -74,7 +74,7 @@ docker run --rm -p 8080:8080 -v quarterly-ready-data:/data quarterly-ready
 
 The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA and the startup-resolved safe-fixture state used by release verification.
 
-Production uses one container replica with its SQLite database on the mounted Azure Files share. Keep one replica unless the service moves both records and rate limiting to shared infrastructure.
+Production uses one container replica. SQLite runs locally and writes its encrypted, fsynced snapshot to the mounted Azure Files share after each mutation. Keep one replica unless the service moves both records and rate limiting to shared infrastructure.
 
 ## Data and configuration
 

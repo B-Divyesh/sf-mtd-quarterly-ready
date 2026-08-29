@@ -79,6 +79,19 @@ echo "== container app (one replica, mounted /data)"
 READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.latestReadyRevisionName' -o tsv 2>/dev/null || true)"
 if [[ -n "${READY_REVISION}" ]]; then
   az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --only-show-errors -o none || true
+  STOPPED=0
+  for _ in $(seq 1 36); do
+    RUNNING="$(az containerapp replica list --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --query "length([?properties.runningState=='Running'])" -o tsv 2>/dev/null || echo 0)"
+    if [[ "${RUNNING}" == "0" ]]; then
+      STOPPED=1
+      break
+    fi
+    sleep 5
+  done
+  if [[ "${STOPPED}" != "1" ]]; then
+    echo "previous revision did not stop; refusing concurrent SQLite snapshot writers" >&2
+    exit 1
+  fi
 fi
 az rest --method patch --url "${APP_URL}" --headers "Content-Type=application/json" --body "$(cat <<JSON
 {

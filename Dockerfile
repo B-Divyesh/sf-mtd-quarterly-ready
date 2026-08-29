@@ -27,6 +27,6 @@ USER app
 # non-charging and non-filing fixture even if a platform template update drops
 # optional environment entries. The route remains restricted to its bundled
 # document and token; real licence and HMRC paths are unchanged.
-ENV PORT=8080 DATA_DIR=/data DATABASE_DIR=/data FRONTEND_DIR=/app/dist SAFE_QA_FIXTURES=1
+ENV PORT=8080 DATA_DIR=/data DATABASE_DIR=/tmp/quarterly-ready FRONTEND_DIR=/app/dist SAFE_QA_FIXTURES=1
 EXPOSE 8080
 CMD ["/app/quarterly-ready"]
