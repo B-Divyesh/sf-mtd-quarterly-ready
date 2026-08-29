@@ -1234,7 +1234,7 @@
       "file_type": "code",
       "norm_label": "packagejson",
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L5"
+      "source_location": "L6"
     },
     {
       "id": "scripts_check_deploy_contract_required",
@@ -1244,7 +1244,7 @@
       "file_type": "code",
       "norm_label": "required",
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L6"
+      "source_location": "L7"
     },
     {
       "id": "scripts_verify_durability",
@@ -9273,7 +9273,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L5",
+      "source_location": "L6",
       "weight": 1.0
     },
     {
@@ -9284,7 +9284,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L6",
+      "source_location": "L7",
       "weight": 1.0
     },
     {
@@ -10343,5 +10343,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "333ea3c972c8690ec70908068b74d3c43bbb3493"
+  "built_at_commit": "257689fd66124aaad27e7918b45d4681ce534c25"
 }
