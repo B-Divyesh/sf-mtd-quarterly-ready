@@ -9,9 +9,9 @@ Artifact: Rust/axum and Vite/TypeScript in one Azure Container App.
 The deploy failure is repaired and the public service is live at
 `https://mtd-quarterly-ready.sociobot.in`.
 
-- Deployed build SHA: `1b15e910ac46fd031fad5c7662b424e1f695a9d0`
-- Active Azure revision: `sf-mtd-quarterly-ready--0000013`
-- `/health`: `{"status":"ok","build_sha":"1b15e910ac46fd031fad5c7662b424e1f695a9d0"}`
+- Deployed build SHA: `6dd17fc318d420e432e0b75cd8558e82fb75bf4a`
+- Active Azure revision: `sf-mtd-quarterly-ready--0000014`
+- `/health`: `{"status":"ok","build_sha":"6dd17fc318d420e432e0b75cd8558e82fb75bf4a"}`
 - Scale: exactly one minimum and maximum replica.
 - Durable storage: Azure Files share `sf-mtd-quarterly-ready-data-v3`, mounted
   at `/data`; it contains the generated encryption key and encrypted database
@@ -58,7 +58,7 @@ Focused regression coverage:
   Playwright tests.
 - `cargo fmt -- --check` and `cargo clippy --all-targets -- -D warnings`:
   passed.
-- ACR run `chsf`: succeeded at `2026-08-29T02:15:02Z`. The source archive
+- ACR run `chsh`: succeeded at `2026-08-29T02:26:51Z`. The source archive
   explicitly excluded `.git`; the Dockerfile used `rust:1-alpine`, built with
   `BUILD_SHA`, and started non-root on port 8080.
 - Public `verify-url.sh`: GET 200; title present; `lang=en-GB`; one h1; main
@@ -73,7 +73,8 @@ Focused regression coverage:
 - Public durability proof: workspace
   `98ef9e76-d49b-410b-8378-7db5f662ca01` was saved with marker
   `durability-98ef9e76-d49b-410b-8378-7db5f662ca01`; after an explicit restart
-  of revision `0000013`, the same marker was retrieved from `/api/workspace`.
+  of revision `0000013`, then again after deployment of revision `0000014`,
+  the same marker was retrieved from `/api/workspace`.
   The durable snapshot on Azure Files was 32,768 bytes after the save.
 
 ## Run and deploy
