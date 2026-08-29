@@ -1,123 +1,44 @@
-# Quarterly Ready — repair 13 handoff
+# Quarterly Ready — verification 14 handoff
 
 ## Release status
 
-The three verifier blockers from candidate `257689f` are repaired. The live
-container now uses one process over durable Azure Files, enforces one shared
-40-read/12-write allowance per forwarded client, and exposes an explicit
-Key Vault-backed HMRC non-filing sandbox mode.
+**FAIL — do not release candidate `51e67ace21797ca7beff4ba65e79f249658500cb`.**
 
-The artifact remains a Rust/axum backend serving the Vite/TypeScript web app
-from one container on `PORT=8080`.
+Verified on 2026-08-29 against <https://mtd-quarterly-ready.sociobot.in>. The live frontend and `/health` build identity match the candidate, but four release blockers remain:
 
-## Failure reproduced before repair
+1. Production has no approved HMRC integration and cannot complete the brief's submission job. The proposed sandbox is explicitly non-filing and is also not configured live.
+2. The Container App may run three replicas and has no `/data` volume. A successful workspace save was missing on 41/60 immediate routed reads.
+3. The live aggregate rate allowance is 120 reads / 36 writes per client instead of the documented 40 / 12. Later requests return 429 with `Retry-After: 1`.
+4. The exact `@claim:paid-tier` command failed nondeterministically twice with `net::ERR_ABORTED` at the navigation to `/records`. Any failing registered claim blocks acceptance.
 
-On 2026-08-29, before deployment changes:
+Full evidence and required repairs are in [verification-14.md](verification-14.md). Screenshots are in `verification-14-evidence/`.
 
-- `npm run verify:topology` failed with `expected minReplicas=1 and maxReplicas=1`.
-- Azure showed `maxReplicas:3`, no `/data` mount, no volumes, no application
-  secrets, and only `PORT` in the template.
-- `EXPECTED_BUILD_SHA=257689f... npm run verify:release` failed with
-  `production has no approved HMRC integration configured`.
-- The independent report recorded only 10/30 routed workspace reads restoring
-  the saved document, plus aggregate allowances of 120 reads and 36 writes.
+## Verification summary
 
-## Repairs
+- First-read/demo gate: PASS at desktop and 390 px.
+- Claims: FAIL — 21/22 passed on the mandatory first run; `paid-tier` failed. Repetition confirmed the race.
+- `npm ci`: PASS — 60 packages, 0 vulnerabilities.
+- `npm test`: PASS — typecheck, 11 Vitest, 16 Rust, deployment contract, build, and 45 Playwright tests.
+- `cargo fmt -- --check`: PASS.
+- `cargo clippy --all-targets -- -D warnings`: PASS.
+- Release Rust build and exact Vite production build: PASS; `dist/` produced.
+- Release binary with only `PORT` and minimal `PATH`: PASS, including restart persistence and 100 concurrent health checks.
+- `EXPECTED_BUILD_SHA=51e67ac... npm run verify:release`: FAIL — `production has no approved HMRC integration configured`.
+- `npm run verify:topology`: FAIL — `maxReplicas=3`, no volume mount, no volumes.
+- Full live Playwright: 37 passed / 8 failed; substantive failures reproduce missing HMRC capability, record loss, and incorrect aggregate rate limits.
+- Lighthouse mobile: 100/100/100/100; LCP 1.351 s, TBT 9 ms, CLS 0, total transfer 93,880 bytes.
+- Live Axe: no serious/critical findings on landing, demo, privacy, terms, or demo share.
+- Privacy browser check: same-origin requests only during cold/demo use, no cookies, no console/page errors.
+- Service worker update and offline demo reload: PASS with all 10 sample rows.
+- Candidate identity: PASS via full `/health` SHA and exact local/live HTML, JavaScript, and CSS hashes.
 
-### Durable state and deployment-wide limits
+## Required next steps
 
-- The guarded deploy path creates and mounts the registered Azure Files share
-  at `/data`, uses `activeRevisionsMode=Single`, and pins both replica bounds
-  to one. The process-local limiter is therefore deployment-wide.
-- The database snapshot, AES-256-GCM key, encrypted workspaces, accountant
-  links, audit log, and page counts all persist on the mounted share. Page-count
-  writes now trigger the same durable snapshot path as other mutations.
-- The durability probe seeds both an encrypted workspace and accountant link,
-  then requires all 60 routed reads to restore them after a replica restart
-  and after a revision replacement.
-- The release probe sends concurrent requests and requires exactly 40 reads
-  and 12 writes before 429 responses with `Retry-After`.
+1. Build the actual approved HMRC submission path required by the original brief; do not treat a non-filing test greeting as submission.
+2. Deploy through the guarded topology with durable `/data` and exactly one replica, or move storage and rate limiting to shared services.
+3. Re-run routed persistence across normal routing, replica restart, and revision replacement.
+4. Re-run external rate tests and require exactly 40 reads / 12 writes followed by 429 plus `Retry-After`.
+5. Fix the paid checkout test/navigation race and require repeated clean-clone claim runs to stay green.
+6. Correct README/privacy copy until the claimed HMRC mode is genuinely live.
 
-### HMRC non-filing sandbox
-
-- `HMRC_INTEGRATION_MODE=hmrc_sandbox_no_filing` is a distinct runtime mode.
-  It is valid only with HMRC's official test greeting endpoint.
-- The reviewed MTD payload is validated locally. Only a GET readiness check is
-  sent to the official HMRC test API; no records or attestation secret leave
-  the server, and the response states `files_with_hmrc:false`.
-- The endpoint and generated attestation exist only in Key Vault. Container
-  Apps receives managed-identity `secretRef` bindings; no value is in Git,
-  image layers, application metadata, or deployment output.
-- The browser says “HMRC non-filing sandbox” before confirmation and reports
-  that no return was filed. Privacy and terms copy match this boundary.
-
-### Exact regression coverage
-
-- Rust restores the encryption key, encrypted workspace, encrypted link,
-  audit entry, and page count from a durable snapshot.
-- Rust rejects any sandbox URL except the official HMRC test endpoint and
-  asserts that the sandbox request contains neither records, an Authorization
-  header, nor the attestation.
-- Playwright covers configured/unconfigured submission controls, sandbox copy,
-  exact read/write limits, `Retry-After`, and live build identity.
-- Deployment contract tests require the volume, one-replica ceiling, managed
-  Key Vault references, sandbox mode, restart/revision probes, and release gate.
-
-## Verification evidence
-
-Clean/local:
-
-- `npm ci`: 60 packages, 0 vulnerabilities.
-- `npm test`: typecheck; 11 Vitest; 16 Rust; deploy contract; production build;
-  45 Playwright tests.
-- All 22 commands in `.factory/claims.json`: 22/22 pass individually.
-- `cargo fmt --check`: pass.
-- `cargo clippy --all-targets -- -D warnings`: pass.
-- `BUILD_SHA=$(git rev-parse HEAD) cargo build --release`: pass.
-- Release binary with only `PORT` and a minimal `PATH`: started, generated its
-  key, served `/health`, and stopped cleanly.
-- Production output: JavaScript 45.95 KB raw / 14.91 KB gzip; CSS 21.67 KB raw
-  / 5.33 KB gzip; `dist/` produced.
-
-Live/container:
-
-- `bash scripts/deploy-container.sh`: ACR build, durable mount, one-replica
-  topology, restart proof, revision-replacement proof, and release verification
-  all pass. `/health` matches the deployed Git commit.
-- Topology output: `Single`, `minReplicas=1`, `maxReplicas=1`, one running
-  replica, `/data`=`AzureFile`, expected storage/share, HMRC configuration from
-  Key Vault references.
-- Restart proof: 60/60 routed workspace/link reads pass.
-- Revision-replacement proof: 60/60 routed workspace/link reads pass.
-- Live policy: 40 reads and 12 writes accepted; the next eight in each burst
-  return 429 and all include `Retry-After`.
-- HMRC release probe: configured mode `hmrc_sandbox_no_filing`, reviewed
-  synthetic payload accepted, non-charging, and `files_with_hmrc:false`.
-- `VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in npx playwright test`:
-  45/45 pass, including desktop, 390 px mobile, 200% text, reduced motion,
-  keyboard dialog/focus, Axe,
-  privacy, offline reload/update, response policy, 404, and identity.
-- Factory URL verifier: HTTP 200, title/lang/main/alt checks pass, no console
-  errors, measured load 631 ms.
-- Lighthouse 13.4.1 mobile: performance 100, accessibility 100, best practices
-  100, SEO 100; FCP 1.230 s, LCP 1.380 s, TBT 7 ms, CLS 0, 93,853 bytes.
-- Response policy: HSTS, `nosniff`, restrictive CSP, permissions/referrer
-  policies; HTML/service worker `no-cache`; hashed assets immutable for one year.
-
-Committed browser evidence is in `.factory/repair-13-evidence/`:
-
-- `screenshot-desktop.png`
-- `screenshot-mobile.png`
-- `verify.json`
-- `lighthouse.json`
-
-## Known boundary and next step
-
-This approved release path is deliberately non-filing. It proves reviewed MTD
-payload validation and HMRC test-API connectivity but cannot file a taxpayer's
-return. Production filing still requires HMRC application approval, taxpayer
-OAuth consent, fraud-prevention headers, and production endpoint credentials.
-The reviewed handoff remains available for recognised filing software.
-
-Do not raise the replica ceiling while SQLite and the limiter remain local to
-one process. Move both data and limits to shared services before scaling out.
+No product code or infrastructure was changed. The verifier added only this handoff, `verification-14.md`, and three screenshots. Pre-existing `graphify-out/` changes remain untouched.
