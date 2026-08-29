@@ -3,6 +3,7 @@
     "0": [
       "body",
       "e",
+      "hashset",
       "intoresponse",
       "json",
       "next",
@@ -26,19 +27,25 @@
       "src_main_hmrc_compatible_payload",
       "src_main_hmrc_payload_requires_explicit_human_review",
       "src_main_internal",
+      "src_main_invalid_transaction",
+      "src_main_is_calendar_date",
       "src_main_is_iso_date",
       "src_main_licence_token",
       "src_main_licenceverdict",
       "src_main_page_view",
-      "src_main_persist_database_snapshot",
       "src_main_put_workspace",
       "src_main_rate_limit",
+      "src_main_rejects_each_malformed_transaction_field",
       "src_main_security_headers",
+      "src_main_shareresult",
       "src_main_startup_migration_retries_transient_sqlite_locks",
       "src_main_submissionrequest",
+      "src_main_submissionresult",
       "src_main_submit_to_hmrc",
+      "src_main_subscription_verification_accepts_the_annual_entitlement",
       "src_main_unix_now",
       "src_main_validate_document",
+      "src_main_validate_transaction",
       "src_main_validates_transaction_document",
       "src_main_verify_licence_token",
       "src_main_workspace_id",
@@ -46,6 +53,7 @@
       "src_main_write_audit",
       "state",
       "statuscode",
+      "string",
       "value",
       "vec"
     ],
@@ -105,6 +113,25 @@
       "tsconfig_include"
     ],
     "3": [
+      "frontend_src_main",
+      "frontend_src_main_bindhome",
+      "frontend_src_main_categories",
+      "frontend_src_main_footer",
+      "frontend_src_main_handlelicensereturn",
+      "frontend_src_main_header",
+      "frontend_src_main_homepage",
+      "frontend_src_main_layout",
+      "frontend_src_main_notfoundpage",
+      "frontend_src_main_previewpanel",
+      "frontend_src_main_pricingsection",
+      "frontend_src_main_privacypage",
+      "frontend_src_main_route",
+      "frontend_src_main_sharepage",
+      "frontend_src_main_startcheckout",
+      "frontend_src_main_storeandverifylicense",
+      "frontend_src_main_termspage"
+    ],
+    "4": [
       "arc",
       "client",
       "envfilter",
@@ -120,31 +147,7 @@
       "src_main_build_router",
       "src_main_default_log_filter",
       "src_main_log_filter",
-      "src_main_shareresult",
-      "src_main_submissionresult",
-      "string",
       "vecdeque"
-    ],
-    "4": [
-      "frontend_src_main",
-      "frontend_src_main_bindhome",
-      "frontend_src_main_categories",
-      "frontend_src_main_footer",
-      "frontend_src_main_handlelicensereturn",
-      "frontend_src_main_header",
-      "frontend_src_main_homepage",
-      "frontend_src_main_layout",
-      "frontend_src_main_notfoundpage",
-      "frontend_src_main_previewpanel",
-      "frontend_src_main_pricingsection",
-      "frontend_src_main_privacypage",
-      "frontend_src_main_refreshremote",
-      "frontend_src_main_route",
-      "frontend_src_main_setpage",
-      "frontend_src_main_sharepage",
-      "frontend_src_main_storeandverifylicense",
-      "frontend_src_main_termspage",
-      "frontend_src_storage_loadremote"
     ],
     "5": [
       "error",
@@ -158,25 +161,26 @@
       "src_main_main",
       "src_main_migrate",
       "src_main_migrate_with_retry",
+      "src_main_persist_database_snapshot",
       "src_main_restore_database_snapshot",
       "src_main_shutdown_signal",
       "src_main_workspace_snapshot_is_restored_after_a_restart"
     ],
     "6": [
-      "frontend_src_sample",
+      "frontend_src_main_refreshremote",
       "frontend_src_sample_emptydocument",
-      "frontend_src_sample_sample_document",
       "frontend_src_storage",
       "frontend_src_storage_clone",
+      "frontend_src_storage_createshare",
       "frontend_src_storage_liveheaders",
       "frontend_src_storage_loaddocument",
+      "frontend_src_storage_loadremote",
       "frontend_src_storage_loadshare",
       "frontend_src_storage_resetdemo",
       "frontend_src_storage_savedocument",
       "frontend_src_storage_saveremote",
       "frontend_src_storage_storagekeys",
-      "frontend_src_storage_workspaceid",
-      "frontend_src_types_quarterdocument"
+      "frontend_src_storage_workspaceid"
     ],
     "7": [
       "frontend_src_records",
@@ -186,8 +190,11 @@
       "frontend_src_records_quotecsv",
       "frontend_src_records_summarise",
       "frontend_src_records_test",
+      "frontend_src_sample",
+      "frontend_src_sample_sample_document",
       "frontend_src_types",
       "frontend_src_types_category",
+      "frontend_src_types_quarterdocument",
       "frontend_src_types_summary",
       "frontend_src_types_transaction"
     ],
@@ -201,7 +208,8 @@
       "frontend_src_main_importcsv",
       "frontend_src_main_opensubmissionreview",
       "frontend_src_main_rerenderrecords",
-      "frontend_src_main_saveandrender"
+      "frontend_src_main_saveandrender",
+      "frontend_src_main_setpage"
     ],
     "9": [
       "frontend_src_main_categoryoptions",
@@ -218,7 +226,6 @@
       "frontend_src_main_islicensed",
       "frontend_src_main_sharepack",
       "frontend_src_main_submithmrc",
-      "frontend_src_storage_createshare",
       "frontend_src_storage_leavedemo",
       "frontend_src_storage_submittohmrc"
     ],
@@ -247,36 +254,37 @@
       "scripts_deploy_container_sh__entry"
     ],
     "16": [
-      "frontend_vite_config"
+      "tests_backend_spec",
+      "tests_backend_spec_validdocument"
     ],
     "17": [
-      "frontend_vitest_config"
+      "frontend_vite_config"
     ],
     "18": [
-      "pkg_quarterly_ready"
+      "frontend_vitest_config"
     ],
     "19": [
-      "tests_accessibility_spec"
+      "pkg_quarterly_ready"
     ],
     "20": [
-      "tests_backend_spec"
+      "tests_accessibility_spec"
     ],
     "21": [
       "tests_claims_spec"
     ]
   },
   "cohesion": {
-    "0": 0.13506012950971322,
+    "0": 0.11178451178451178,
     "1": 0.06451612903225806,
     "2": 0.1,
-    "3": 0.13450292397660818,
-    "4": 0.2222222222222222,
-    "5": 0.21978021978021978,
-    "6": 0.25274725274725274,
-    "7": 0.32727272727272727,
-    "8": 0.35555555555555557,
+    "3": 0.25,
+    "4": 0.15,
+    "5": 0.21904761904761905,
+    "6": 0.24175824175824176,
+    "7": 0.27472527472527475,
+    "8": 0.3090909090909091,
     "9": 0.4642857142857143,
-    "10": 0.2857142857142857,
+    "10": 0.3333333333333333,
     "11": 0.4666666666666667,
     "12": 1.0,
     "13": 1.0,
@@ -298,7 +306,7 @@
     {
       "id": "src_main_apierror",
       "label": "ApiError",
-      "degree": 19
+      "degree": 21
     },
     {
       "id": "src_main_create_share",
@@ -331,17 +339,28 @@
       "degree": 12
     },
     {
-      "id": "src_main_get_workspace",
-      "label": "get_workspace()",
+      "id": "package_scripts",
+      "label": "scripts",
       "degree": 11
     },
     {
-      "id": "package_scripts",
-      "label": "scripts",
+      "id": "src_main_get_workspace",
+      "label": "get_workspace()",
       "degree": 11
     }
   ],
   "surprises": [
+    {
+      "source": "sharePack()",
+      "target": "createShare()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
     {
       "source": "recordsPage()",
       "target": "loadDocument()",
@@ -381,17 +400,6 @@
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/storage.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "downloadPack()",
-      "target": "accountantCsv()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
