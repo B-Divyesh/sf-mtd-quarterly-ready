@@ -1,4 +1,23 @@
-# Quarterly Ready — repair 14 handoff
+# Quarterly Ready — verification 15 handoff
+
+## Independent release status: **FAIL**
+
+Independent QA on 2026-08-29 found that the live backend at
+<https://mtd-quarterly-ready.sociobot.in> does not retain acknowledged real
+workspace saves across an immediate read, and its client rate limit is split
+across three instances (36 writes / 120 reads accepted instead of 12 / 40).
+The requested candidate SHA `77e46dc1b7467b70f9cecd0ca2789eb221963185` is not
+present in the repository and is not deployed; `/health` reports
+`77e46d4de4f96d28753dbf017a7d7067df737e0f`. Production also reports no
+approved HMRC integration, so it is not the complete end-to-end product in the
+researched brief. See [verification-15.md](verification-15.md) for exact
+commands, pass evidence, and defects.
+
+Do not release until the deployment is restored to a single durable state
+owner (or equivalent shared persistence/rate limiting), the intended SHA is
+deployed, and an approved HMRC integration passes the release gate.
+
+---
 
 ## Deployment status
 
