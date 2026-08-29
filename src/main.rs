@@ -1597,7 +1597,13 @@ async fn load_or_create_key(path: &FsPath) -> Result<([u8; 32], bool), std::io::
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).await?;
+        // Azure Files can be mounted without POSIX chmod support. The share
+        // is private to the Container App; do not turn a supported security
+        // tightening into an availability outage when the mount rejects it.
+        if let Err(error) = fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).await
+        {
+            warn!(%error, path = %path.display(), "key_permission_mode_not_supported");
+        }
     }
     Ok((key, true))
 }
@@ -1607,7 +1613,11 @@ async fn restore_legacy_snapshot(
     database: &FsPath,
 ) -> Result<(), std::io::Error> {
     if fs::metadata(snapshot).await.is_ok() && fs::metadata(database).await.is_err() {
-        fs::copy(snapshot, database).await?;
+        // `std::fs::copy` also attempts to reproduce permissions from the
+        // source. Azure Files accepts the bytes but can reject that metadata
+        // operation with EPERM, leaving a zero-byte destination behind.
+        let snapshot_bytes = fs::read(snapshot).await?;
+        fs::write(database, snapshot_bytes).await?;
     }
     Ok(())
 }
