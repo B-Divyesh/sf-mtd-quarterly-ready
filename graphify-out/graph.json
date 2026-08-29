@@ -824,15 +824,48 @@
       "source_location": "L82"
     },
     {
+      "id": "scripts_verify_live_assert",
+      "label": "assert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "assert()",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L7"
+    },
+    {
+      "id": "scripts_verify_live_assertlimit",
+      "label": "assertLimit()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "assertlimit()",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L93"
+    },
+    {
+      "id": "scripts_verify_live_response",
+      "label": "response()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "response()",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L11"
+    },
+    {
       "id": "tests_claims_spec_idbobjectstore_put",
       "label": ".put()",
       "_callable": true,
       "_origin": "ast",
-      "community": 23,
+      "community": 24,
       "file_type": "code",
       "norm_label": ".put()",
       "source_file": "tests/claims.spec.ts",
-      "source_location": "L151"
+      "source_location": "L213"
     },
     {
       "id": "frontend_src_receipts_cleardemoreceipts",
@@ -932,39 +965,6 @@
       "norm_label": "transactiondone()",
       "source_file": "frontend/src/receipts.ts",
       "source_location": "L29"
-    },
-    {
-      "id": "scripts_verify_live_assert",
-      "label": "assert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "file_type": "code",
-      "norm_label": "assert()",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L6"
-    },
-    {
-      "id": "scripts_verify_live_assertlimit",
-      "label": "assertLimit()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "file_type": "code",
-      "norm_label": "assertlimit()",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L89"
-    },
-    {
-      "id": "scripts_verify_live_response",
-      "label": "response()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "file_type": "code",
-      "norm_label": "response()",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L10"
     },
     {
       "id": "frontend_src_main",
@@ -1077,60 +1077,180 @@
       "source_location": "L1"
     },
     {
-      "id": "next",
-      "label": "Next",
+      "id": "e",
+      "label": "E",
       "_origin": "ast",
       "community": 10,
       "file_type": "code",
-      "norm_label": "next",
+      "norm_label": "e",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "response",
-      "label": "Response",
+      "id": "intoresponse",
+      "label": "IntoResponse",
       "_origin": "ast",
       "community": 10,
       "file_type": "code",
-      "norm_label": "response",
+      "norm_label": "intoresponse",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "src_main_apierror_into_response",
-      "label": ".into_response()",
+      "id": "path",
+      "label": "Path",
       "_origin": "ast",
       "community": 10,
       "file_type": "code",
-      "norm_label": ".into_response()",
-      "source_file": "src/main.rs",
-      "source_location": "L121"
+      "norm_label": "path",
+      "source_file": "",
+      "source_location": ""
     },
     {
-      "id": "src_main_rate_limit",
-      "label": "rate_limit()",
+      "id": "src_main_apierror",
+      "label": "ApiError",
       "_origin": "ast",
       "community": 10,
       "file_type": "code",
-      "norm_label": "rate_limit()",
+      "norm_label": "apierror",
       "source_file": "src/main.rs",
-      "source_location": "L751"
+      "source_location": "L118"
     },
     {
-      "id": "src_main_security_headers",
-      "label": "security_headers()",
+      "id": "src_main_get_share",
+      "label": "get_share()",
       "_origin": "ast",
       "community": 10,
       "file_type": "code",
-      "norm_label": "security_headers()",
+      "norm_label": "get_share()",
       "source_file": "src/main.rs",
-      "source_location": "L793"
+      "source_location": "L710"
+    },
+    {
+      "id": "src_main_internal",
+      "label": "internal()",
+      "_origin": "ast",
+      "community": 10,
+      "file_type": "code",
+      "norm_label": "internal()",
+      "source_file": "src/main.rs",
+      "source_location": "L1225"
+    },
+    {
+      "id": "src_main_page_view",
+      "label": "page_view()",
+      "_origin": "ast",
+      "community": 10,
+      "file_type": "code",
+      "norm_label": "page_view()",
+      "source_file": "src/main.rs",
+      "source_location": "L744"
+    },
+    {
+      "id": "src_main_subscription_verification_accepts_the_annual_entitlement",
+      "label": "subscription_verification_accepts_the_annual_entitlement()",
+      "_origin": "ast",
+      "community": 10,
+      "file_type": "code",
+      "norm_label": "subscription_verification_accepts_the_annual_entitlement()",
+      "source_file": "src/main.rs",
+      "source_location": "L1433"
+    },
+    {
+      "id": "src_main_verify_licence_token",
+      "label": "verify_licence_token()",
+      "_origin": "ast",
+      "community": 10,
+      "file_type": "code",
+      "norm_label": "verify_licence_token()",
+      "source_file": "src/main.rs",
+      "source_location": "L536"
+    },
+    {
+      "id": "statuscode",
+      "label": "StatusCode",
+      "_origin": "ast",
+      "community": 10,
+      "file_type": "code",
+      "norm_label": "statuscode",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "scripts_verify_live",
+      "label": "verify-live.mjs",
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "verify-live.mjs",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_verify_live_durabledocument",
+      "label": "durableDocument",
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "durabledocument",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L44"
+    },
+    {
+      "id": "scripts_verify_live_fixtureheaders",
+      "label": "fixtureHeaders",
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "fixtureheaders",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L85"
+    },
+    {
+      "id": "scripts_verify_live_workspaceid",
+      "label": "workspaceId",
+      "_origin": "ast",
+      "community": 11,
+      "file_type": "code",
+      "norm_label": "workspaceid",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L40"
+    },
+    {
+      "id": "scripts_check_deploy_contract",
+      "label": "check-deploy-contract.mjs",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "check-deploy-contract.mjs",
+      "source_file": "scripts/check-deploy-contract.mjs",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_check_deploy_contract_packagejson",
+      "label": "packageJson",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "packagejson",
+      "source_file": "scripts/check-deploy-contract.mjs",
+      "source_location": "L5"
+    },
+    {
+      "id": "scripts_check_deploy_contract_required",
+      "label": "required",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "required",
+      "source_file": "scripts/check-deploy-contract.mjs",
+      "source_location": "L6"
     },
     {
       "id": "scripts_verify_durability",
       "label": "verify-durability.mjs",
       "_origin": "ast",
-      "community": 11,
+      "community": 13,
       "file_type": "code",
       "norm_label": "verify-durability.mjs",
       "source_file": "scripts/verify-durability.mjs",
@@ -1140,7 +1260,7 @@
       "id": "scripts_verify_durability_document",
       "label": "document",
       "_origin": "ast",
-      "community": 11,
+      "community": 13,
       "file_type": "code",
       "norm_label": "document",
       "source_file": "scripts/verify-durability.mjs",
@@ -1150,7 +1270,7 @@
       "id": "scripts_verify_durability_headers",
       "label": "headers",
       "_origin": "ast",
-      "community": 11,
+      "community": 13,
       "file_type": "code",
       "norm_label": "headers",
       "source_file": "scripts/verify-durability.mjs",
@@ -1160,7 +1280,7 @@
       "id": "frontend_public_sw",
       "label": "sw.js",
       "_origin": "ast",
-      "community": 12,
+      "community": 14,
       "file_type": "code",
       "norm_label": "sw.js",
       "source_file": "frontend/public/sw.js",
@@ -1170,7 +1290,7 @@
       "id": "frontend_public_sw_shell",
       "label": "SHELL",
       "_origin": "ast",
-      "community": 12,
+      "community": 14,
       "file_type": "code",
       "norm_label": "shell",
       "source_file": "frontend/public/sw.js",
@@ -1180,7 +1300,7 @@
       "id": "playwright_config",
       "label": "playwright.config.ts",
       "_origin": "ast",
-      "community": 13,
+      "community": 15,
       "file_type": "code",
       "norm_label": "playwright.config.ts",
       "source_file": "playwright.config.ts",
@@ -1190,37 +1310,17 @@
       "id": "playwright_config_repositoryroot",
       "label": "repositoryRoot",
       "_origin": "ast",
-      "community": 13,
+      "community": 15,
       "file_type": "code",
       "norm_label": "repositoryroot",
       "source_file": "playwright.config.ts",
       "source_location": "L6"
     },
     {
-      "id": "scripts_check_deploy_contract",
-      "label": "check-deploy-contract.mjs",
-      "_origin": "ast",
-      "community": 14,
-      "file_type": "code",
-      "norm_label": "check-deploy-contract.mjs",
-      "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L1"
-    },
-    {
-      "id": "scripts_check_deploy_contract_required",
-      "label": "required",
-      "_origin": "ast",
-      "community": 14,
-      "file_type": "code",
-      "norm_label": "required",
-      "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L5"
-    },
-    {
       "id": "scripts_deploy_container",
       "label": "deploy-container.sh",
       "_origin": "ast",
-      "community": 15,
+      "community": 16,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1234,7 +1334,7 @@
       "id": "scripts_deploy_container_sh__entry",
       "label": "deploy-container.sh script",
       "_origin": "ast",
-      "community": 15,
+      "community": 16,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1248,7 +1348,7 @@
       "id": "scripts_verify_azure_topology",
       "label": "verify-azure-topology.sh",
       "_origin": "ast",
-      "community": 16,
+      "community": 17,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1262,7 +1362,7 @@
       "id": "scripts_verify_azure_topology_sh__entry",
       "label": "verify-azure-topology.sh script",
       "_origin": "ast",
-      "community": 16,
+      "community": 17,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1276,7 +1376,7 @@
       "id": "tests_backend_spec",
       "label": "backend.spec.ts",
       "_origin": "ast",
-      "community": 17,
+      "community": 18,
       "file_type": "code",
       "norm_label": "backend.spec.ts",
       "source_file": "tests/backend.spec.ts",
@@ -1286,7 +1386,7 @@
       "id": "tests_backend_spec_validdocument",
       "label": "validDocument",
       "_origin": "ast",
-      "community": 17,
+      "community": 18,
       "file_type": "code",
       "norm_label": "validdocument",
       "source_file": "tests/backend.spec.ts",
@@ -1296,20 +1396,10 @@
       "id": "frontend_vite_config",
       "label": "vite.config.ts",
       "_origin": "ast",
-      "community": 18,
+      "community": 19,
       "file_type": "code",
       "norm_label": "vite.config.ts",
       "source_file": "frontend/vite.config.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "frontend_vitest_config",
-      "label": "vitest.config.ts",
-      "_origin": "ast",
-      "community": 19,
-      "file_type": "code",
-      "norm_label": "vitest.config.ts",
-      "source_file": "frontend/vitest.config.ts",
       "source_location": "L1"
     },
     {
@@ -1330,7 +1420,7 @@
       "file_type": "code",
       "norm_label": "devdependencies",
       "source_file": "package.json",
-      "source_location": "L19"
+      "source_location": "L20"
     },
     {
       "id": "package_devdependencies_axe_core_playwright",
@@ -1340,7 +1430,7 @@
       "file_type": "code",
       "norm_label": "@axe-core/playwright",
       "source_file": "package.json",
-      "source_location": "L20"
+      "source_location": "L21"
     },
     {
       "id": "package_devdependencies_playwright_core",
@@ -1350,7 +1440,7 @@
       "file_type": "code",
       "norm_label": "playwright-core",
       "source_file": "package.json",
-      "source_location": "L23"
+      "source_location": "L24"
     },
     {
       "id": "package_devdependencies_playwright_test",
@@ -1360,7 +1450,7 @@
       "file_type": "code",
       "norm_label": "@playwright/test",
       "source_file": "package.json",
-      "source_location": "L22"
+      "source_location": "L23"
     },
     {
       "id": "package_devdependencies_types_node",
@@ -1370,7 +1460,7 @@
       "file_type": "code",
       "norm_label": "@types/node",
       "source_file": "package.json",
-      "source_location": "L21"
+      "source_location": "L22"
     },
     {
       "id": "package_devdependencies_typescript",
@@ -1380,7 +1470,7 @@
       "file_type": "code",
       "norm_label": "typescript",
       "source_file": "package.json",
-      "source_location": "L24"
+      "source_location": "L25"
     },
     {
       "id": "package_devdependencies_vite",
@@ -1390,7 +1480,7 @@
       "file_type": "code",
       "norm_label": "vite",
       "source_file": "package.json",
-      "source_location": "L25"
+      "source_location": "L26"
     },
     {
       "id": "package_devdependencies_vitest",
@@ -1400,7 +1490,7 @@
       "file_type": "code",
       "norm_label": "vitest",
       "source_file": "package.json",
-      "source_location": "L26"
+      "source_location": "L27"
     },
     {
       "id": "package_name",
@@ -1470,7 +1560,7 @@
       "file_type": "code",
       "norm_label": "test",
       "source_file": "package.json",
-      "source_location": "L17"
+      "source_location": "L18"
     },
     {
       "id": "package_scripts_test_deploy_contract",
@@ -1533,6 +1623,16 @@
       "source_location": "L15"
     },
     {
+      "id": "package_scripts_verify_release",
+      "label": "verify:release",
+      "_origin": "ast",
+      "community": 2,
+      "file_type": "code",
+      "norm_label": "verify:release",
+      "source_file": "package.json",
+      "source_location": "L16"
+    },
+    {
       "id": "package_scripts_verify_topology",
       "label": "verify:topology",
       "_origin": "ast",
@@ -1540,7 +1640,7 @@
       "file_type": "code",
       "norm_label": "verify:topology",
       "source_file": "package.json",
-      "source_location": "L16"
+      "source_location": "L17"
     },
     {
       "id": "package_type",
@@ -1570,7 +1670,7 @@
       "file_type": "concept",
       "norm_label": "@axe-core/playwright",
       "source_file": "package.json",
-      "source_location": "L20"
+      "source_location": "L21"
     },
     {
       "id": "playwright_core",
@@ -1580,7 +1680,7 @@
       "file_type": "concept",
       "norm_label": "playwright-core",
       "source_file": "package.json",
-      "source_location": "L23"
+      "source_location": "L24"
     },
     {
       "id": "playwright_test",
@@ -1590,7 +1690,7 @@
       "file_type": "concept",
       "norm_label": "@playwright/test",
       "source_file": "package.json",
-      "source_location": "L22"
+      "source_location": "L23"
     },
     {
       "id": "types_node",
@@ -1600,7 +1700,7 @@
       "file_type": "concept",
       "norm_label": "@types/node",
       "source_file": "package.json",
-      "source_location": "L21"
+      "source_location": "L22"
     },
     {
       "id": "typescript",
@@ -1610,7 +1710,7 @@
       "file_type": "concept",
       "norm_label": "typescript",
       "source_file": "package.json",
-      "source_location": "L24"
+      "source_location": "L25"
     },
     {
       "id": "vite",
@@ -1620,7 +1720,7 @@
       "file_type": "concept",
       "norm_label": "vite",
       "source_file": "package.json",
-      "source_location": "L25"
+      "source_location": "L26"
     },
     {
       "id": "vitest",
@@ -1630,13 +1730,23 @@
       "file_type": "concept",
       "norm_label": "vitest",
       "source_file": "package.json",
-      "source_location": "L26"
+      "source_location": "L27"
+    },
+    {
+      "id": "frontend_vitest_config",
+      "label": "vitest.config.ts",
+      "_origin": "ast",
+      "community": 20,
+      "file_type": "code",
+      "norm_label": "vitest.config.ts",
+      "source_file": "frontend/vitest.config.ts",
+      "source_location": "L1"
     },
     {
       "id": "pkg_quarterly_ready",
       "label": "quarterly-ready",
       "_origin": "ast",
-      "community": 20,
+      "community": 21,
       "ecosystem": "cargo",
       "file_type": "code",
       "norm_label": "quarterly-ready",
@@ -1649,7 +1759,7 @@
       "id": "tests_accessibility_spec",
       "label": "accessibility.spec.ts",
       "_origin": "ast",
-      "community": 21,
+      "community": 22,
       "file_type": "code",
       "norm_label": "accessibility.spec.ts",
       "source_file": "tests/accessibility.spec.ts",
@@ -1659,49 +1769,19 @@
       "id": "tests_claims_spec",
       "label": "claims.spec.ts",
       "_origin": "ast",
-      "community": 22,
+      "community": 23,
       "file_type": "code",
       "norm_label": "claims.spec.ts",
       "source_file": "tests/claims.spec.ts",
       "source_location": "L1"
     },
     {
-      "id": "e",
-      "label": "E",
+      "id": "hashset",
+      "label": "HashSet",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "e",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "error",
-      "label": "Error",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "error",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "fspath",
-      "label": "FsPath",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "fspath",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "sqlitepool",
-      "label": "SqlitePool",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "sqlitepool",
+      "norm_label": "hashset",
       "source_file": "",
       "source_location": ""
     },
@@ -1726,34 +1806,14 @@
       "source_location": "L1412"
     },
     {
-      "id": "src_main_claim_anonymous_page_count",
-      "label": "claim_anonymous_page_count()",
+      "id": "src_main_decrypt_json",
+      "label": "decrypt_json()",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "claim_anonymous_page_count()",
+      "norm_label": "decrypt_json()",
       "source_file": "src/main.rs",
-      "source_location": "L1352"
-    },
-    {
-      "id": "src_main_claim_hash_chained_audit_log",
-      "label": "claim_hash_chained_audit_log()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "claim_hash_chained_audit_log()",
-      "source_file": "src/main.rs",
-      "source_location": "L1368"
-    },
-    {
-      "id": "src_main_cleanup_expired_shares",
-      "label": "cleanup_expired_shares()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "cleanup_expired_shares()",
-      "source_file": "src/main.rs",
-      "source_location": "L1200"
+      "source_location": "L1054"
     },
     {
       "id": "src_main_default_log_filter_keeps_startup_information_visible",
@@ -1766,24 +1826,64 @@
       "source_location": "L1407"
     },
     {
-      "id": "src_main_internal",
-      "label": "internal()",
+      "id": "src_main_hmrc_compatible_payload",
+      "label": "hmrc_compatible_payload()",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "internal()",
+      "norm_label": "hmrc_compatible_payload()",
       "source_file": "src/main.rs",
-      "source_location": "L1225"
+      "source_location": "L577"
     },
     {
-      "id": "src_main_is_database_locked_message",
-      "label": "is_database_locked_message()",
+      "id": "src_main_hmrc_payload_requires_explicit_human_review",
+      "label": "hmrc_payload_requires_explicit_human_review()",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "is_database_locked_message()",
+      "norm_label": "hmrc_payload_requires_explicit_human_review()",
       "source_file": "src/main.rs",
-      "source_location": "L1195"
+      "source_location": "L1417"
+    },
+    {
+      "id": "src_main_invalid_transaction",
+      "label": "invalid_transaction()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "invalid_transaction()",
+      "source_file": "src/main.rs",
+      "source_location": "L893"
+    },
+    {
+      "id": "src_main_is_calendar_date",
+      "label": "is_calendar_date()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "is_calendar_date()",
+      "source_file": "src/main.rs",
+      "source_location": "L999"
+    },
+    {
+      "id": "src_main_is_iso_date",
+      "label": "is_iso_date()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "is_iso_date()",
+      "source_file": "src/main.rs",
+      "source_location": "L690"
+    },
+    {
+      "id": "src_main_is_standard_uk_quarter",
+      "label": "is_standard_uk_quarter()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "is_standard_uk_quarter()",
+      "source_file": "src/main.rs",
+      "source_location": "L1016"
     },
     {
       "id": "src_main_licenceverdict",
@@ -1794,56 +1894,6 @@
       "norm_label": "licenceverdict",
       "source_file": "src/main.rs",
       "source_location": "L107"
-    },
-    {
-      "id": "src_main_load_or_create_key",
-      "label": "load_or_create_key()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "load_or_create_key()",
-      "source_file": "src/main.rs",
-      "source_location": "L1114"
-    },
-    {
-      "id": "src_main_main",
-      "label": "main()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "main()",
-      "source_file": "src/main.rs",
-      "source_location": "L127"
-    },
-    {
-      "id": "src_main_migrate",
-      "label": "migrate()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "migrate()",
-      "source_file": "src/main.rs",
-      "source_location": "L1166"
-    },
-    {
-      "id": "src_main_migrate_with_retry",
-      "label": "migrate_with_retry()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "migrate_with_retry()",
-      "source_file": "src/main.rs",
-      "source_location": "L1178"
-    },
-    {
-      "id": "src_main_persist_database_snapshot",
-      "label": "persist_database_snapshot()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "persist_database_snapshot()",
-      "source_file": "src/main.rs",
-      "source_location": "L1143"
     },
     {
       "id": "src_main_rejects_each_malformed_transaction_field",
@@ -1866,34 +1916,24 @@
       "source_location": "L1304"
     },
     {
-      "id": "src_main_restore_database_snapshot",
-      "label": "restore_database_snapshot()",
+      "id": "src_main_safe_fixture_authorized",
+      "label": "safe_fixture_authorized()",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "restore_database_snapshot()",
+      "norm_label": "safe_fixture_authorized()",
       "source_file": "src/main.rs",
-      "source_location": "L1133"
+      "source_location": "L496"
     },
     {
-      "id": "src_main_safe_fixtures_enabled",
-      "label": "safe_fixtures_enabled()",
+      "id": "src_main_safe_fixture_document",
+      "label": "safe_fixture_document()",
       "_origin": "ast",
       "community": 3,
       "file_type": "code",
-      "norm_label": "safe_fixtures_enabled()",
+      "norm_label": "safe_fixture_document()",
       "source_file": "src/main.rs",
-      "source_location": "L492"
-    },
-    {
-      "id": "src_main_shutdown_signal",
-      "label": "shutdown_signal()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "shutdown_signal()",
-      "source_file": "src/main.rs",
-      "source_location": "L1233"
+      "source_location": "L500"
     },
     {
       "id": "src_main_startup_migration_retries_transient_sqlite_locks",
@@ -1906,6 +1946,36 @@
       "source_location": "L1318"
     },
     {
+      "id": "src_main_submissionrequest",
+      "label": "SubmissionRequest",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "submissionrequest",
+      "source_file": "src/main.rs",
+      "source_location": "L101"
+    },
+    {
+      "id": "src_main_validate_document",
+      "label": "validate_document()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "validate_document()",
+      "source_file": "src/main.rs",
+      "source_location": "L846"
+    },
+    {
+      "id": "src_main_validate_transaction",
+      "label": "validate_transaction()",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "validate_transaction()",
+      "source_file": "src/main.rs",
+      "source_location": "L897"
+    },
+    {
       "id": "src_main_validates_transaction_document",
       "label": "validates_transaction_document()",
       "_origin": "ast",
@@ -1916,264 +1986,244 @@
       "source_location": "L1262"
     },
     {
+      "id": "src_main_workspacedocument",
+      "label": "WorkspaceDocument",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "workspacedocument",
+      "source_file": "src/main.rs",
+      "source_location": "L90"
+    },
+    {
+      "id": "value",
+      "label": "Value",
+      "_origin": "ast",
+      "community": 3,
+      "file_type": "code",
+      "norm_label": "value",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "envfilter",
+      "label": "EnvFilter",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "envfilter",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "error",
+      "label": "Error",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "error",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "fspath",
+      "label": "FsPath",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "fspath",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "pathbuf",
+      "label": "PathBuf",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "pathbuf",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "router",
+      "label": "Router",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "router",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "sqlitepool",
+      "label": "SqlitePool",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "sqlitepool",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "src_main_build_router",
+      "label": "build_router()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "build_router()",
+      "source_file": "src/main.rs",
+      "source_location": "L235"
+    },
+    {
+      "id": "src_main_claim_anonymous_page_count",
+      "label": "claim_anonymous_page_count()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "claim_anonymous_page_count()",
+      "source_file": "src/main.rs",
+      "source_location": "L1352"
+    },
+    {
+      "id": "src_main_claim_hash_chained_audit_log",
+      "label": "claim_hash_chained_audit_log()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "claim_hash_chained_audit_log()",
+      "source_file": "src/main.rs",
+      "source_location": "L1368"
+    },
+    {
+      "id": "src_main_cleanup_expired_shares",
+      "label": "cleanup_expired_shares()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "cleanup_expired_shares()",
+      "source_file": "src/main.rs",
+      "source_location": "L1200"
+    },
+    {
+      "id": "src_main_default_log_filter",
+      "label": "default_log_filter()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "default_log_filter()",
+      "source_file": "src/main.rs",
+      "source_location": "L1215"
+    },
+    {
+      "id": "src_main_is_database_locked_message",
+      "label": "is_database_locked_message()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "is_database_locked_message()",
+      "source_file": "src/main.rs",
+      "source_location": "L1195"
+    },
+    {
+      "id": "src_main_load_or_create_key",
+      "label": "load_or_create_key()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "load_or_create_key()",
+      "source_file": "src/main.rs",
+      "source_location": "L1114"
+    },
+    {
+      "id": "src_main_log_filter",
+      "label": "log_filter()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "log_filter()",
+      "source_file": "src/main.rs",
+      "source_location": "L1219"
+    },
+    {
+      "id": "src_main_main",
+      "label": "main()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "main()",
+      "source_file": "src/main.rs",
+      "source_location": "L127"
+    },
+    {
+      "id": "src_main_migrate",
+      "label": "migrate()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "migrate()",
+      "source_file": "src/main.rs",
+      "source_location": "L1166"
+    },
+    {
+      "id": "src_main_migrate_with_retry",
+      "label": "migrate_with_retry()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "migrate_with_retry()",
+      "source_file": "src/main.rs",
+      "source_location": "L1178"
+    },
+    {
+      "id": "src_main_persist_database_snapshot",
+      "label": "persist_database_snapshot()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "persist_database_snapshot()",
+      "source_file": "src/main.rs",
+      "source_location": "L1143"
+    },
+    {
+      "id": "src_main_restore_database_snapshot",
+      "label": "restore_database_snapshot()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "restore_database_snapshot()",
+      "source_file": "src/main.rs",
+      "source_location": "L1133"
+    },
+    {
+      "id": "src_main_safe_fixtures_enabled",
+      "label": "safe_fixtures_enabled()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "safe_fixtures_enabled()",
+      "source_file": "src/main.rs",
+      "source_location": "L492"
+    },
+    {
+      "id": "src_main_shutdown_signal",
+      "label": "shutdown_signal()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "shutdown_signal()",
+      "source_file": "src/main.rs",
+      "source_location": "L1233"
+    },
+    {
       "id": "src_main_workspace_snapshot_is_restored_after_a_restart",
       "label": "workspace_snapshot_is_restored_after_a_restart()",
       "_origin": "ast",
-      "community": 3,
+      "community": 4,
       "file_type": "code",
       "norm_label": "workspace_snapshot_is_restored_after_a_restart()",
       "source_file": "src/main.rs",
       "source_location": "L1325"
-    },
-    {
-      "id": "body",
-      "label": "Body",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "body",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "intoresponse",
-      "label": "IntoResponse",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "intoresponse",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "json",
-      "label": "Json",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "json",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "path",
-      "label": "Path",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "path",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "request",
-      "label": "Request",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "request",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "result",
-      "label": "Result",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "result",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "src_main_apierror",
-      "label": "ApiError",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "apierror",
-      "source_file": "src/main.rs",
-      "source_location": "L118"
-    },
-    {
-      "id": "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
-      "label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
-      "source_file": "src/main.rs",
-      "source_location": "L1483"
-    },
-    {
-      "id": "src_main_create_share",
-      "label": "create_share()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "create_share()",
-      "source_file": "src/main.rs",
-      "source_location": "L321"
-    },
-    {
-      "id": "src_main_decrypt_json",
-      "label": "decrypt_json()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "decrypt_json()",
-      "source_file": "src/main.rs",
-      "source_location": "L1054"
-    },
-    {
-      "id": "src_main_get_share",
-      "label": "get_share()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "get_share()",
-      "source_file": "src/main.rs",
-      "source_location": "L710"
-    },
-    {
-      "id": "src_main_get_workspace",
-      "label": "get_workspace()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "get_workspace()",
-      "source_file": "src/main.rs",
-      "source_location": "L271"
-    },
-    {
-      "id": "src_main_health",
-      "label": "Health",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "health",
-      "source_file": "src/main.rs",
-      "source_location": "L82"
-    },
-    {
-      "id": "src_main_licence_token",
-      "label": "licence_token()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "licence_token()",
-      "source_file": "src/main.rs",
-      "source_location": "L522"
-    },
-    {
-      "id": "src_main_page_view",
-      "label": "page_view()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "page_view()",
-      "source_file": "src/main.rs",
-      "source_location": "L744"
-    },
-    {
-      "id": "src_main_put_workspace",
-      "label": "put_workspace()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "put_workspace()",
-      "source_file": "src/main.rs",
-      "source_location": "L289"
-    },
-    {
-      "id": "src_main_safe_qa_entitlement",
-      "label": "safe_qa_entitlement()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "safe_qa_entitlement()",
-      "source_file": "src/main.rs",
-      "source_location": "L477"
-    },
-    {
-      "id": "src_main_submit_to_hmrc",
-      "label": "submit_to_hmrc()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "submit_to_hmrc()",
-      "source_file": "src/main.rs",
-      "source_location": "L364"
-    },
-    {
-      "id": "src_main_subscription_verification_accepts_the_annual_entitlement",
-      "label": "subscription_verification_accepts_the_annual_entitlement()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "subscription_verification_accepts_the_annual_entitlement()",
-      "source_file": "src/main.rs",
-      "source_location": "L1433"
-    },
-    {
-      "id": "src_main_unix_now",
-      "label": "unix_now()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "unix_now()",
-      "source_file": "src/main.rs",
-      "source_location": "L1208"
-    },
-    {
-      "id": "src_main_verify_licence_token",
-      "label": "verify_licence_token()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "verify_licence_token()",
-      "source_file": "src/main.rs",
-      "source_location": "L536"
-    },
-    {
-      "id": "src_main_workspace_id",
-      "label": "workspace_id()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "workspace_id()",
-      "source_file": "src/main.rs",
-      "source_location": "L828"
-    },
-    {
-      "id": "src_main_write_audit",
-      "label": "write_audit()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "write_audit()",
-      "source_file": "src/main.rs",
-      "source_location": "L1084"
-    },
-    {
-      "id": "state",
-      "label": "State",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "state",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "statuscode",
-      "label": "StatusCode",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "statuscode",
-      "source_file": "",
-      "source_location": ""
     },
     {
       "id": "tsconfig",
@@ -2396,16 +2446,6 @@
       "source_location": ""
     },
     {
-      "id": "envfilter",
-      "label": "EnvFilter",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "envfilter",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "hashmap",
       "label": "HashMap",
       "_origin": "ast",
@@ -2446,26 +2486,6 @@
       "source_location": ""
     },
     {
-      "id": "pathbuf",
-      "label": "PathBuf",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "pathbuf",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "router",
-      "label": "Router",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "router",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "src_main_approved_integration_from_env",
       "label": "approved_integration_from_env()",
       "_origin": "ast",
@@ -2494,36 +2514,6 @@
       "norm_label": "appstate",
       "source_file": "src/main.rs",
       "source_location": "L62"
-    },
-    {
-      "id": "src_main_build_router",
-      "label": "build_router()",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "build_router()",
-      "source_file": "src/main.rs",
-      "source_location": "L235"
-    },
-    {
-      "id": "src_main_default_log_filter",
-      "label": "default_log_filter()",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "default_log_filter()",
-      "source_file": "src/main.rs",
-      "source_location": "L1215"
-    },
-    {
-      "id": "src_main_log_filter",
-      "label": "log_filter()",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "log_filter()",
-      "source_file": "src/main.rs",
-      "source_location": "L1219"
     },
     {
       "id": "src_main_shareresult",
@@ -2566,12 +2556,32 @@
       "source_location": ""
     },
     {
-      "id": "hashset",
-      "label": "HashSet",
+      "id": "body",
+      "label": "Body",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "hashset",
+      "norm_label": "body",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "request",
+      "label": "Request",
+      "_origin": "ast",
+      "community": 7,
+      "file_type": "code",
+      "norm_label": "request",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "result",
+      "label": "Result",
+      "_origin": "ast",
+      "community": 7,
+      "file_type": "code",
+      "norm_label": "result",
       "source_file": "",
       "source_location": ""
     },
@@ -2586,6 +2596,16 @@
       "source_location": "L1253"
     },
     {
+      "id": "src_main_create_share",
+      "label": "create_share()",
+      "_origin": "ast",
+      "community": 7,
+      "file_type": "code",
+      "norm_label": "create_share()",
+      "source_file": "src/main.rs",
+      "source_location": "L321"
+    },
+    {
       "id": "src_main_encrypt_json",
       "label": "encrypt_json()",
       "_origin": "ast",
@@ -2596,134 +2616,64 @@
       "source_location": "L1031"
     },
     {
-      "id": "src_main_hmrc_compatible_payload",
-      "label": "hmrc_compatible_payload()",
+      "id": "src_main_get_workspace",
+      "label": "get_workspace()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "hmrc_compatible_payload()",
+      "norm_label": "get_workspace()",
       "source_file": "src/main.rs",
-      "source_location": "L577"
+      "source_location": "L271"
     },
     {
-      "id": "src_main_hmrc_payload_requires_explicit_human_review",
-      "label": "hmrc_payload_requires_explicit_human_review()",
+      "id": "src_main_licence_token",
+      "label": "licence_token()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "hmrc_payload_requires_explicit_human_review()",
+      "norm_label": "licence_token()",
       "source_file": "src/main.rs",
-      "source_location": "L1417"
+      "source_location": "L522"
     },
     {
-      "id": "src_main_invalid_transaction",
-      "label": "invalid_transaction()",
+      "id": "src_main_put_workspace",
+      "label": "put_workspace()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "invalid_transaction()",
+      "norm_label": "put_workspace()",
       "source_file": "src/main.rs",
-      "source_location": "L893"
+      "source_location": "L289"
     },
     {
-      "id": "src_main_is_calendar_date",
-      "label": "is_calendar_date()",
+      "id": "src_main_unix_now",
+      "label": "unix_now()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "is_calendar_date()",
+      "norm_label": "unix_now()",
       "source_file": "src/main.rs",
-      "source_location": "L999"
+      "source_location": "L1208"
     },
     {
-      "id": "src_main_is_iso_date",
-      "label": "is_iso_date()",
+      "id": "src_main_workspace_id",
+      "label": "workspace_id()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "is_iso_date()",
+      "norm_label": "workspace_id()",
       "source_file": "src/main.rs",
-      "source_location": "L690"
+      "source_location": "L828"
     },
     {
-      "id": "src_main_is_standard_uk_quarter",
-      "label": "is_standard_uk_quarter()",
+      "id": "src_main_write_audit",
+      "label": "write_audit()",
       "_origin": "ast",
       "community": 7,
       "file_type": "code",
-      "norm_label": "is_standard_uk_quarter()",
+      "norm_label": "write_audit()",
       "source_file": "src/main.rs",
-      "source_location": "L1016"
-    },
-    {
-      "id": "src_main_safe_fixture_authorized",
-      "label": "safe_fixture_authorized()",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "safe_fixture_authorized()",
-      "source_file": "src/main.rs",
-      "source_location": "L496"
-    },
-    {
-      "id": "src_main_safe_fixture_document",
-      "label": "safe_fixture_document()",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "safe_fixture_document()",
-      "source_file": "src/main.rs",
-      "source_location": "L500"
-    },
-    {
-      "id": "src_main_submissionrequest",
-      "label": "SubmissionRequest",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "submissionrequest",
-      "source_file": "src/main.rs",
-      "source_location": "L101"
-    },
-    {
-      "id": "src_main_validate_document",
-      "label": "validate_document()",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "validate_document()",
-      "source_file": "src/main.rs",
-      "source_location": "L846"
-    },
-    {
-      "id": "src_main_validate_transaction",
-      "label": "validate_transaction()",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "validate_transaction()",
-      "source_file": "src/main.rs",
-      "source_location": "L897"
-    },
-    {
-      "id": "src_main_workspacedocument",
-      "label": "WorkspaceDocument",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "workspacedocument",
-      "source_file": "src/main.rs",
-      "source_location": "L90"
-    },
-    {
-      "id": "value",
-      "label": "Value",
-      "_origin": "ast",
-      "community": 7,
-      "file_type": "code",
-      "norm_label": "value",
-      "source_file": "",
-      "source_location": ""
+      "source_location": "L1084"
     },
     {
       "id": "vec",
@@ -2766,44 +2716,114 @@
       "source_location": "L1"
     },
     {
-      "id": "scripts_verify_live",
-      "label": "verify-live.mjs",
+      "id": "json",
+      "label": "Json",
       "_origin": "ast",
       "community": 9,
       "file_type": "code",
-      "norm_label": "verify-live.mjs",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L1"
+      "norm_label": "json",
+      "source_file": "",
+      "source_location": ""
     },
     {
-      "id": "scripts_verify_live_durabledocument",
-      "label": "durableDocument",
+      "id": "next",
+      "label": "Next",
       "_origin": "ast",
       "community": 9,
       "file_type": "code",
-      "norm_label": "durabledocument",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L40"
+      "norm_label": "next",
+      "source_file": "",
+      "source_location": ""
     },
     {
-      "id": "scripts_verify_live_fixtureheaders",
-      "label": "fixtureHeaders",
+      "id": "response",
+      "label": "Response",
       "_origin": "ast",
       "community": 9,
       "file_type": "code",
-      "norm_label": "fixtureheaders",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L81"
+      "norm_label": "response",
+      "source_file": "",
+      "source_location": ""
     },
     {
-      "id": "scripts_verify_live_workspaceid",
-      "label": "workspaceId",
+      "id": "src_main_apierror_into_response",
+      "label": ".into_response()",
       "_origin": "ast",
       "community": 9,
       "file_type": "code",
-      "norm_label": "workspaceid",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L36"
+      "norm_label": ".into_response()",
+      "source_file": "src/main.rs",
+      "source_location": "L121"
+    },
+    {
+      "id": "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
+      "label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
+      "source_file": "src/main.rs",
+      "source_location": "L1483"
+    },
+    {
+      "id": "src_main_health",
+      "label": "Health",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "health",
+      "source_file": "src/main.rs",
+      "source_location": "L82"
+    },
+    {
+      "id": "src_main_rate_limit",
+      "label": "rate_limit()",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "rate_limit()",
+      "source_file": "src/main.rs",
+      "source_location": "L751"
+    },
+    {
+      "id": "src_main_safe_qa_entitlement",
+      "label": "safe_qa_entitlement()",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "safe_qa_entitlement()",
+      "source_file": "src/main.rs",
+      "source_location": "L477"
+    },
+    {
+      "id": "src_main_security_headers",
+      "label": "security_headers()",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "security_headers()",
+      "source_file": "src/main.rs",
+      "source_location": "L793"
+    },
+    {
+      "id": "src_main_submit_to_hmrc",
+      "label": "submit_to_hmrc()",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "submit_to_hmrc()",
+      "source_file": "src/main.rs",
+      "source_location": "L364"
+    },
+    {
+      "id": "state",
+      "label": "State",
+      "_origin": "ast",
+      "community": 9,
+      "file_type": "code",
+      "norm_label": "state",
+      "source_file": "",
+      "source_location": ""
     }
   ],
   "links": [
@@ -4405,18 +4425,6 @@
     },
     {
       "source": "scripts_verify_live_assertlimit",
-      "target": "scripts_verify_live_response",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L93",
-      "weight": 1.0
-    },
-    {
-      "source": "scripts_verify_live_assertlimit",
       "target": "scripts_verify_live_assert",
       "relation": "calls",
       "_origin": "ast",
@@ -4424,7 +4432,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L99",
+      "source_location": "L103",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_verify_live_assertlimit",
+      "target": "scripts_verify_live_response",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L97",
       "weight": 1.0
     },
     {
@@ -6872,7 +6892,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0
     },
     {
@@ -6884,7 +6904,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0
     },
     {
@@ -6896,7 +6916,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0
     },
     {
@@ -6908,7 +6928,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0
     },
     {
@@ -6920,7 +6940,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -6932,7 +6952,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0
     },
     {
@@ -6944,7 +6964,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "package.json",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0
     },
     {
@@ -8961,17 +8981,6 @@
     },
     {
       "source": "package",
-      "target": "package_devdependencies",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "package.json",
-      "source_location": "L19",
-      "weight": 1.0
-    },
-    {
-      "source": "package",
       "target": "package_name",
       "relation": "contains",
       "_origin": "ast",
@@ -8979,6 +8988,17 @@
       "confidence_score": 1.0,
       "source_file": "package.json",
       "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "package",
+      "target": "package_devdependencies",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "package.json",
+      "source_location": "L20",
       "weight": 1.0
     },
     {
@@ -9033,7 +9053,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0
     },
     {
@@ -9044,7 +9064,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0
     },
     {
@@ -9055,7 +9075,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0
     },
     {
@@ -9066,7 +9086,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0
     },
     {
@@ -9077,7 +9097,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -9088,7 +9108,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0
     },
     {
@@ -9099,7 +9119,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0
     },
     {
@@ -9170,7 +9190,7 @@
     },
     {
       "source": "package_scripts",
-      "target": "package_scripts_verify_topology",
+      "target": "package_scripts_verify_release",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -9181,13 +9201,24 @@
     },
     {
       "source": "package_scripts",
-      "target": "package_scripts_test",
+      "target": "package_scripts_verify_topology",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "package.json",
       "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "package_scripts",
+      "target": "package_scripts_test",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "package.json",
+      "source_location": "L18",
       "weight": 1.0
     },
     {
@@ -9236,13 +9267,24 @@
     },
     {
       "source": "scripts_check_deploy_contract",
-      "target": "scripts_check_deploy_contract_required",
+      "target": "scripts_check_deploy_contract_packagejson",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
       "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_check_deploy_contract",
+      "target": "scripts_check_deploy_contract_required",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/check-deploy-contract.mjs",
+      "source_location": "L6",
       "weight": 1.0
     },
     {
@@ -9297,7 +9339,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L10",
+      "source_location": "L11",
       "weight": 1.0
     },
     {
@@ -9308,7 +9350,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L36",
+      "source_location": "L40",
       "weight": 1.0
     },
     {
@@ -9319,7 +9361,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L40",
+      "source_location": "L44",
       "weight": 1.0
     },
     {
@@ -9330,7 +9372,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L6",
+      "source_location": "L7",
       "weight": 1.0
     },
     {
@@ -9341,7 +9383,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L81",
+      "source_location": "L85",
       "weight": 1.0
     },
     {
@@ -9352,7 +9394,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L89",
+      "source_location": "L93",
       "weight": 1.0
     },
     {
@@ -10301,5 +10343,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "c9190a960905d510001b131df99dbb461f8f5b99"
+  "built_at_commit": "0323fdc3fcd77360467633488362bb4b32cef2de"
 }

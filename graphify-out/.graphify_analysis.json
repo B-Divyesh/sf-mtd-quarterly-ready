@@ -112,6 +112,7 @@
       "package_scripts_test_unit",
       "package_scripts_typecheck",
       "package_scripts_verify_live",
+      "package_scripts_verify_release",
       "package_scripts_verify_topology",
       "package_type",
       "package_version",
@@ -123,59 +124,53 @@
       "vitest"
     ],
     "3": [
-      "e",
-      "error",
-      "fspath",
-      "sqlitepool",
+      "hashset",
       "src_main",
       "src_main_claim_accountant_link_expiry_is_thirty_days",
+      "src_main_decrypt_json",
+      "src_main_default_log_filter_keeps_startup_information_visible",
+      "src_main_hmrc_compatible_payload",
+      "src_main_hmrc_payload_requires_explicit_human_review",
+      "src_main_invalid_transaction",
+      "src_main_is_calendar_date",
+      "src_main_is_iso_date",
+      "src_main_is_standard_uk_quarter",
+      "src_main_licenceverdict",
+      "src_main_rejects_each_malformed_transaction_field",
+      "src_main_rejects_transactions_outside_the_selected_quarter",
+      "src_main_safe_fixture_authorized",
+      "src_main_safe_fixture_document",
+      "src_main_startup_migration_retries_transient_sqlite_locks",
+      "src_main_submissionrequest",
+      "src_main_validate_document",
+      "src_main_validate_transaction",
+      "src_main_validates_transaction_document",
+      "src_main_workspacedocument",
+      "value"
+    ],
+    "4": [
+      "envfilter",
+      "error",
+      "fspath",
+      "pathbuf",
+      "router",
+      "sqlitepool",
+      "src_main_build_router",
       "src_main_claim_anonymous_page_count",
       "src_main_claim_hash_chained_audit_log",
       "src_main_cleanup_expired_shares",
-      "src_main_default_log_filter_keeps_startup_information_visible",
-      "src_main_internal",
+      "src_main_default_log_filter",
       "src_main_is_database_locked_message",
-      "src_main_licenceverdict",
       "src_main_load_or_create_key",
+      "src_main_log_filter",
       "src_main_main",
       "src_main_migrate",
       "src_main_migrate_with_retry",
       "src_main_persist_database_snapshot",
-      "src_main_rejects_each_malformed_transaction_field",
-      "src_main_rejects_transactions_outside_the_selected_quarter",
       "src_main_restore_database_snapshot",
       "src_main_safe_fixtures_enabled",
       "src_main_shutdown_signal",
-      "src_main_startup_migration_retries_transient_sqlite_locks",
-      "src_main_validates_transaction_document",
       "src_main_workspace_snapshot_is_restored_after_a_restart"
-    ],
-    "4": [
-      "body",
-      "intoresponse",
-      "json",
-      "path",
-      "request",
-      "result",
-      "src_main_apierror",
-      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
-      "src_main_create_share",
-      "src_main_decrypt_json",
-      "src_main_get_share",
-      "src_main_get_workspace",
-      "src_main_health",
-      "src_main_licence_token",
-      "src_main_page_view",
-      "src_main_put_workspace",
-      "src_main_safe_qa_entitlement",
-      "src_main_submit_to_hmrc",
-      "src_main_subscription_verification_accepts_the_annual_entitlement",
-      "src_main_unix_now",
-      "src_main_verify_licence_token",
-      "src_main_workspace_id",
-      "src_main_write_audit",
-      "state",
-      "statuscode"
     ],
     "5": [
       "ref_dom",
@@ -202,41 +197,31 @@
     "6": [
       "arc",
       "client",
-      "envfilter",
       "hashmap",
       "instant",
       "mutex",
       "option",
-      "pathbuf",
-      "router",
       "src_main_approved_integration_from_env",
       "src_main_approvedintegration",
       "src_main_appstate",
-      "src_main_build_router",
-      "src_main_default_log_filter",
-      "src_main_log_filter",
       "src_main_shareresult",
       "src_main_submissionresult",
       "string",
       "vecdeque"
     ],
     "7": [
-      "hashset",
+      "body",
+      "request",
+      "result",
       "src_main_claim_encrypted_storage",
+      "src_main_create_share",
       "src_main_encrypt_json",
-      "src_main_hmrc_compatible_payload",
-      "src_main_hmrc_payload_requires_explicit_human_review",
-      "src_main_invalid_transaction",
-      "src_main_is_calendar_date",
-      "src_main_is_iso_date",
-      "src_main_is_standard_uk_quarter",
-      "src_main_safe_fixture_authorized",
-      "src_main_safe_fixture_document",
-      "src_main_submissionrequest",
-      "src_main_validate_document",
-      "src_main_validate_transaction",
-      "src_main_workspacedocument",
-      "value",
+      "src_main_get_workspace",
+      "src_main_licence_token",
+      "src_main_put_workspace",
+      "src_main_unix_now",
+      "src_main_workspace_id",
+      "src_main_write_audit",
       "vec"
     ],
     "8": [
@@ -255,6 +240,31 @@
       "frontend_src_receipts_transactiondone"
     ],
     "9": [
+      "json",
+      "next",
+      "response",
+      "src_main_apierror_into_response",
+      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
+      "src_main_health",
+      "src_main_rate_limit",
+      "src_main_safe_qa_entitlement",
+      "src_main_security_headers",
+      "src_main_submit_to_hmrc",
+      "state"
+    ],
+    "10": [
+      "e",
+      "intoresponse",
+      "path",
+      "src_main_apierror",
+      "src_main_get_share",
+      "src_main_internal",
+      "src_main_page_view",
+      "src_main_subscription_verification_accepts_the_annual_entitlement",
+      "src_main_verify_licence_token",
+      "statuscode"
+    ],
+    "11": [
       "scripts_verify_live",
       "scripts_verify_live_assert",
       "scripts_verify_live_assertlimit",
@@ -263,76 +273,70 @@
       "scripts_verify_live_response",
       "scripts_verify_live_workspaceid"
     ],
-    "10": [
-      "next",
-      "response",
-      "src_main_apierror_into_response",
-      "src_main_rate_limit",
-      "src_main_security_headers"
+    "12": [
+      "scripts_check_deploy_contract",
+      "scripts_check_deploy_contract_packagejson",
+      "scripts_check_deploy_contract_required"
     ],
-    "11": [
+    "13": [
       "scripts_verify_durability",
       "scripts_verify_durability_document",
       "scripts_verify_durability_headers"
     ],
-    "12": [
+    "14": [
       "frontend_public_sw",
       "frontend_public_sw_shell"
     ],
-    "13": [
+    "15": [
       "playwright_config",
       "playwright_config_repositoryroot"
     ],
-    "14": [
-      "scripts_check_deploy_contract",
-      "scripts_check_deploy_contract_required"
-    ],
-    "15": [
+    "16": [
       "scripts_deploy_container",
       "scripts_deploy_container_sh__entry"
     ],
-    "16": [
+    "17": [
       "scripts_verify_azure_topology",
       "scripts_verify_azure_topology_sh__entry"
     ],
-    "17": [
+    "18": [
       "tests_backend_spec",
       "tests_backend_spec_validdocument"
     ],
-    "18": [
+    "19": [
       "frontend_vite_config"
     ],
-    "19": [
+    "20": [
       "frontend_vitest_config"
     ],
-    "20": [
+    "21": [
       "pkg_quarterly_ready"
     ],
-    "21": [
+    "22": [
       "tests_accessibility_spec"
     ],
-    "22": [
+    "23": [
       "tests_claims_spec"
     ],
-    "23": [
+    "24": [
       "tests_claims_spec_idbobjectstore_put"
     ]
   },
   "cohesion": {
     "0": 0.11497584541062802,
     "1": 0.13513513513513514,
-    "2": 0.0625,
-    "3": 0.14153846153846153,
-    "4": 0.25,
+    "2": 0.06060606060606061,
+    "3": 0.15810276679841898,
+    "4": 0.1341991341991342,
     "5": 0.1,
-    "6": 0.13450292397660818,
-    "7": 0.16176470588235295,
+    "6": 0.1794871794871795,
+    "7": 0.38461538461538464,
     "8": 0.3076923076923077,
-    "9": 0.38095238095238093,
-    "10": 0.6,
-    "11": 0.6666666666666666,
-    "12": 1.0,
-    "13": 1.0,
+    "9": 0.3090909090909091,
+    "10": 0.2222222222222222,
+    "11": 0.38095238095238093,
+    "12": 0.6666666666666666,
+    "13": 0.6666666666666666,
     "14": 1.0,
     "15": 1.0,
     "16": 1.0,
@@ -342,7 +346,8 @@
     "20": 1.0,
     "21": 1.0,
     "22": 1.0,
-    "23": 1.0
+    "23": 1.0,
+    "24": 1.0
   },
   "gods": [
     {
@@ -391,9 +396,9 @@
       "degree": 13
     },
     {
-      "id": "frontend_src_storage_loaddocument",
-      "label": "loadDocument()",
-      "degree": 12
+      "id": "package_scripts",
+      "label": "scripts",
+      "degree": 13
     }
   ],
   "surprises": [
