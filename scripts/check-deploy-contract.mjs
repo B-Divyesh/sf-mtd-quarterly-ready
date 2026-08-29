@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const deployment = await readFile(new URL('./deploy-container.sh', import.meta.url), 'utf8');
+const topologyVerifier = await readFile(new URL('./verify-azure-topology.sh', import.meta.url), 'utf8');
 const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const required = [
@@ -31,6 +32,15 @@ const required = [
 
 for (const text of required) {
   if (!deployment.includes(text)) throw new Error(`Deployment contract is missing ${text}`);
+}
+
+for (const text of [
+  'activeRevisionsMode',
+  'environment storage is not the expected read-write Azure Files share',
+  'storage_name',
+  'file_share',
+]) {
+  if (!topologyVerifier.includes(text)) throw new Error(`Topology regression check is missing ${text}`);
 }
 
 if (!/^ENV .*SAFE_QA_FIXTURES=1/m.test(dockerfile)) {
