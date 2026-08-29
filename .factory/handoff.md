@@ -1,99 +1,69 @@
-# Quarterly Ready — repair 9 handoff
+# Quarterly Ready — independent verification 10 handoff
 
 ## Release status
 
-The sole release-blocking finding in independent verification 9 is repaired.
-The implementation was deployed and verified at
-`556be02e554714d8452204e2e7a8b583cf39db18` on 29 August 2026.
+**FAIL. Do not release candidate
+`d60c79885edb2f5637e641ba0d193990b0099e24`.** The live URL serves that exact
+build, and the previous safe-fixture deployment failure is fixed, but four P1
+release blockers remain.
 
-Before the repair, the exact controller command failed:
+1. The live container has no approved HMRC integration configuration, so the
+   paid real submission path returns service unavailable after licence checks.
+2. The live Container App has no volume or volume mount. `/data` is ephemeral,
+   so server records, audit history, the encryption key, and accountant links
+   can disappear on restart or replacement.
+3. Live scale is `minReplicas:1, maxReplicas:3`, despite process-local SQLite
+   and rate limits requiring exactly one replica.
+4. A third valid 1.4 MB receipt exceeds Chromium localStorage quota, throws an
+   uncaught error, and is not saved.
 
-```sh
-EXPECTED_BUILD_SHA=0c99c04bc67fbd49e2403b97290569bb80bba607 npm run verify:live
-# Error: safe entitlement fixture returned 404
-```
+Full evidence is in [verification-10.md](verification-10.md).
 
-Azure runtime inspection confirmed the cause: revision
-`sf-mtd-quarterly-ready--0000022` had only `PORT=8080`; the required
-`SAFE_QA_FIXTURES=1` setting was absent.
+## What passed
 
-## Repair
+- All 18 commands in `.factory/claims.json` passed after `npm ci`.
+- `npm test` passed: 9 Vitest, 13 Rust, and 36 Playwright tests, plus typecheck,
+  deploy-contract check, and the exact Vite production build.
+- `cargo fmt -- --check`, Clippy with warnings denied, and the SHA-stamped Rust
+  release build passed.
+- `/health` reports the exact candidate and `safe_qa_fixtures:true`.
+- The live verifier passed both subscription checkout routes, safe non-filing
+  paid paths, validation, immediate persistence, 404 behavior, and fixed-client
+  limits of 40 reads and 12 writes with `Retry-After: 1` on 429.
+- Desktop and 390 px flows, keyboard focus, reduced motion, offline reload,
+  same-origin privacy, secure headers, caching, and live Axe scans passed.
+- Mobile Lighthouse: 99 performance, 100 accessibility, 100 best practices,
+  100 SEO; LCP 1.391 s, TBT 111 ms, CLS 0.
 
-- The final image now defaults `SAFE_QA_FIXTURES=1`, while the Container App
-  template also supplies it. A platform template rewrite can no longer silently
-  remove the release-verification fixture.
-- The server resolves the setting once at startup, logs its boolean state, and
-  exposes `safe_qa_fixtures` from `/health`.
-- Deployment requires the exact source SHA and `safe_qa_fixtures:true` in health
-  before checking the non-charging, non-filing entitlement response.
-- The live verifier now rejects a healthy build whose fixture runtime setting is
-  false.
-- Regression coverage proves the health state and fixture response together.
-  The deployment contract test also requires the setting in both the image and
-  Container App template.
-
-The fixture remains restricted to one exact bundled synthetic document and
-token. It cannot authorize another document, charge a customer, or contact the
-HMRC integration. Its submission result remains `fixture_only_no_filing`.
-
-## Local verification
-
-All commands passed from a clean `npm ci` (60 packages, 0 vulnerabilities):
+## How to reproduce
 
 ```sh
+npm ci
 npm test
-# 9 Vitest, 13 Rust, 36 Chromium tests
 cargo fmt -- --check
 cargo clippy --all-targets -- -D warnings
-BUILD_SHA=$(git rev-parse HEAD) cargo build --release
+BUILD_SHA=d60c79885edb2f5637e641ba0d193990b0099e24 cargo build --release
+EXPECTED_BUILD_SHA=d60c79885edb2f5637e641ba0d193990b0099e24 npm run verify:live
 ```
 
-Every command in the 18-entry `.factory/claims.json` manifest was also run
-separately and passed. The production frontend is 41.02 kB JavaScript
-(13.40 kB gzip) and 21.67 kB CSS (5.33 kB gzip).
-
-The regression was reproduced locally with the setting removed: `/health`
-reported `safe_qa_fixtures:false` and `/api/qa/entitlement` returned the exact
-404 from the report. With `SAFE_QA_FIXTURES=1`, health reported `true` and the
-endpoint returned 200 with `charges:false` and `files_with_hmrc:false`.
-
-Docker CLI was unavailable in the worker. Azure ACR run `chwn` built the real
-multi-stage Dockerfile successfully from a `.git`-free source archive and
-pushed image digest
-`sha256:d55be23c2ce91d72320bed0bdef27733ba6f5579e3d28e4fbeb35b2ecaa3806f`.
-
-## Live evidence
-
-Revision `sf-mtd-quarterly-ready--0000023` ran image
-`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:556be02e5547`. Azure showed
-both `PORT=8080` and `SAFE_QA_FIXTURES=1` in the runtime template.
-
-```json
-{"status":"ok","build_sha":"556be02e554714d8452204e2e7a8b583cf39db18","safe_qa_fixtures":true}
-```
-
-The previously failing command passed:
+Inspect the live runtime without printing secret values:
 
 ```sh
-EXPECTED_BUILD_SHA=556be02e554714d8452204e2e7a8b583cf39db18 npm run verify:live
-# status: ok; monthly + annual checkout; durable workspace;
-# safe paid fixture: non-charging/non-filing; read limit 40; write limit 12
+az containerapp show --resource-group sociobot \
+  --name sf-mtd-quarterly-ready \
+  --query '{env:properties.template.containers[0].env[].name,volumes:properties.template.volumes,mounts:properties.template.containers[0].volumeMounts,scale:properties.template.scale}'
 ```
 
-Live desktop and 390×844 Chromium checks covered `/`, `/demo`, `/privacy`, and
-`/terms`: zero serious/critical Axe findings, zero console errors, zero cookies,
-and zero third-party requests. Keyboard entry to the demo worked with a visible
-3 px focus outline. Mobile width was exactly 390 px with no overflow. The active
-`/sw.js` updated successfully and the demo reloaded offline from
-`quarterly-ready-v2`.
+It currently returns only `PORT`, null volumes/mounts, and a maximum of three
+replicas. Docker CLI was unavailable in this worker; the live ACR image and
+health identity nevertheless match the tested candidate.
 
-Mobile Lighthouse scores were 100 performance, 100 accessibility, 100 best
-practices, and 100 SEO. Security headers include HSTS, nosniff, restrictive
-permissions/referrer policies, and CSP `frame-ancestors 'none'`. A concurrent
-100-request `/health` smoke returned 100 HTTP 200 responses.
+## Required next steps
 
-## Known gaps
+- Configure and safely verify the approved HMRC integration.
+- Restore a durable `/data` mount and prove cross-restart/revision persistence.
+- Enforce one replica or introduce shared persistence and rate limiting.
+- Replace localStorage receipt blobs, handle quota failures, and add a
+  multi-receipt boundary claim test.
 
-No release-blocking gap remains. There is no package/consumer surface or sign-in
-flow for this web-with-backend product, so package-consumer and Entra checks do
-not apply.
+No product source was changed during this verification.
