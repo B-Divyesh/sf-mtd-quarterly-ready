@@ -124,7 +124,13 @@ test('keyboard path opens the demo without console errors', async ({ page }) => 
 });
 
 test('submission review dialog is keyboard-operable and has no serious Axe findings when an integration is available', async ({ page, request }) => {
-  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string };
+  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string; hmrc_taxpayer_consent_required?: boolean };
+  if (health.hmrc_taxpayer_consent_required) {
+    await page.route('**/health', route => route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ...health, hmrc_taxpayer_consent_required: false }),
+    }));
+  }
   await page.goto('/records');
   if (!health.hmrc_integration_configured) {
     await expect(page.getByRole('button', { name: /submit to HMRC|HMRC sandbox/i })).toHaveCount(0);
@@ -151,9 +157,12 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
   await expect(dialog).toBeHidden();
 });
 
-test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration', async ({ page, browser, request }) => {
-  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string };
+test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration and taxpayer consent', async ({ page, browser, request }) => {
+  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string; hmrc_taxpayer_consent_required?: boolean };
   const { reviewAction } = submissionLabels(health.hmrc_integration_mode || 'approved_provider');
+  if (health.hmrc_taxpayer_consent_required) {
+    await page.route('**/api/hmrc/consent', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ consented: true, expires_at: 4_102_444_800 }) }));
+  }
   await page.goto('/records');
   if (health.hmrc_integration_configured) await expect(page.getByRole('button', { name: reviewAction })).toBeVisible();
   else await expect(page.getByRole('button', { name: /submit to HMRC|HMRC sandbox/i })).toHaveCount(0);
@@ -167,6 +176,35 @@ test('@claim:conditional-submission @regression:hmrc-capability shows direct sub
   await expect(unavailable.getByRole('button', { name: reviewAction })).toHaveCount(0);
   await expect(unavailable.getByText('No approved direct-submission integration is configured.')).toBeVisible();
   await unavailableContext.close();
+});
+
+test('@claim:hmrc-consent-no-records @regression:approved-provider-consent is explicit, sends no records, and opens only on user action', async ({ page }) => {
+  const requests: { method: string; body: string | null; workspace: string | null }[] = [];
+  await page.route('**/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'ok', build_sha: 'test', safe_qa_fixtures: true,
+      hmrc_integration_configured: true, hmrc_integration_mode: 'approved_provider',
+      hmrc_taxpayer_consent_required: true, hmrc_provider_name: 'Approved provider fixture',
+    }),
+  }));
+  await page.route('**/api/hmrc/consent', async route => {
+    requests.push({ method: route.request().method(), body: route.request().postData(), workspace: await route.request().headerValue('x-workspace-id') });
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ authorization_url: 'https://approved-provider.test/authorize?state=one-time-state' }) });
+    } else {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ consented: false, expires_at: null }) });
+    }
+  });
+  await page.route('https://approved-provider.test/**', route => route.fulfill({ contentType: 'text/html', body: '<title>Approved provider consent</title>' }));
+  await page.goto('/records');
+  await expect(page.getByRole('button', { name: 'Connect your tax account' })).toBeVisible();
+  await expect(page.getByText('Quarterly Ready sends no records during that step.')).toBeVisible();
+  await page.getByRole('button', { name: 'Connect your tax account' }).click();
+  await expect(page).toHaveURL('https://approved-provider.test/authorize?state=one-time-state');
+  const start = requests.find(request => request.method === 'POST');
+  expect(start?.workspace).toMatch(/[0-9a-f-]{36}/);
+  expect(start?.body).toBeNull();
 });
 
 test('@regression:hmrc-capability hides direct submission when no approved integration is configured', async ({ page }) => {
@@ -201,6 +239,6 @@ test('@regression:hmrc-copy does not claim a deployed sandbox when direct submis
     body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
   }));
   await page.goto('/privacy');
-  await expect(page.getByText('Quarterly Ready can send a reviewed update only when an approved HMRC integration is configured.')).toBeVisible();
+  await expect(page.getByText('Quarterly Ready can send a reviewed update only after an approved provider is configured and you give taxpayer consent.')).toBeVisible();
   await expect(page.getByText(/The deployed integration is a non-filing HMRC sandbox/i)).toHaveCount(0);
 });

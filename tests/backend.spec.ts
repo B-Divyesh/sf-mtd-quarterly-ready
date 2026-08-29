@@ -36,6 +36,28 @@ test('workspace endpoints save and return an encrypted document', async ({ reque
   expect(result.document.transactions[0].description).toBe('Test lesson');
 });
 
+test('@regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted', async ({ request }) => {
+  const probes = await Promise.all(Array.from({ length: 10 }, async (_, index) => {
+    const id = crypto.randomUUID();
+    const description = `Concurrent durable workspace ${index} ${id}`;
+    const headers = { 'x-workspace-id': id, 'x-forwarded-for': `198.51.100.${index + 1}` };
+    const document = {
+      ...validDocument,
+      updatedAt: new Date().toISOString(),
+      transactions: [{ ...validDocument.transactions[0], id, description, amountPence: index + 1 }],
+    };
+    const saved = await request.put('/api/workspace', { headers, data: { document } });
+    const restored = await request.get('/api/workspace', { headers });
+    return { id, description, saved, restored };
+  }));
+
+  for (const probe of probes) {
+    expect(probe.saved.status(), `save for ${probe.id}`).toBe(200);
+    expect(probe.restored.status(), `read for ${probe.id}`).toBe(200);
+    expect((await probe.restored.json()).document.transactions[0].description, `document for ${probe.id}`).toBe(probe.description);
+  }
+});
+
 test('@regression:workspace-rejects-malformed-transaction-objects before persistence', async ({ request }) => {
   const headers = { 'x-workspace-id': 'd735ee38-13fe-4a21-985b-96a32a720cef', 'x-forwarded-for': '203.0.113.22' };
   const malformed = [

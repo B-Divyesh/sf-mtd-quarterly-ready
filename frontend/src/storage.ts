@@ -141,6 +141,22 @@ export async function submitToHmrc(document: QuarterDocument): Promise<{ referen
   return { reference: result.submission_id, status: result.status || 'accepted', filesWithHmrc: result.files_with_hmrc === true };
 }
 
+export async function hmrcConsentStatus(): Promise<{ consented: boolean; expiresAt: number | null }> {
+  const response = await fetch('/api/hmrc/consent', { headers: { 'x-workspace-id': workspaceId() } });
+  const result = await response.json().catch(() => ({})) as { consented?: boolean; expires_at?: number | null };
+  if (!response.ok) throw new Error('Your taxpayer consent status could not be checked.');
+  return { consented: result.consented === true, expiresAt: result.expires_at ?? null };
+}
+
+export async function startHmrcConsent(): Promise<void> {
+  const response = await fetch('/api/hmrc/consent', {
+    method: 'POST', headers: { 'x-workspace-id': workspaceId() },
+  });
+  const result = await response.json().catch(() => ({})) as { authorization_url?: string; error?: string };
+  if (!response.ok || !result.authorization_url) throw new Error(result.error || 'Your taxpayer consent could not be started.');
+  location.assign(result.authorization_url);
+}
+
 export async function loadShare(token: string): Promise<QuarterDocument> {
   if (token === 'demo') return clone(SAMPLE_DOCUMENT);
   const response = await fetch(`/api/share/${encodeURIComponent(token)}`);

@@ -4,15 +4,16 @@ use aes_gcm::{
 };
 use axum::{
     body::Body,
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderName, HeaderValue, Request, StatusCode},
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::{get, get_service, post},
     Json, Router,
 };
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use rand::{rngs::OsRng, RngCore};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -25,12 +26,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::{
-    fs,
-    io::{AsyncReadExt, AsyncWriteExt},
-    signal,
-    sync::Mutex,
-};
+use tokio::{fs, signal, sync::Mutex};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -62,9 +58,7 @@ const CATEGORIES: [&str; 7] = [
 struct AppState {
     db: SqlitePool,
     key: [u8; 32],
-    database_path: PathBuf,
-    snapshot_path: PathBuf,
-    persistence: Arc<Mutex<()>>,
+    write_lock: Arc<Mutex<()>>,
     limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
     client: reqwest::Client,
     billing_base_url: String,
@@ -77,6 +71,18 @@ struct ApprovedIntegration {
     url: String,
     token: String,
     mode: IntegrationMode,
+    taxpayer_consent: Option<TaxpayerConsent>,
+}
+
+#[derive(Clone)]
+struct TaxpayerConsent {
+    authorize_url: String,
+    token_url: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+    provider_name: String,
+    provider_approval_reference: String,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,12 +101,14 @@ impl IntegrationMode {
 }
 
 #[derive(Serialize)]
-struct Health<'a> {
-    status: &'a str,
-    build_sha: &'a str,
+struct Health {
+    status: &'static str,
+    build_sha: &'static str,
     safe_qa_fixtures: bool,
     hmrc_integration_configured: bool,
-    hmrc_integration_mode: &'a str,
+    hmrc_integration_mode: &'static str,
+    hmrc_taxpayer_consent_required: bool,
+    hmrc_provider_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -118,6 +126,31 @@ struct ShareResult {
 struct SubmissionRequest {
     document: Value,
     review_confirmed: bool,
+}
+
+#[derive(Deserialize)]
+struct ConsentCallback {
+    state: String,
+    code: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ConsentStart {
+    authorization_url: String,
+}
+
+#[derive(Serialize)]
+struct ConsentStatus {
+    consented: bool,
+    expires_at: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct ProviderTokenResponse {
+    access_token: String,
+    refresh_token: Option<String>,
+    expires_in: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -153,30 +186,24 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
     let data_dir = PathBuf::from(env::var("DATA_DIR").unwrap_or_else(|_| "./data".into()));
-    let database_dir = PathBuf::from(
-        env::var("DATABASE_DIR").unwrap_or_else(|_| data_dir.to_string_lossy().into_owned()),
-    );
     let frontend_dir = PathBuf::from(env::var("FRONTEND_DIR").unwrap_or_else(|_| "./dist".into()));
     fs::create_dir_all(&data_dir)
         .await
         .expect("create data directory");
-    fs::create_dir_all(&database_dir)
+    let database_path = data_dir.join("quarterly-ready.sqlite3");
+    let legacy_snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
+    restore_legacy_snapshot(&legacy_snapshot_path, &database_path)
         .await
-        .expect("create database directory");
-    let snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
-    let database_path = database_dir.join("quarterly-ready.sqlite3");
-    restore_database_snapshot(&snapshot_path, &database_path)
-        .await
-        .expect("restore database snapshot");
+        .expect("restore legacy database snapshot");
     let (key, generated) = load_or_create_key(&data_dir.join("quarterly-ready.key"))
         .await
         .expect("load encryption key");
     let database_url = format!("sqlite://{}?mode=rwc", database_path.display());
     let db = SqlitePoolOptions::new()
-        // Keep SQLite on the container's local filesystem: Azure Files cannot
-        // safely host its locking protocol. Mutations are serialized and then
-        // copied to the mounted /data snapshot for the next one-replica
-        // revision hand-off.
+        // The Container App has one active replica and mounts Azure Files at
+        // /data. Keeping the database at that mount makes a successful write
+        // durable before the API acknowledges it; copying a local snapshot
+        // left a window where another replica could serve stale data.
         .max_connections(1)
         .connect(&database_url)
         .await
@@ -189,6 +216,10 @@ async fn main() {
         .execute(&db)
         .await
         .expect("configure database journal");
+    sqlx::query("PRAGMA synchronous = FULL")
+        .execute(&db)
+        .await
+        .expect("configure database durability");
     migrate_with_retry(&db)
         .await
         .expect("run database migrations");
@@ -214,9 +245,7 @@ async fn main() {
     let state = AppState {
         db,
         key,
-        database_path,
-        snapshot_path,
-        persistence: Arc::new(Mutex::new(())),
+        write_lock: Arc::new(Mutex::new(())),
         limits: Arc::new(Mutex::new(HashMap::new())),
         client,
         billing_base_url: env::var("SOCIOBOT_BILLING_URL")
@@ -264,6 +293,11 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .route("/api/share", post(create_share))
         .route("/api/share/:token", get(get_share))
         .route("/api/hmrc/submit", post(submit_to_hmrc))
+        .route(
+            "/api/hmrc/consent",
+            get(hmrc_consent_status).post(start_hmrc_consent),
+        )
+        .route("/api/hmrc/consent/callback", get(hmrc_consent_callback))
         .route("/api/qa/entitlement", get(safe_qa_entitlement))
         .route("/api/page-view", post(page_view))
         .route_service("/", get_service(ServeFile::new(index.clone())))
@@ -283,18 +317,22 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .with_state(state)
 }
 
-async fn health(State(state): State<AppState>) -> Json<Health<'static>> {
-    let integration_mode = state
-        .hmrc_integration
-        .as_ref()
-        .map(|integration| integration.mode.as_str())
+async fn health(State(state): State<AppState>) -> Json<Health> {
+    let integration = state.hmrc_integration.as_ref();
+    let integration_mode = integration
+        .map(|configured| configured.mode.as_str())
         .unwrap_or("not_configured");
     Json(Health {
         status: "ok",
         build_sha: BUILD_SHA,
         safe_qa_fixtures: state.safe_qa_fixtures,
-        hmrc_integration_configured: state.hmrc_integration.is_some(),
+        hmrc_integration_configured: integration.is_some(),
         hmrc_integration_mode: integration_mode,
+        hmrc_taxpayer_consent_required: integration
+            .is_some_and(|configured| configured.taxpayer_consent.is_some()),
+        hmrc_provider_name: integration
+            .and_then(|configured| configured.taxpayer_consent.as_ref())
+            .map(|consent| consent.provider_name.clone()),
     })
 }
 
@@ -320,7 +358,7 @@ async fn put_workspace(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<Json<Value>, ApiError> {
-    let _persistence = state.persistence.lock().await;
+    let _write = state.write_lock.lock().await;
     let id = workspace_id(&request)?;
     let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
         .await
@@ -342,9 +380,6 @@ async fn put_workspace(
     sqlx::query("INSERT INTO workspaces(id, payload, updated_at) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at")
         .bind(&id).bind(encrypted).bind(now as i64).execute(&state.db).await.map_err(internal)?;
     write_audit(&state, &id, "records_saved", &bytes).await?;
-    persist_database_snapshot(&state.database_path, &state.snapshot_path)
-        .await
-        .map_err(internal)?;
     Ok(Json(json!({ "saved": true, "updated_at": now })))
 }
 
@@ -352,7 +387,7 @@ async fn create_share(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<(StatusCode, Json<ShareResult>), ApiError> {
-    let _persistence = state.persistence.lock().await;
+    let _write = state.write_lock.lock().await;
     let id = workspace_id(&request)?;
     let licence = licence_token(&request)?;
     let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
@@ -385,9 +420,6 @@ async fn create_share(
         .await
         .map_err(internal)?;
     write_audit(&state, &id, "accountant_link_created", token.as_bytes()).await?;
-    persist_database_snapshot(&state.database_path, &state.snapshot_path)
-        .await
-        .map_err(internal)?;
     Ok((StatusCode::CREATED, Json(ShareResult { token, expires_at })))
 }
 
@@ -395,7 +427,7 @@ async fn submit_to_hmrc(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<Json<SubmissionResult>, ApiError> {
-    let _persistence = state.persistence.lock().await;
+    let _write = state.write_lock.lock().await;
     let id = workspace_id(&request)?;
     let licence = request
         .headers()
@@ -444,9 +476,6 @@ async fn submit_to_hmrc(
             submission_id.as_bytes(),
         )
         .await?;
-        persist_database_snapshot(&state.database_path, &state.snapshot_path)
-            .await
-            .map_err(internal)?;
         return Ok(Json(SubmissionResult {
             submission_id,
             status: "fixture_only_no_filing",
@@ -460,7 +489,18 @@ async fn submit_to_hmrc(
         StatusCode::SERVICE_UNAVAILABLE,
         "An approved HMRC integration is not configured for this service. Download the accountant pack or try again later.",
     ))?;
-    let result = send_to_approved_integration(&state.client, integration, &payload).await?;
+    let taxpayer_access_token = if integration.taxpayer_consent.is_some() {
+        Some(load_taxpayer_consent_token(&state, &id).await?)
+    } else {
+        None
+    };
+    let result = send_to_approved_integration(
+        &state.client,
+        integration,
+        &payload,
+        taxpayer_access_token.as_deref(),
+    )
+    .await?;
     write_audit(
         &state,
         &id,
@@ -472,9 +512,6 @@ async fn submit_to_hmrc(
         result.submission_id.as_bytes(),
     )
     .await?;
-    persist_database_snapshot(&state.database_path, &state.snapshot_path)
-        .await
-        .map_err(internal)?;
     Ok(Json(result))
 }
 
@@ -482,6 +519,7 @@ async fn send_to_approved_integration(
     client: &reqwest::Client,
     integration: &ApprovedIntegration,
     payload: &Value,
+    taxpayer_access_token: Option<&str>,
 ) -> Result<SubmissionResult, ApiError> {
     if integration.mode == IntegrationMode::HmrcSandboxNoFiling {
         let response = client
@@ -525,9 +563,14 @@ async fn send_to_approved_integration(
         });
     }
 
+    let taxpayer_access_token = taxpayer_access_token.ok_or(ApiError(
+        StatusCode::PRECONDITION_REQUIRED,
+        "Connect and authorise your tax account before submitting a quarterly update.",
+    ))?;
     let response = client
         .post(&integration.url)
-        .bearer_auth(&integration.token)
+        .bearer_auth(taxpayer_access_token)
+        .header("x-quarterly-ready-provider-token", &integration.token)
         .header(
             "x-quarterly-ready-submission",
             "mtd-itsa-periodic-update-v1",
@@ -568,6 +611,236 @@ async fn send_to_approved_integration(
         status: "accepted",
         files_with_hmrc: true,
     })
+}
+
+async fn hmrc_consent_status(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<ConsentStatus>, ApiError> {
+    let id = workspace_id(&request)?;
+    if state
+        .hmrc_integration
+        .as_ref()
+        .is_none_or(|integration| integration.taxpayer_consent.is_none())
+    {
+        return Ok(Json(ConsentStatus {
+            consented: false,
+            expires_at: None,
+        }));
+    }
+    let row = sqlx::query("SELECT expires_at FROM hmrc_consents WHERE workspace_id = ?")
+        .bind(&id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(internal)?;
+    let expires_at = row.map(|row| row.get::<i64, _>("expires_at") as u64);
+    Ok(Json(ConsentStatus {
+        consented: expires_at.is_some_and(|expiry| expiry > unix_now()),
+        expires_at: expires_at.filter(|expiry| *expiry > unix_now()),
+    }))
+}
+
+async fn start_hmrc_consent(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<ConsentStart>, ApiError> {
+    let id = workspace_id(&request)?;
+    let consent = state
+        .hmrc_integration
+        .as_ref()
+        .and_then(|integration| integration.taxpayer_consent.as_ref())
+        .ok_or(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Taxpayer consent is unavailable because no approved HMRC provider is configured.",
+        ))?
+        .clone();
+    let state_token = Uuid::new_v4().simple().to_string();
+    let expires_at = unix_now() + 10 * 60;
+    let _write = state.write_lock.lock().await;
+    sqlx::query("INSERT INTO hmrc_consent_states(state, workspace_id, expires_at) VALUES(?, ?, ?) ON CONFLICT(state) DO UPDATE SET workspace_id=excluded.workspace_id, expires_at=excluded.expires_at")
+        .bind(&state_token)
+        .bind(&id)
+        .bind(expires_at as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    write_audit(
+        &state,
+        &id,
+        "taxpayer_consent_started",
+        consent.provider_approval_reference.as_bytes(),
+    )
+    .await?;
+    let mut url = Url::parse(&consent.authorize_url).map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The configured HMRC provider consent URL is not valid.",
+        )
+    })?;
+    url.query_pairs_mut()
+        .append_pair("response_type", "code")
+        .append_pair("client_id", &consent.client_id)
+        .append_pair("redirect_uri", &consent.redirect_uri)
+        .append_pair("state", &state_token)
+        .append_pair("scope", "write:self-assessment");
+    Ok(Json(ConsentStart {
+        authorization_url: url.into(),
+    }))
+}
+
+async fn hmrc_consent_callback(
+    State(state): State<AppState>,
+    Query(callback): Query<ConsentCallback>,
+) -> Result<Redirect, ApiError> {
+    if callback.state.len() != 32
+        || !callback
+            .state
+            .chars()
+            .all(|value| value.is_ascii_hexdigit())
+    {
+        return Err(ApiError(
+            StatusCode::BAD_REQUEST,
+            "The taxpayer consent response is not valid. Start again from your quarter.",
+        ));
+    }
+    if callback.error.is_some() {
+        return Err(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "Taxpayer consent was not granted. No quarterly update can be submitted.",
+        ));
+    }
+    let code = callback
+        .code
+        .filter(|value| !value.trim().is_empty())
+        .ok_or(ApiError(
+            StatusCode::BAD_REQUEST,
+            "The taxpayer consent response did not include an authorisation code.",
+        ))?;
+    let consent = state
+        .hmrc_integration
+        .as_ref()
+        .and_then(|integration| integration.taxpayer_consent.as_ref())
+        .ok_or(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Taxpayer consent is unavailable because no approved HMRC provider is configured.",
+        ))?
+        .clone();
+    let state_row = {
+        let _write = state.write_lock.lock().await;
+        let row =
+            sqlx::query("SELECT workspace_id, expires_at FROM hmrc_consent_states WHERE state = ?")
+                .bind(&callback.state)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(internal)?;
+        sqlx::query("DELETE FROM hmrc_consent_states WHERE state = ?")
+            .bind(&callback.state)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        row
+    };
+    let state_row = state_row.ok_or(ApiError(
+        StatusCode::GONE,
+        "This taxpayer consent request has expired. Start again from your quarter.",
+    ))?;
+    let workspace_id: String = state_row.get("workspace_id");
+    let state_expires_at: i64 = state_row.get("expires_at");
+    if state_expires_at < unix_now() as i64 {
+        return Err(ApiError(
+            StatusCode::GONE,
+            "This taxpayer consent request has expired. Start again from your quarter.",
+        ));
+    }
+    let response = state
+        .client
+        .post(&consent.token_url)
+        .basic_auth(&consent.client_id, Some(&consent.client_secret))
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", consent.redirect_uri.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|_| {
+            ApiError(
+                StatusCode::BAD_GATEWAY,
+                "The approved HMRC provider could not complete taxpayer consent. No submission was made.",
+            )
+        })?;
+    if !response.status().is_success() {
+        return Err(ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The approved HMRC provider rejected taxpayer consent. No submission was made.",
+        ));
+    }
+    let token: ProviderTokenResponse = response.json().await.map_err(|_| {
+        ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The approved HMRC provider returned an unreadable taxpayer consent result.",
+        )
+    })?;
+    if token.access_token.trim().is_empty() {
+        return Err(ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The approved HMRC provider did not return taxpayer consent credentials.",
+        ));
+    }
+    let expires_at = unix_now() + token.expires_in.unwrap_or(3600).clamp(60, 86_400);
+    let encrypted = encrypt_json(
+        &state.key,
+        &json!({ "access_token": token.access_token, "refresh_token": token.refresh_token }),
+    )?;
+    let _write = state.write_lock.lock().await;
+    sqlx::query("INSERT INTO hmrc_consents(workspace_id, payload, expires_at, created_at) VALUES(?, ?, ?, ?) ON CONFLICT(workspace_id) DO UPDATE SET payload=excluded.payload, expires_at=excluded.expires_at, created_at=excluded.created_at")
+        .bind(&workspace_id)
+        .bind(encrypted)
+        .bind(expires_at as i64)
+        .bind(unix_now() as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    write_audit(
+        &state,
+        &workspace_id,
+        "taxpayer_consent_granted",
+        b"provider_oauth",
+    )
+    .await?;
+    Ok(Redirect::to("/records?hmrc-consent=connected"))
+}
+
+async fn load_taxpayer_consent_token(
+    state: &AppState,
+    workspace_id: &str,
+) -> Result<String, ApiError> {
+    let row = sqlx::query("SELECT payload, expires_at FROM hmrc_consents WHERE workspace_id = ?")
+        .bind(workspace_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(internal)?;
+    let row = row.ok_or(ApiError(
+        StatusCode::PRECONDITION_REQUIRED,
+        "Connect and authorise your tax account before submitting a quarterly update.",
+    ))?;
+    let expires_at: i64 = row.get("expires_at");
+    if expires_at <= unix_now() as i64 {
+        return Err(ApiError(
+            StatusCode::PRECONDITION_REQUIRED,
+            "Your taxpayer consent has expired. Connect your tax account again before submitting.",
+        ));
+    }
+    let payload: Vec<u8> = row.get("payload");
+    decrypt_json(&state.key, &payload)?
+        .get("access_token")
+        .and_then(Value::as_str)
+        .filter(|token| !token.trim().is_empty())
+        .map(str::to_owned)
+        .ok_or(ApiError(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "The saved taxpayer consent is incomplete. Connect your tax account again.",
+        ))
 }
 
 async fn safe_qa_entitlement(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
@@ -798,13 +1071,69 @@ fn approved_integration_from_env() -> Option<ApprovedIntegration> {
         env::var("HMRC_INTEGRATION_URL").ok(),
         env::var("HMRC_INTEGRATION_TOKEN").ok(),
         env::var("HMRC_INTEGRATION_MODE").ok(),
+        taxpayer_consent_from_env(),
     )
+}
+
+fn taxpayer_consent_from_env() -> Option<TaxpayerConsent> {
+    taxpayer_consent_from_values(
+        env::var("HMRC_CONSENT_AUTHORIZE_URL").ok(),
+        env::var("HMRC_CONSENT_TOKEN_URL").ok(),
+        env::var("HMRC_CONSENT_CLIENT_ID").ok(),
+        env::var("HMRC_CONSENT_CLIENT_SECRET").ok(),
+        env::var("HMRC_CONSENT_REDIRECT_URI").ok(),
+        env::var("HMRC_PROVIDER_NAME").ok(),
+        env::var("HMRC_PROVIDER_APPROVAL_REFERENCE").ok(),
+    )
+}
+
+fn taxpayer_consent_from_values(
+    authorize_url: Option<String>,
+    token_url: Option<String>,
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    redirect_uri: Option<String>,
+    provider_name: Option<String>,
+    provider_approval_reference: Option<String>,
+) -> Option<TaxpayerConsent> {
+    let authorize_url = authorize_url?;
+    let token_url = token_url?;
+    let client_id = client_id?;
+    let client_secret = client_secret?;
+    let redirect_uri = redirect_uri?;
+    let provider_name = provider_name?;
+    let provider_approval_reference = provider_approval_reference?;
+    let non_empty = [
+        &client_id,
+        &client_secret,
+        &provider_name,
+        &provider_approval_reference,
+    ]
+    .iter()
+    .all(|value| !value.trim().is_empty());
+    if !non_empty
+        || !authorize_url.starts_with("https://")
+        || !token_url.starts_with("https://")
+        || !redirect_uri.starts_with("https://")
+    {
+        return None;
+    }
+    Some(TaxpayerConsent {
+        authorize_url,
+        token_url,
+        client_id,
+        client_secret,
+        redirect_uri,
+        provider_name,
+        provider_approval_reference,
+    })
 }
 
 fn approved_integration_from_values(
     url: Option<String>,
     token: Option<String>,
     mode: Option<String>,
+    taxpayer_consent: Option<TaxpayerConsent>,
 ) -> Option<ApprovedIntegration> {
     let url = url?;
     let token = token?;
@@ -817,10 +1146,24 @@ fn approved_integration_from_values(
         {
             IntegrationMode::HmrcSandboxNoFiling
         }
-        None | Some("") | Some("approved_provider") => IntegrationMode::ApprovedProvider,
+        None | Some("") | Some("approved_provider")
+            if taxpayer_consent.is_some()
+                && url != "https://test-api.service.hmrc.gov.uk/hello/world" =>
+        {
+            IntegrationMode::ApprovedProvider
+        }
         _ => return None,
     };
-    Some(ApprovedIntegration { url, token, mode })
+    Some(ApprovedIntegration {
+        url,
+        token,
+        mode,
+        taxpayer_consent: if mode == IntegrationMode::ApprovedProvider {
+            taxpayer_consent
+        } else {
+            None
+        },
+    })
 }
 
 async fn get_share(
@@ -858,13 +1201,10 @@ async fn get_share(
 }
 
 async fn page_view(State(state): State<AppState>) -> Result<StatusCode, ApiError> {
-    let _persistence = state.persistence.lock().await;
+    let _write = state.write_lock.lock().await;
     let day = unix_now() / 86_400;
     sqlx::query("INSERT INTO page_views(day, count) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET count=count+1")
         .bind(day as i64).execute(&state.db).await.map_err(internal)?;
-    persist_database_snapshot(&state.database_path, &state.snapshot_path)
-        .await
-        .map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1259,7 +1599,7 @@ async fn load_or_create_key(path: &FsPath) -> Result<([u8; 32], bool), std::io::
     Ok((key, true))
 }
 
-async fn restore_database_snapshot(
+async fn restore_legacy_snapshot(
     snapshot: &FsPath,
     database: &FsPath,
 ) -> Result<(), std::io::Error> {
@@ -1269,33 +1609,12 @@ async fn restore_database_snapshot(
     Ok(())
 }
 
-async fn persist_database_snapshot(
-    database: &FsPath,
-    snapshot: &FsPath,
-) -> Result<(), std::io::Error> {
-    if fs::metadata(database).await.is_err() {
-        return Ok(());
-    }
-    // Azure Files supports overwrite copies but not the POSIX rename used for
-    // an atomic replace. All real mutations are serialized by `persistence`,
-    // so a direct overwrite is a consistent snapshot for this one replica.
-    let mut source = fs::File::open(database).await?;
-    let mut destination = fs::File::create(snapshot).await?;
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let bytes = source.read(&mut buffer).await?;
-        if bytes == 0 {
-            break;
-        }
-        destination.write_all(&buffer[..bytes]).await?;
-    }
-    destination.sync_all().await
-}
-
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS shares(token TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, payload BLOB NOT NULL, expires_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL, action TEXT NOT NULL, created_at INTEGER NOT NULL, hash TEXT NOT NULL)").execute(db).await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS hmrc_consents(workspace_id TEXT PRIMARY KEY, payload BLOB NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL)").execute(db).await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS hmrc_consent_states(state TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, expires_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS page_views(day INTEGER PRIMARY KEY, count INTEGER NOT NULL)",
     )
@@ -1328,6 +1647,14 @@ fn is_database_locked_message(message: &str) -> bool {
 
 async fn cleanup_expired_shares(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM shares WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    sqlx::query("DELETE FROM hmrc_consents WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    sqlx::query("DELETE FROM hmrc_consent_states WHERE expires_at < ?")
         .bind(unix_now() as i64)
         .execute(db)
         .await?;
@@ -1451,41 +1778,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn workspace_snapshot_is_restored_after_a_restart() {
+    async fn legacy_snapshot_is_imported_once_before_direct_database_startup() {
         let root =
             std::env::temp_dir().join(format!("quarterly-ready-snapshot-{}", Uuid::new_v4()));
         let durable = root.join("durable");
-        let local = root.join("local");
         fs::create_dir_all(&durable).await.unwrap();
-        fs::create_dir_all(&local).await.unwrap();
-        let database = local.join("quarterly-ready.sqlite3");
+        let database = durable.join("quarterly-ready.sqlite3");
         let snapshot = durable.join("quarterly-ready.snapshot.sqlite3");
-        fs::write(&database, b"encrypted workspace snapshot")
+        fs::write(&snapshot, b"legacy encrypted workspace snapshot")
             .await
             .unwrap();
-        persist_database_snapshot(&database, &snapshot)
-            .await
-            .unwrap();
-        fs::remove_file(&database).await.unwrap();
-        restore_database_snapshot(&snapshot, &database)
-            .await
-            .unwrap();
+        restore_legacy_snapshot(&snapshot, &database).await.unwrap();
         assert_eq!(
             fs::read(&database).await.unwrap(),
-            b"encrypted workspace snapshot"
+            b"legacy encrypted workspace snapshot"
         );
         fs::remove_dir_all(root).await.unwrap();
     }
 
     #[tokio::test]
-    async fn durable_snapshot_restores_key_records_links_audit_and_page_count() {
+    async fn durable_database_restores_key_records_links_audit_and_page_count_after_restart() {
         let root = std::env::temp_dir().join(format!("quarterly-ready-state-{}", Uuid::new_v4()));
         let durable = root.join("durable");
-        let local = root.join("local");
         fs::create_dir_all(&durable).await.unwrap();
-        fs::create_dir_all(&local).await.unwrap();
-        let database_path = local.join("quarterly-ready.sqlite3");
-        let snapshot_path = durable.join("quarterly-ready.snapshot.sqlite3");
+        let database_path = durable.join("quarterly-ready.sqlite3");
         let key_path = durable.join("quarterly-ready.key");
         let (key, generated) = load_or_create_key(&key_path).await.unwrap();
         assert!(generated);
@@ -1520,9 +1836,7 @@ mod tests {
         let state = AppState {
             db,
             key,
-            database_path: database_path.clone(),
-            snapshot_path: snapshot_path.clone(),
-            persistence: Arc::new(Mutex::new(())),
+            write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
@@ -1538,18 +1852,11 @@ mod tests {
             .execute(&state.db)
             .await
             .unwrap();
-        persist_database_snapshot(&database_path, &snapshot_path)
-            .await
-            .unwrap();
         state.db.close().await;
-        fs::remove_file(&database_path).await.unwrap();
 
         let (restored_key, regenerated) = load_or_create_key(&key_path).await.unwrap();
         assert!(!regenerated);
         assert_eq!(restored_key, key);
-        restore_database_snapshot(&snapshot_path, &database_path)
-            .await
-            .unwrap();
         let restored = SqlitePoolOptions::new()
             .max_connections(1)
             .connect(&format!("sqlite://{}?mode=rw", database_path.display()))
@@ -1607,9 +1914,7 @@ mod tests {
         let state = AppState {
             db,
             key: [9u8; 32],
-            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
-            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
-            persistence: Arc::new(Mutex::new(())),
+            write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
@@ -1669,15 +1974,178 @@ mod tests {
             Some("https://not-hmrc.example/sandbox".to_owned()),
             token.clone(),
             mode.clone(),
+            None,
         )
         .is_none());
         let integration = approved_integration_from_values(
             Some("https://test-api.service.hmrc.gov.uk/hello/world".to_owned()),
             token,
             mode,
+            None,
         )
         .expect("official HMRC test endpoint should configure sandbox mode");
         assert_eq!(integration.mode, IntegrationMode::HmrcSandboxNoFiling);
+    }
+
+    #[test]
+    fn approved_provider_configuration_requires_taxpayer_consent_and_an_approval_reference() {
+        let no_consent = approved_integration_from_values(
+            Some("https://provider.example/periodic-updates".to_owned()),
+            Some("provider-service-token".to_owned()),
+            Some("approved_provider".to_owned()),
+            None,
+        );
+        assert!(no_consent.is_none());
+        let consent = taxpayer_consent_from_values(
+            Some("https://provider.example/authorize".to_owned()),
+            Some("https://provider.example/token".to_owned()),
+            Some("registered-client".to_owned()),
+            Some("registered-secret".to_owned()),
+            Some("https://mtd-quarterly-ready.sociobot.in/api/hmrc/consent/callback".to_owned()),
+            Some("Approved MTD provider".to_owned()),
+            Some("HMRC-approved-software-reference".to_owned()),
+        );
+        let integration = approved_integration_from_values(
+            Some("https://provider.example/periodic-updates".to_owned()),
+            Some("provider-service-token".to_owned()),
+            Some("approved_provider".to_owned()),
+            consent,
+        )
+        .expect("approved provider requires an explicit OAuth consent configuration");
+        assert_eq!(integration.mode, IntegrationMode::ApprovedProvider);
+        assert_eq!(
+            integration
+                .taxpayer_consent
+                .as_ref()
+                .unwrap()
+                .provider_approval_reference,
+            "HMRC-approved-software-reference"
+        );
+    }
+
+    #[tokio::test]
+    async fn taxpayer_consent_uses_oauth_state_encrypts_the_token_and_marks_the_workspace_ready() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::sync::oneshot;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (request_tx, request_rx) = oneshot::channel();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut bytes = vec![0; 4096];
+            let read = stream.read(&mut bytes).await.unwrap();
+            request_tx
+                .send(String::from_utf8_lossy(&bytes[..read]).to_string())
+                .unwrap();
+            let body = r#"{"access_token":"taxpayer-token","refresh_token":"refresh-token","expires_in":7200}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            stream.write_all(response.as_bytes()).await.unwrap();
+        });
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        migrate(&db).await.unwrap();
+        let state = AppState {
+            db,
+            key: [5u8; 32],
+            write_lock: Arc::new(Mutex::new(())),
+            limits: Arc::new(Mutex::new(HashMap::new())),
+            client: reqwest::Client::new(),
+            billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            hmrc_integration: Some(ApprovedIntegration {
+                url: "https://provider.example/periodic-updates".into(),
+                token: "provider-service-token".into(),
+                mode: IntegrationMode::ApprovedProvider,
+                taxpayer_consent: Some(TaxpayerConsent {
+                    authorize_url: "https://provider.example/authorize".into(),
+                    token_url: format!("http://{address}/token"),
+                    client_id: "registered-client".into(),
+                    client_secret: "registered-secret".into(),
+                    redirect_uri: "https://quarterly-ready.example/api/hmrc/consent/callback"
+                        .into(),
+                    provider_name: "Approved MTD provider".into(),
+                    provider_approval_reference: "approved-reference".into(),
+                }),
+            }),
+            safe_qa_fixtures: false,
+        };
+        let workspace_id = "65aa583d-84cf-43f1-8438-354ddbfd6358";
+        let start_request = Request::builder()
+            .header("x-workspace-id", workspace_id)
+            .body(Body::empty())
+            .unwrap();
+        let started = start_hmrc_consent(State(state.clone()), start_request)
+            .await
+            .unwrap()
+            .0;
+        let authorization_url = Url::parse(&started.authorization_url).unwrap();
+        assert_eq!(
+            authorization_url.origin().ascii_serialization(),
+            "https://provider.example"
+        );
+        let parameters: HashMap<String, String> =
+            authorization_url.query_pairs().into_owned().collect();
+        assert_eq!(
+            parameters.get("response_type").map(String::as_str),
+            Some("code")
+        );
+        assert_eq!(
+            parameters.get("client_id").map(String::as_str),
+            Some("registered-client")
+        );
+        assert_eq!(
+            parameters.get("scope").map(String::as_str),
+            Some("write:self-assessment")
+        );
+        let oauth_state = parameters.get("state").cloned().unwrap();
+        let callback = hmrc_consent_callback(
+            State(state.clone()),
+            Query(ConsentCallback {
+                state: oauth_state,
+                code: Some("authorisation-code".into()),
+                error: None,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            callback
+                .into_response()
+                .headers()
+                .get(header::LOCATION)
+                .unwrap(),
+            "/records?hmrc-consent=connected"
+        );
+        let status_request = Request::builder()
+            .header("x-workspace-id", workspace_id)
+            .body(Body::empty())
+            .unwrap();
+        let status = hmrc_consent_status(State(state.clone()), status_request)
+            .await
+            .unwrap()
+            .0;
+        assert!(status.consented);
+        assert!(status.expires_at.unwrap() > unix_now());
+        let stored: Vec<u8> =
+            sqlx::query("SELECT payload FROM hmrc_consents WHERE workspace_id = ?")
+                .bind(workspace_id)
+                .fetch_one(&state.db)
+                .await
+                .unwrap()
+                .get("payload");
+        assert!(!String::from_utf8_lossy(&stored).contains("taxpayer-token"));
+        let request = request_rx.await.unwrap();
+        assert!(request.starts_with("POST /token"));
+        assert!(request
+            .contains("authorization: Basic cmVnaXN0ZXJlZC1jbGllbnQ6cmVnaXN0ZXJlZC1zZWNyZXQ="));
+        assert!(request.contains("grant_type=authorization_code"));
+        assert!(request.contains("code=authorisation-code"));
     }
 
     #[tokio::test]
@@ -1713,8 +2181,10 @@ mod tests {
                 url: format!("http://{address}/hello/world"),
                 token: "sandbox-attestation-must-stay-server-side".into(),
                 mode: IntegrationMode::HmrcSandboxNoFiling,
+                taxpayer_consent: None,
             },
             &payload,
+            None,
         )
         .await
         .unwrap();
@@ -1766,9 +2236,7 @@ mod tests {
         let state = AppState {
             db,
             key: [3u8; 32],
-            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
-            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
-            persistence: Arc::new(Mutex::new(())),
+            write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
@@ -1815,9 +2283,7 @@ mod tests {
         let state = AppState {
             db,
             key: [4u8; 32],
-            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
-            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
-            persistence: Arc::new(Mutex::new(())),
+            write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
@@ -1825,9 +2291,31 @@ mod tests {
                 url: format!("http://{address}/submit"),
                 token: "bridge-secret".into(),
                 mode: IntegrationMode::ApprovedProvider,
+                taxpayer_consent: Some(TaxpayerConsent {
+                    authorize_url: "https://approved-provider.test/authorize".into(),
+                    token_url: "https://approved-provider.test/token".into(),
+                    client_id: "provider-client-id".into(),
+                    client_secret: "provider-client-secret".into(),
+                    redirect_uri: "https://quarterly-ready.test/api/hmrc/consent/callback".into(),
+                    provider_name: "Approved provider test fixture".into(),
+                    provider_approval_reference: "test-approved-reference".into(),
+                }),
             }),
             safe_qa_fixtures: false,
         };
+        let consent = encrypt_json(
+            &state.key,
+            &json!({ "access_token": "taxpayer-consent-token" }),
+        )
+        .unwrap();
+        sqlx::query("INSERT INTO hmrc_consents(workspace_id, payload, expires_at, created_at) VALUES(?, ?, ?, ?)")
+            .bind("15aa583d-84cf-43f1-8438-354ddbfd6358")
+            .bind(consent)
+            .bind((unix_now() + 3600) as i64)
+            .bind(unix_now() as i64)
+            .execute(&state.db)
+            .await
+            .unwrap();
         let document = json!({
             "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",
             "figuresReviewed": true, "markedReady": true,
@@ -1852,5 +2340,7 @@ mod tests {
         let integration_request = request_rx.recv().await.unwrap();
         assert!(integration_request.starts_with("POST /submit"));
         assert!(integration_request.contains("quarterly-ready-mtd-itsa-periodic-update-v1"));
+        assert!(integration_request.contains("authorization: Bearer taxpayer-consent-token"));
+        assert!(integration_request.contains("x-quarterly-ready-provider-token: bridge-secret"));
     }
 }

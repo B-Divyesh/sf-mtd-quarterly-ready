@@ -17,6 +17,9 @@ const required = [
   '"bindingType": "SniEnabled"',
   '--headers "Content-Type=application/json"',
   'BUILD_SHA=${SOURCE_SHA}',
+  'az acr repository show --name "${REGISTRY}" --image "${IMAGE_TAG}" --query digest -o tsv',
+  '${APP}@${IMAGE_DIGEST}',
+  'deployment image is ${DEPLOYED_IMAGE}, expected immutable ${IMAGE}',
   'az containerapp revision deactivate',
   '"name": "SAFE_QA_FIXTURES", "value": "1"',
   'verify non-charging QA entitlement',
@@ -26,12 +29,17 @@ const required = [
   'scripts/verify-azure-topology.sh',
   'prove persistence across a replica restart',
   'prove persistence across a revision replacement',
-  'mtd-quarterly-ready-approved-hmrc-url',
-  'mtd-quarterly-ready-approved-hmrc-token',
+  'mtd-quarterly-ready-approved-provider-submission-url',
+  'mtd-quarterly-ready-approved-provider-service-token',
+  'mtd-quarterly-ready-approved-provider-authorize-url',
+  'mtd-quarterly-ready-approved-provider-token-url',
+  'mtd-quarterly-ready-approved-provider-client-id',
+  'mtd-quarterly-ready-approved-provider-client-secret',
+  'mtd-quarterly-ready-approved-provider-approval-reference',
   'DEPLOYMENT_MODE="${DEPLOYMENT_MODE:-approved}"',
   'handoff-only',
   '"name":"HMRC_INTEGRATION_MODE","value":"approved_provider"',
-  'missing approved HMRC integration secret references; refusing a release deployment',
+  'missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment',
   'REQUIRE_APPROVED_HMRC=1',
   'VERIFY_AZURE_TOPOLOGY=1',
 ];
@@ -46,15 +54,20 @@ for (const text of [
   'storage_name',
   'file_share',
   'expected exactly one running replica',
+  'container image must use an immutable digest',
 ]) {
   if (!topologyVerifier.includes(text)) throw new Error(`Topology regression check is missing ${text}`);
 }
 
-if (!/^ENV .*DATA_DIR=\/data DATABASE_DIR=\/tmp\/quarterly-ready .*SAFE_QA_FIXTURES=1/m.test(dockerfile)) {
-  throw new Error('Container runtime must keep the live SQLite file local and its durable snapshot under /data.');
+if (!/^ENV .*DATA_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile) || dockerfile.includes('DATABASE_DIR=')) {
+  throw new Error('Container runtime must keep the live SQLite database directly on the mounted /data volume.');
 }
-if (deployment.indexOf('missing approved HMRC integration secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
+if (deployment.indexOf('missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
   throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');
+}
+const durabilityVerifier = await readFile(new URL('./verify-durability.mjs', import.meta.url), 'utf8');
+for (const text of ['length: 10', 'concurrent_workspaces', 'readWorkspace(probe', 'Promise.all(probes.map']) {
+  if (!durabilityVerifier.includes(text)) throw new Error(`Durability regression probe is missing ${text}`);
 }
 const revisionReplacement = deployment.indexOf('echo "== prove persistence across a revision replacement"');
 const protectedReplacement = deployment.indexOf('stop_revision_for_snapshot_handoff "${CURRENT_REVISION}"', revisionReplacement);
@@ -74,4 +87,4 @@ if (packageJson.scripts['verify:rate-limit'] !== 'node scripts/verify-rate-limit
 await access(verifyUrlScript, constants.X_OK);
 await access(verifyRateLimitScript, constants.R_OK);
 
-console.log('Deployment contract: durable /data, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider, explicit handoff-only fallback, non-charging QA fixture, and repeatable URL accessibility check are configured.');
+console.log('Deployment contract: direct durable /data database, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider with taxpayer OAuth consent, explicit handoff-only fallback, concurrent persistence verification, non-charging QA fixture, and repeatable URL accessibility check are configured.');

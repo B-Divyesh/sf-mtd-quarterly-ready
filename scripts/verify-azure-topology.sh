@@ -15,6 +15,7 @@ DATA_VOLUME="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name 
 STORAGE_TYPE="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query "properties.template.volumes[?name=='${DATA_VOLUME}'].storageType | [0]" -o tsv)"
 VOLUME_STORAGE_NAME="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query "properties.template.volumes[?name=='${DATA_VOLUME}'].storageName | [0]" -o tsv)"
 RUNNING_REPLICAS="$(az containerapp replica list --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query "length([?properties.runningState=='Running'])" -o tsv)"
+CONTAINER_IMAGE="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.template.containers[0].image' -o tsv)"
 ENV_STORAGE_ACCOUNT="$(az containerapp env storage show --resource-group "${RESOURCE_GROUP}" --name "${ENVIRONMENT}" --storage-name "${STORAGE_NAME}" --query 'properties.azureFile.accountName' -o tsv)"
 ENV_FILE_SHARE="$(az containerapp env storage show --resource-group "${RESOURCE_GROUP}" --name "${ENVIRONMENT}" --storage-name "${STORAGE_NAME}" --query 'properties.azureFile.shareName' -o tsv)"
 ENV_ACCESS_MODE="$(az containerapp env storage show --resource-group "${RESOURCE_GROUP}" --name "${ENVIRONMENT}" --storage-name "${STORAGE_NAME}" --query 'properties.azureFile.accessMode' -o tsv)"
@@ -43,5 +44,9 @@ if [[ "${RUNNING_REPLICAS}" != "1" ]]; then
   echo "topology check failed: expected exactly one running replica" >&2
   exit 1
 fi
+if [[ "${CONTAINER_IMAGE}" != *@sha256:* ]]; then
+  echo "topology check failed: container image must use an immutable digest, got ${CONTAINER_IMAGE}" >&2
+  exit 1
+fi
 
-printf '{"active_revisions_mode":"Single","min_replicas":1,"max_replicas":1,"running_replicas":1,"data_mount":"AzureFile","storage_name":"%s","file_share":"%s"}\n' "${STORAGE_NAME}" "${FILE_SHARE}"
+printf '{"active_revisions_mode":"Single","min_replicas":1,"max_replicas":1,"running_replicas":1,"data_mount":"AzureFile","storage_name":"%s","file_share":"%s","image":"%s"}\n' "${STORAGE_NAME}" "${FILE_SHARE}" "${CONTAINER_IMAGE}"

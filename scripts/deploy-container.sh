@@ -26,8 +26,14 @@ ENVIRONMENT_ID="${RESOURCE_ID}/providers/Microsoft.App/managedEnvironments/${ENV
 IDENTITY_ID="${RESOURCE_ID}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/factory-worker-identity"
 CERTIFICATE_ID="${ENVIRONMENT_ID}/managedCertificates/cert-${SLUG}"
 KEY_VAULT="sociobot-keyvault1"
-HMRC_URL_SECRET="mtd-quarterly-ready-approved-hmrc-url"
-HMRC_TOKEN_SECRET="mtd-quarterly-ready-approved-hmrc-token"
+HMRC_SUBMISSION_URL_SECRET="mtd-quarterly-ready-approved-provider-submission-url"
+HMRC_SERVICE_TOKEN_SECRET="mtd-quarterly-ready-approved-provider-service-token"
+HMRC_AUTHORIZE_URL_SECRET="mtd-quarterly-ready-approved-provider-authorize-url"
+HMRC_TOKEN_URL_SECRET="mtd-quarterly-ready-approved-provider-token-url"
+HMRC_CLIENT_ID_SECRET="mtd-quarterly-ready-approved-provider-client-id"
+HMRC_CLIENT_SECRET_SECRET="mtd-quarterly-ready-approved-provider-client-secret"
+HMRC_PROVIDER_NAME_SECRET="mtd-quarterly-ready-approved-provider-name"
+HMRC_APPROVAL_REFERENCE_SECRET="mtd-quarterly-ready-approved-provider-approval-reference"
 APP_URL="https://management.azure.com${RESOURCE_ID}/providers/Microsoft.App/containerApps/${APP}?api-version=2024-03-01"
 
 HMRC_SECRET_CONFIG="[]"
@@ -35,17 +41,26 @@ HMRC_ENV_CONFIG=""
 EXPECTED_HMRC_MODE="not_configured"
 case "${DEPLOYMENT_MODE}" in
   approved)
-    # Query only secret metadata. Never read, log, or embed a credential.
-    if ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
-      || ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
-      echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
-      echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
-      exit 1
-    fi
-    HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-approved-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-approved-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
-    HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-approved-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-approved-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"approved_provider"}'
+    # Query only metadata. A real provider needs both its service credential
+    # and a taxpayer OAuth configuration; no value is read, printed, or baked
+    # into the image.
+    HMRC_REQUIRED_SECRETS=(
+      "${HMRC_SUBMISSION_URL_SECRET}" "${HMRC_SERVICE_TOKEN_SECRET}"
+      "${HMRC_AUTHORIZE_URL_SECRET}" "${HMRC_TOKEN_URL_SECRET}"
+      "${HMRC_CLIENT_ID_SECRET}" "${HMRC_CLIENT_SECRET_SECRET}"
+      "${HMRC_PROVIDER_NAME_SECRET}" "${HMRC_APPROVAL_REFERENCE_SECRET}"
+    )
+    for secret_name in "${HMRC_REQUIRED_SECRETS[@]}"; do
+      if ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${secret_name}" --query id -o none >/dev/null 2>&1; then
+        echo "missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment" >&2
+        echo "expected Key Vault secret: ${secret_name}" >&2
+        exit 1
+      fi
+    done
+    HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-submission-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_SUBMISSION_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-service-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_SERVICE_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-authorize-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_AUTHORIZE_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-token-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-client-id\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_CLIENT_ID_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-client-secret\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_CLIENT_SECRET_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-provider-name\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_PROVIDER_NAME_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-approval-reference\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_APPROVAL_REFERENCE_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
+    HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-submission-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-service-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"approved_provider"}, {"name":"HMRC_CONSENT_AUTHORIZE_URL","secretRef":"hmrc-authorize-url"}, {"name":"HMRC_CONSENT_TOKEN_URL","secretRef":"hmrc-token-url"}, {"name":"HMRC_CONSENT_CLIENT_ID","secretRef":"hmrc-client-id"}, {"name":"HMRC_CONSENT_CLIENT_SECRET","secretRef":"hmrc-client-secret"}, {"name":"HMRC_CONSENT_REDIRECT_URI","value":"https://mtd-quarterly-ready.sociobot.in/api/hmrc/consent/callback"}, {"name":"HMRC_PROVIDER_NAME","secretRef":"hmrc-provider-name"}, {"name":"HMRC_PROVIDER_APPROVAL_REFERENCE","secretRef":"hmrc-approval-reference"}'
     EXPECTED_HMRC_MODE="approved_provider"
-    echo "approved HMRC provider secret references found; binding them without reading values"
+    echo "approved HMRC provider and taxpayer-consent secret references found; binding them without reading values"
     ;;
   handoff-only)
     echo "handoff-only deployment selected: direct HMRC submission remains unavailable and is not advertised"
@@ -61,6 +76,13 @@ az acr build --registry "${REGISTRY}" --image "${IMAGE_TAG}" --file Dockerfile \
   --build-arg "BUILD_SHA=${SOURCE_SHA}" \
   --build-arg "GIT_SHA=${SOURCE_SHA}" \
   --build-arg "SOURCE_COMMIT=${SOURCE_SHA}" .
+IMAGE_DIGEST="$(az acr repository show --name "${REGISTRY}" --image "${IMAGE_TAG}" --query digest -o tsv)"
+if [[ -z "${IMAGE_DIGEST}" || "${IMAGE_DIGEST}" != sha256:* ]]; then
+  echo "ACR did not return an immutable image digest for ${IMAGE_TAG}" >&2
+  exit 1
+fi
+IMAGE="${REGISTRY}.azurecr.io/${APP}@${IMAGE_DIGEST}"
+echo "== immutable image ${IMAGE}"
 
 echo "== durable Azure Files workspace volume"
 az storage share-rm create --resource-group "${RESOURCE_GROUP}" \
@@ -92,7 +114,7 @@ stop_revision_for_snapshot_handoff() {
     sleep 5
   done
 
-  echo "revision ${revision} did not stop; refusing concurrent SQLite snapshot writers" >&2
+  echo "revision ${revision} did not stop; refusing concurrent SQLite writers" >&2
   exit 1
 }
 
@@ -146,6 +168,11 @@ if [[ "${DEPLOYED}" != "1" ]]; then
   echo "deployment did not expose ${SOURCE_SHA} with safe fixtures and HMRC mode ${EXPECTED_HMRC_MODE} on /health" >&2
   exit 1
 fi
+DEPLOYED_IMAGE="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.template.containers[0].image' -o tsv)"
+if [[ "${DEPLOYED_IMAGE}" != "${IMAGE}" ]]; then
+  echo "deployment image is ${DEPLOYED_IMAGE}, expected immutable ${IMAGE}" >&2
+  exit 1
+fi
 
 echo "== verify non-charging QA entitlement"
 QA_FIXTURE="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/api/qa/entitlement" || true)"
@@ -170,9 +197,8 @@ DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 
 echo "== prove persistence across a revision replacement"
 # A normal single-revision rollout can overlap an old and a new pod while the
-# old one drains. That is unsafe for a local SQLite database whose durable
-# copy is an Azure Files snapshot, so use the same explicit stop-before-start
-# hand-off that protects the image rollout above.
+# old one drains. That is unsafe for the one-writer SQLite service even with
+# durable Azure Files, so use the same explicit stop-before-start hand-off.
 stop_revision_for_snapshot_handoff "${CURRENT_REVISION}"
 az containerapp update --resource-group "${RESOURCE_GROUP}" --name "${APP}" \
   --set-env-vars "PERSISTENCE_PROBE_SHA=${SOURCE_SHA}" --only-show-errors -o none

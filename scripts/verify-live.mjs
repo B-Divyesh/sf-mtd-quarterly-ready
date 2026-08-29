@@ -22,6 +22,8 @@ assert(typeof health.hmrc_integration_mode === 'string', '/health omitted the HM
 if (process.env.REQUIRE_APPROVED_HMRC === '1') {
   assert(health.hmrc_integration_configured === true, 'production has no approved HMRC integration configured');
   assert(health.hmrc_integration_mode === 'approved_provider', `production HMRC mode is ${health.hmrc_integration_mode}, expected approved_provider`);
+  assert(health.hmrc_taxpayer_consent_required === true, 'production approved HMRC integration has no taxpayer-consent flow');
+  assert(typeof health.hmrc_provider_name === 'string' && health.hmrc_provider_name.trim().length > 0, 'production approved HMRC integration did not identify its provider');
 }
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
@@ -40,6 +42,21 @@ assert(unknown.status === 404, `unknown route returned ${unknown.status}`);
 assert((await unknown.text()).includes('This page is not on the panel'), 'unknown route did not return the designed recovery page');
 
 const workspaceId = crypto.randomUUID();
+let taxpayerConsentFlow = 'not_required';
+if (process.env.REQUIRE_APPROVED_HMRC === '1') {
+  const consentHeaders = { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.240' };
+  const beforeConsent = await response('/api/hmrc/consent', { headers: consentHeaders });
+  assert(beforeConsent.status === 200, `taxpayer consent status returned ${beforeConsent.status}`);
+  assert((await beforeConsent.json()).consented === false, 'fresh live verifier workspace unexpectedly has taxpayer consent');
+  const consentStart = await response('/api/hmrc/consent', { method: 'POST', headers: consentHeaders });
+  assert(consentStart.status === 200, `taxpayer consent start returned ${consentStart.status}`);
+  const consent = await consentStart.json();
+  const authorizationUrl = new URL(consent.authorization_url || '');
+  assert(authorizationUrl.protocol === 'https:', 'taxpayer consent did not return an HTTPS provider authorization URL');
+  assert(authorizationUrl.searchParams.get('response_type') === 'code', 'taxpayer consent did not use OAuth authorization-code flow');
+  assert(authorizationUrl.searchParams.get('state'), 'taxpayer consent did not return a one-time OAuth state');
+  taxpayerConsentFlow = 'oauth-authorize-url-issued';
+}
 const empty = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
 assert(empty.status === 200, `empty workspace returned ${empty.status}`);
 assert((await empty.json()).document === null, 'empty workspace did not return document: null');
@@ -104,4 +121,4 @@ if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
   execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
 }
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, safe_paid_fixture: 'non-charging/non-filing', read_limit: rateLimitEvidence.read.allowance, write_limit: rateLimitEvidence.write.allowance, stable_rate_limit_connection: true, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, taxpayer_consent_flow: taxpayerConsentFlow, safe_paid_fixture: 'non-charging/non-filing', read_limit: rateLimitEvidence.read.allowance, write_limit: rateLimitEvidence.write.allowance, stable_rate_limit_connection: true, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));
