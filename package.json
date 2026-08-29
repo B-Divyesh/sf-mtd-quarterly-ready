@@ -11,8 +11,9 @@
     "test:unit": "vitest run --config frontend/vitest.config.ts",
     "test:e2e": "playwright test",
     "test:rust": "cargo test",
+    "test:deploy-contract": "node scripts/check-deploy-contract.mjs",
     "verify:live": "node scripts/verify-live.mjs",
-    "test": "npm run typecheck && npm run test:unit && npm run test:rust && npm run build && npm run test:e2e"
+    "test": "npm run typecheck && npm run test:unit && npm run test:rust && npm run test:deploy-contract && npm run build && npm run test:e2e"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

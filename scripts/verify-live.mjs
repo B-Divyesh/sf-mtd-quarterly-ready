@@ -34,6 +34,16 @@ const workspaceId = crypto.randomUUID();
 const empty = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
 assert(empty.status === 200, `empty workspace returned ${empty.status}`);
 assert((await empty.json()).document === null, 'empty workspace did not return document: null');
+const durableDocument = { transactions: [{ description: `Live durability probe ${workspaceId}` }] };
+const saved = await response('/api/workspace', {
+  method: 'PUT',
+  headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' },
+  body: JSON.stringify({ document: durableDocument }),
+});
+assert(saved.status === 200, `workspace save returned ${saved.status}`);
+const restored = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
+assert(restored.status === 200, `saved workspace read returned ${restored.status}`);
+assert((await restored.json()).document?.transactions?.[0]?.description === durableDocument.transactions[0].description, 'saved workspace was not restored');
 
 async function assertLimit(kind, allowance, clientIp) {
   const requests = Array.from({ length: allowance + 8 }, (_, index) => {
@@ -53,4 +63,4 @@ async function assertLimit(kind, allowance, clientIp) {
 await assertLimit('read', 40, '203.0.113.242');
 await assertLimit('write', 12, '203.0.113.243');
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], read_limit: 40, write_limit: 12, status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, read_limit: 40, write_limit: 12, status: 'ok' }));
