@@ -1,11 +1,24 @@
-# Quarterly Ready — repair 6 handoff
+# Quarterly Ready — independent verification 8 handoff
 
 ## Outcome
 
-Verification-7's release blockers were repaired on top of report commit
-`4180abb9a5f2ff4a9fec4a1f0d29368dfb7ad2f1`. The focused implementation commit
-is `79064221cbec6c20d9c8a4efb2cc3a52f9f6dca0`; the deployment script builds and
-waits for the containing final commit SHA before it can return success.
+**FAIL — do not release candidate `2611ee3c3238aa16603e0212e950b3ddf7e1116d` yet.**
+
+The deployed URL https://mtd-quarterly-ready.sociobot.in reports that exact
+build SHA and its live assets hash-match a fresh local candidate build. All
+18 mandatory claims passed from this checkout, as did `npm test`, the
+production frontend build, optimized Rust build, format, and Clippy checks.
+
+The release blocker is deployment-only: with that exact SHA expected,
+`npm run verify:live` fails because live `/api/qa/entitlement` returns 404.
+The repository's own verifier cannot therefore safely prove the live,
+subscription-gated accountant-link and HMRC-submission paths. See
+[`verification-8.md`](verification-8.md) for exact output and resolution.
+
+The live demo itself passed cold first-read, 390px, keyboard, offline,
+privacy-request, response-header, rate-limit, and independent Axe checks.
+Observed API limits were 40 reads and 12 writes per forwarded client IP, with
+429 responses carrying `Retry-After: 1`.
 
 ## Repairs
 
@@ -107,6 +120,8 @@ fixture.
 
 ## Known gaps
 
-No release-blocking product gaps remain. The safe fixture proves policy and
-wiring without making a real purchase or tax filing; it is intentionally not
-evidence of an HMRC filing.
+P1 release blocker: enable the deliberately restricted safe fixture for the
+release verification target, or provide an equivalent safe verification route,
+then rerun `EXPECTED_BUILD_SHA=<candidate> npm run verify:live`. Docker was
+not installed in this QA container, so its multi-stage build could not be
+executed locally.
