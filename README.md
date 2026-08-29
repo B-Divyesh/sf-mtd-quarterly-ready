@@ -4,7 +4,7 @@ Turn UK business records into a checked quarterly update.
 
 Quarterly Ready is for sole traders, tutors, and landlords preparing for Making Tax Digital. Choose a UK quarter, capture records, review categories, check totals, and prepare an accountant handoff.
 
-It does not give tax advice. The deployed integration is a non-filing HMRC sandbox, so the product also provides a reviewed handoff for recognised software.
+It does not give tax advice. When an approved HMRC integration is unavailable, the product provides a reviewed handoff for recognised software and does not claim a submission was made.
 
 ## Try the demo
 
@@ -23,7 +23,7 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 - A complete accountant CSV download.
 - A reviewed JSON handoff for HMRC-recognised software.
 - An MTD-compatible provider path after explicit human review.
-- A deployed non-filing check against HMRC's official test API.
+- A reviewed submission path when an approved HMRC integration is configured.
 - Read-only accountant links with a 30-day expiry.
 - Encrypted SQLite documents and a hash-chained audit log.
 - An offline browser copy after the first visit.
@@ -63,7 +63,7 @@ This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright 
 
 Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity, HMRC capability disclosure, checkout, 404, empty-workspace, and rate-limit policies. Run `npm run verify:topology` with Azure access to assert one running replica and an Azure Files mount at `/data`.
 
-For a release decision, run `EXPECTED_BUILD_SHA=<commit> npm run verify:release`. It requires the Key Vault-backed HMRC sandbox and the one-replica Azure Files topology.
+For a release decision, run `EXPECTED_BUILD_SHA=<commit> npm run verify:release`. It requires a Key Vault-backed approved HMRC integration and the one-replica Azure Files topology.
 
 ## Container
 
@@ -74,7 +74,7 @@ docker run --rm -p 8080:8080 -v quarterly-ready-data:/data quarterly-ready
 
 The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA and the startup-resolved safe-fixture state used by release verification.
 
-Production currently uses one container replica because SQLite and the per-client limiter are process-local. Add a shared database and distributed limiter before increasing that replica count.
+Production uses one container replica with its SQLite database on the mounted Azure Files share. Keep one replica unless the service moves both records and rate limiting to shared infrastructure.
 
 ## Data and configuration
 
@@ -82,9 +82,9 @@ The server defaults to `/data` in the container and `./data` locally. It creates
 
 Optional variables are `DATA_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, `HMRC_INTEGRATION_TOKEN`, and `HMRC_INTEGRATION_MODE`. `PORT` defaults to `8080`.
 
-Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports the fixture and sandbox modes. The fixture token authorises one exact synthetic document. In sandbox mode, the server validates that document and checks HMRC's official test endpoint. It sends no records to HMRC and files no return.
+Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports the fixture, the approved integration capability, and the durable one-replica topology. The fixture token authorises one exact synthetic document and never files a return.
 
-Run `npm run provision:hmrc-sandbox` before a manual deployment. It creates the HMRC test URL and a random attestation in Key Vault when missing. The deploy script binds both through managed-identity secret references and never reads or prints their values. The sandbox validates the reviewed payload locally, then checks HMRC's official non-filing test endpoint. Its result says that no return was filed. With no integration configured, the UI offers only records, CSV, and handoff downloads.
+An approved HMRC provider URL and service token must be stored in the named Key Vault secrets before a release deployment. The deploy script binds them through managed-identity secret references and never reads or prints their values. Without that approval and credential configuration, the UI offers only records, CSV, and handoff downloads.
 
 See [privacy](https://mtd-quarterly-ready.sociobot.in/privacy), [terms](https://mtd-quarterly-ready.sociobot.in/terms), and [the visual thesis](.factory/design.md).
 

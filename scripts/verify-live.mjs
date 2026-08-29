@@ -21,9 +21,7 @@ assert(typeof health.hmrc_integration_configured === 'boolean', '/health omitted
 assert(typeof health.hmrc_integration_mode === 'string', '/health omitted the HMRC integration mode');
 if (process.env.REQUIRE_APPROVED_HMRC === '1') {
   assert(health.hmrc_integration_configured === true, 'production has no approved HMRC integration configured');
-}
-if (process.env.REQUIRE_HMRC_SANDBOX === '1') {
-  assert(health.hmrc_integration_mode === 'hmrc_sandbox_no_filing', `production HMRC mode is ${health.hmrc_integration_mode}, expected hmrc_sandbox_no_filing`);
+  assert(health.hmrc_integration_mode === 'approved_provider', `production HMRC mode is ${health.hmrc_integration_mode}, expected approved_provider`);
 }
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
@@ -92,11 +90,7 @@ assert(fixtureShare.status === 201, `safe fixture accountant link returned ${fix
 const fixtureSubmission = await response('/api/hmrc/submit', { method: 'POST', headers: { ...fixtureHeaders, 'x-forwarded-for': '203.0.113.232' }, body: JSON.stringify({ document: safe.document, review_confirmed: true }) });
 assert(fixtureSubmission.status === 200, `safe fixture submission returned ${fixtureSubmission.status}`);
 const fixtureSubmissionBody = await fixtureSubmission.json();
-if (process.env.REQUIRE_HMRC_SANDBOX === '1') {
-  assert(fixtureSubmissionBody.status === 'sandbox_accepted_no_filing' && fixtureSubmissionBody.submission_id.startsWith('hmrc-sandbox-no-filing-'), 'HMRC sandbox did not accept the reviewed synthetic payload');
-} else {
-  assert(['fixture_only_no_filing', 'sandbox_accepted_no_filing'].includes(fixtureSubmissionBody.status), 'safe fixture submission was not explicitly non-filing');
-}
+assert(['fixture_only_no_filing', 'sandbox_accepted_no_filing'].includes(fixtureSubmissionBody.status), 'safe fixture submission was not explicitly non-filing');
 assert(fixtureSubmissionBody.files_with_hmrc === false, 'safe submission did not prove that it files nothing with HMRC');
 
 const runKey = crypto.randomUUID().replaceAll('-', '').slice(0, 4);

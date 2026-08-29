@@ -288,28 +288,44 @@ test('@claim:offline-browser-copy reloads the demo after the network is disabled
   await expect(page.getByText('Maya Patel Tutoring')).toBeVisible();
 });
 
-test('@claim:paid-tier uses Sociobot subscription checkout and keeps CSV free', async ({ page }) => {
+test('@claim:paid-tier @regression:paid-tier-checkout-navigation uses Sociobot subscription checkout and keeps CSV free', async ({ page }) => {
   const checkoutRequests: { url: string; method: string }[] = [];
-  await page.route('https://api.sociobot.in/api/v1/products/*/checkout', async route => {
+  const context = page.context();
+  await context.route('https://api.sociobot.in/api/v1/products/*/checkout', async route => {
     checkoutRequests.push({ url: route.request().url(), method: route.request().method() });
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ checkout_url: 'https://checkout.dodopayments.com/session/test-session' }) });
   });
-  await page.route('https://checkout.dodopayments.com/**', route => route.fulfill({ contentType: 'text/html', body: '<title>Test checkout</title>' }));
+  await context.route('https://checkout.dodopayments.com/**', route => route.fulfill({ contentType: 'text/html', body: '<title>Test checkout</title>' }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Choose monthly' }).click();
+  const origin = new URL(page.url()).origin;
+  await Promise.all([
+    page.waitForURL('https://checkout.dodopayments.com/session/test-session'),
+    page.getByRole('button', { name: 'Choose monthly' }).click(),
+  ]);
   await expect.poll(() => checkoutRequests.length).toBe(1);
   expect(checkoutRequests[0]).toEqual({ url: 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout', method: 'POST' });
-  await page.waitForURL('https://checkout.dodopayments.com/session/test-session');
-  await page.goto('/');
-  await page.getByRole('button', { name: /Choose annual/ }).click();
+
+  // A checkout intentionally replaces the document. Use fresh browser pages
+  // for the annual and free-tier assertions rather than racing a forced
+  // navigation back to the app while the cross-origin checkout is committing.
+  const annualPage = await context.newPage();
+  await annualPage.goto(`${origin}/`);
+  await Promise.all([
+    annualPage.waitForURL('https://checkout.dodopayments.com/session/test-session'),
+    annualPage.getByRole('button', { name: /Choose annual/ }).click(),
+  ]);
   await expect.poll(() => checkoutRequests.length).toBe(2);
   expect(checkoutRequests[1]).toEqual({ url: 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual/checkout', method: 'POST' });
-  await page.goto('/records');
-  await expect(page.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Make accountant link' }).click();
-  await expect(page.getByText('A live accountant link needs an active Sociobot subscription. The CSV remains free.')).toBeVisible();
+
+  const recordsPage = await context.newPage();
+  await recordsPage.goto(`${origin}/records`);
+  await expect(recordsPage.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
+  await recordsPage.getByRole('button', { name: 'Make accountant link' }).click();
+  await expect(recordsPage.getByText('A live accountant link needs an active Sociobot subscription. The CSV remains free.')).toBeVisible();
   const registration = readFileSync(new URL('../.factory/billing.md', import.meta.url), 'utf8');
   expect(registration).toContain('`monthly` | GBP 1,200 pence | monthly');
   expect(registration).toContain('`annual` | GBP 9,900 pence | yearly');
   expect(registration).not.toMatch(/(?:price|product)_[A-Za-z0-9]{8,}/);
+  await annualPage.close();
+  await recordsPage.close();
 });

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Deploy Quarterly Ready with the state guarantees its SQLite backend requires.
-# The factory invokes this from the repository root after the normal clean build.
+#
+# Default mode is an approved HMRC provider release. It fails closed unless the
+# provider credentials have already been supplied through Key Vault. The only
+# alternative is the explicit handoff-only mode, which deploys the useful
+# records/CSV/handoff product without pretending it can file a return.
 set -euo pipefail
 
 SLUG="mtd-quarterly-ready"
@@ -13,6 +17,7 @@ STORAGE_ACCOUNT="sociobotblob"
 FILE_SHARE="sf-mtd-quarterly-ready-data-v3"
 ENV_STORAGE="mtd-quarterly-ready-data-v3"
 PORT=8080
+DEPLOYMENT_MODE="${DEPLOYMENT_MODE:-approved}"
 SOURCE_SHA="$(git rev-parse HEAD)"
 IMAGE_TAG="${APP}:${SOURCE_SHA:0:12}"
 IMAGE="${REGISTRY}.azurecr.io/${IMAGE_TAG}"
@@ -21,28 +26,35 @@ ENVIRONMENT_ID="${RESOURCE_ID}/providers/Microsoft.App/managedEnvironments/${ENV
 IDENTITY_ID="${RESOURCE_ID}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/factory-worker-identity"
 CERTIFICATE_ID="${ENVIRONMENT_ID}/managedCertificates/cert-${SLUG}"
 KEY_VAULT="sociobot-keyvault1"
-HMRC_URL_SECRET="mtd-quarterly-ready-hmrc-integration-url"
-HMRC_TOKEN_SECRET="mtd-quarterly-ready-hmrc-integration-token"
+HMRC_URL_SECRET="mtd-quarterly-ready-approved-hmrc-url"
+HMRC_TOKEN_SECRET="mtd-quarterly-ready-approved-hmrc-token"
 APP_URL="https://management.azure.com${RESOURCE_ID}/providers/Microsoft.App/containerApps/${APP}?api-version=2024-03-01"
 
-# The release target is deliberately non-filing. This creates only an HMRC
-# test-API URL and a random server-side attestation in Key Vault.
-bash scripts/provision-hmrc-sandbox.sh
-
-# A release is not allowed to silently become the weaker handoff-only service.
-# Query only secret metadata: the worker never reads, logs, or embeds a value.
 HMRC_SECRET_CONFIG="[]"
 HMRC_ENV_CONFIG=""
-if az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
-  && az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
-  HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-integration-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-integration-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
-  HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"hmrc_sandbox_no_filing"}'
-  echo "HMRC non-filing sandbox secret references found; binding them without reading values"
-else
-  echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
-  echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
-  exit 1
-fi
+EXPECTED_HMRC_MODE="not_configured"
+case "${DEPLOYMENT_MODE}" in
+  approved)
+    # Query only secret metadata. Never read, log, or embed a credential.
+    if ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
+      || ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
+      echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
+      echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
+      exit 1
+    fi
+    HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-approved-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-approved-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
+    HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-approved-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-approved-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"approved_provider"}'
+    EXPECTED_HMRC_MODE="approved_provider"
+    echo "approved HMRC provider secret references found; binding them without reading values"
+    ;;
+  handoff-only)
+    echo "handoff-only deployment selected: direct HMRC submission remains unavailable and is not advertised"
+    ;;
+  *)
+    echo "DEPLOYMENT_MODE must be approved or handoff-only" >&2
+    exit 2
+    ;;
+esac
 
 echo "== ACR build ${IMAGE_TAG}"
 az acr build --registry "${REGISTRY}" --image "${IMAGE_TAG}" --file Dockerfile \
@@ -62,10 +74,8 @@ az containerapp env storage set --resource-group "${RESOURCE_GROUP}" --name "${E
 unset STORAGE_KEY
 
 echo "== container app (one replica, mounted /data)"
-# SQLite uses an advisory file lock. In single-revision mode Azure otherwise
-# keeps the old replica alive until the new one is ready, which deadlocks a
-# shared SQLite volume. Stop that one replica immediately before its successor
-# is created; the process handles SIGTERM gracefully and the state is durable.
+# SQLite and the built-in limiter are serial process resources. A one-replica
+# hand-off prevents divergent records or multiplied per-client allowances.
 READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.latestReadyRevisionName' -o tsv 2>/dev/null || true)"
 if [[ -n "${READY_REVISION}" ]]; then
   az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --only-show-errors -o none || true
@@ -106,7 +116,7 @@ for _ in $(seq 1 36); do
   HEALTH="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/health" || true)"
   if [[ "${HEALTH}" == *"${SOURCE_SHA}"* \
     && "${HEALTH}" == *'"safe_qa_fixtures":true'* \
-    && "${HEALTH}" == *'"hmrc_integration_mode":"hmrc_sandbox_no_filing"'* ]]; then
+    && "${HEALTH}" == *"\"hmrc_integration_mode\":\"${EXPECTED_HMRC_MODE}\""* ]]; then
     printf '%s\n' "${HEALTH}"
     DEPLOYED=1
     break
@@ -115,13 +125,10 @@ for _ in $(seq 1 36); do
 done
 
 if [[ "${DEPLOYED}" != "1" ]]; then
-  echo "deployment did not expose ${SOURCE_SHA} with the safe fixtures and HMRC non-filing sandbox on /health" >&2
+  echo "deployment did not expose ${SOURCE_SHA} with safe fixtures and HMRC mode ${EXPECTED_HMRC_MODE} on /health" >&2
   exit 1
 fi
 
-# The release verifier uses this deliberately harmless, exact synthetic document
-# to exercise paid routes. Checking it here catches a Container Apps template
-# that drops SAFE_QA_FIXTURES even when the image itself is healthy.
 echo "== verify non-charging QA entitlement"
 QA_FIXTURE="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/api/qa/entitlement" || true)"
 if [[ "${QA_FIXTURE}" != *'"charges":false'* || "${QA_FIXTURE}" != *'"files_with_hmrc":false'* ]]; then
@@ -155,5 +162,10 @@ done
 DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 bash scripts/verify-azure-topology.sh
 
-echo "== release verification (identity, paid safe fixture, one replica, durable mount, and HMRC sandbox)"
-EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 REQUIRE_HMRC_SANDBOX=1 node scripts/verify-live.mjs
+if [[ "${DEPLOYMENT_MODE}" == "approved" ]]; then
+  echo "== release verification (identity, approved HMRC capability, paid safe fixture, and topology)"
+  EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs
+else
+  echo "== handoff-only verification (identity, paid safe fixture, and topology)"
+  EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 node scripts/verify-live.mjs
+fi

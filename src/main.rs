@@ -879,8 +879,17 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
         .and_then(|v| v.split(',').next())
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .unwrap_or("direct")
-        .to_owned()
+        .map(str::to_owned)
+        .or_else(|| {
+            request
+                .headers()
+                .get("x-quarterly-ready-client")
+                .and_then(|v| v.to_str().ok())
+                .map(str::trim)
+                .filter(|v| Uuid::parse_str(v).is_ok())
+                .map(|v| format!("browser:{v}"))
+        })
+        .unwrap_or_else(|| "direct".to_owned())
         + if write_request { ":write" } else { ":read" };
     let allowance = if write_request { 12 } else { 40 };
     let now = Instant::now();

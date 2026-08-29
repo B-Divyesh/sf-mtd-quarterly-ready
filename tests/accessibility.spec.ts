@@ -1,12 +1,19 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const liveSandbox = Boolean(process.env.VERIFY_ORIGIN);
-const reviewAction = liveSandbox ? 'Review in HMRC sandbox' : 'Review and submit to HMRC';
-const reviewConfirmation = liveSandbox
-  ? 'I reviewed these totals and want to run the sandbox check.'
-  : 'I reviewed these totals and want to submit this quarter.';
-const confirmAction = liveSandbox ? 'Run HMRC sandbox check' : 'Submit through approved integration';
+function submissionLabels(mode: string) {
+  return mode === 'hmrc_sandbox_no_filing'
+    ? {
+      reviewAction: 'Review in HMRC sandbox',
+      reviewConfirmation: 'I reviewed these totals and want to run the sandbox check.',
+      confirmAction: 'Run HMRC sandbox check',
+    }
+    : {
+      reviewAction: 'Review and submit to HMRC',
+      reviewConfirmation: 'I reviewed these totals and want to submit this quarter.',
+      confirmAction: 'Submit through approved integration',
+    };
+}
 
 for (const path of ['/', '/demo', '/privacy', '/terms']) {
   test(`accessibility baseline ${path}`, async ({ page }) => {
@@ -99,8 +106,15 @@ test('keyboard path opens the demo without console errors', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('submission review dialog is keyboard-operable and has no serious Axe findings', async ({ page }) => {
+test('submission review dialog is keyboard-operable and has no serious Axe findings when an integration is available', async ({ page, request }) => {
+  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string };
   await page.goto('/records');
+  if (!health.hmrc_integration_configured) {
+    await expect(page.getByRole('button', { name: /submit to HMRC|HMRC sandbox/i })).toHaveCount(0);
+    await expect(page.getByText('No approved direct-submission integration is configured.')).toBeVisible();
+    return;
+  }
+  const { reviewAction, reviewConfirmation, confirmAction } = submissionLabels(health.hmrc_integration_mode || 'approved_provider');
   await page.evaluate(() => localStorage.setItem('quarterly-ready:document', JSON.stringify({
     schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
     quarterStart: '2026-04-06', quarterEnd: '2026-07-05', figuresReviewed: true, markedReady: true,
@@ -120,9 +134,12 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
   await expect(dialog).toBeHidden();
 });
 
-test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration', async ({ page, browser }) => {
+test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration', async ({ page, browser, request }) => {
+  const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string };
+  const { reviewAction } = submissionLabels(health.hmrc_integration_mode || 'approved_provider');
   await page.goto('/records');
-  await expect(page.getByRole('button', { name: reviewAction })).toBeVisible();
+  if (health.hmrc_integration_configured) await expect(page.getByRole('button', { name: reviewAction })).toBeVisible();
+  else await expect(page.getByRole('button', { name: /submit to HMRC|HMRC sandbox/i })).toHaveCount(0);
   const unavailableContext = await browser.newContext();
   const unavailable = await unavailableContext.newPage();
   await unavailable.route('**/health', route => route.fulfill({
@@ -141,7 +158,7 @@ test('@regression:hmrc-capability hides direct submission when no approved integ
     body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
   }));
   await page.goto('/records');
-  await expect(page.getByRole('button', { name: reviewAction })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /submit to HMRC|HMRC sandbox/i })).toHaveCount(0);
   await expect(page.getByText('No approved direct-submission integration is configured.')).toBeVisible();
 });
 
@@ -159,4 +176,14 @@ test('@regression:hmrc-sandbox-copy makes the non-filing boundary explicit befor
   const button = page.getByRole('button', { name: 'Review in HMRC sandbox' });
   await expect(button).toBeVisible();
   await expect(button).toBeDisabled();
+});
+
+test('@regression:hmrc-copy does not claim a deployed sandbox when direct submission is unavailable', async ({ page }) => {
+  await page.route('**/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
+  }));
+  await page.goto('/privacy');
+  await expect(page.getByText('Quarterly Ready can send a reviewed update only when an approved HMRC integration is configured.')).toBeVisible();
+  await expect(page.getByText(/The deployed integration is a non-filing HMRC sandbox/i)).toHaveCount(0);
 });

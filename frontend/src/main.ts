@@ -9,6 +9,7 @@ const PRODUCT = 'Quarterly Ready';
 const SLUG = 'mtd-quarterly-ready';
 const BILLING = `https://api.sociobot.in/api/v1/products/${SLUG}`;
 const ANNUAL_BILLING = 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual';
+const PAGE_VIEW_CLIENT_KEY = 'quarterly-ready:page-view-client';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let currentDocument: QuarterDocument | null = null;
 let currentDemo = false;
@@ -115,11 +116,11 @@ function checklist(doc: QuarterDocument): { title: string; detail: string; done:
 }
 
 function privacyPage(): string {
-  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>We store your transaction document under a random browser workspace ID. The server encrypts that document before writing it to SQLite.</p><p>Receipt files use this browser's IndexedDB storage and are not copied into localStorage or the server record. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in separate browser storage. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>The deployed integration is a non-filing HMRC sandbox. It validates a reviewed MTD payload but sends HMRC no records and files no return.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete this site's browser data to remove local records and receipts. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to request deletion of server records.</p></main>`);
+  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>We store your transaction document under a random browser workspace ID. The server encrypts that document before writing it to SQLite.</p><p>Receipt files use this browser's IndexedDB storage and are not copied into localStorage or the server record. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in separate browser storage. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>Quarterly Ready can send a reviewed update only when an approved HMRC integration is configured. If it is unavailable, the app offers a reviewed handoff and does not claim a submission was made.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete this site's browser data to remove local records and receipts. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to request deletion of server records.</p></main>`);
 }
 
 function termsPage(): string {
-  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Terms for using Quarterly Ready</h1><p class="lede">These terms cover the records tool and the £12 monthly or £99 annual subscription.</p><h2>Use of the service</h2><p>You may use Quarterly Ready for lawful UK business records. Keep your own backups of important exports.</p><h2>No tax advice</h2><p>The tool organises figures but does not decide tax treatment. You remain responsible for checking records and meeting deadlines.</p><h2>HMRC handoff and sandbox</h2><p>The handoff is for recognised software. The current sandbox check cannot file a return with HMRC.</p><h2>Subscription</h2><p>The £12 monthly or £99 annual subscription enables live accountant links. Sociobot is the merchant of record and handles refunds.</p><h2>Availability</h2><p>We aim to keep the service available but cannot promise uninterrupted access. The free CSV export helps you keep a portable copy.</p><h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> with service or subscription questions.</p></main>`);
+  return layout(`<main id="main" class="prose-page"><p class="eyebrow">LEGAL · 29 AUGUST 2026</p><h1 tabindex="-1">Terms for using Quarterly Ready</h1><p class="lede">These terms cover the records tool and the £12 monthly or £99 annual subscription.</p><h2>Use of the service</h2><p>You may use Quarterly Ready for lawful UK business records. Keep your own backups of important exports.</p><h2>No tax advice</h2><p>The tool organises figures but does not decide tax treatment. You remain responsible for checking records and meeting deadlines.</p><h2>HMRC handoff and submission</h2><p>The handoff is for recognised software. Direct submission is available only when an approved HMRC integration is configured for the service.</p><h2>Subscription</h2><p>The £12 monthly or £99 annual subscription enables live accountant links. Sociobot is the merchant of record and handles refunds.</p><h2>Availability</h2><p>We aim to keep the service available but cannot promise uninterrupted access. The free CSV export helps you keep a portable copy.</p><h2>Contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> with service or subscription questions.</p></main>`);
 }
 
 function sharePage(token: string): string {
@@ -174,7 +175,7 @@ function bindHome(): void {
     event.preventDefault(); const form = event.currentTarget as HTMLFormElement; const token = new FormData(form).get('license')?.toString().trim(); if (token) await storeAndVerifyLicense(token);
   });
   if (!sessionStorage.getItem('quarterly-ready:viewed')) {
-    sessionStorage.setItem('quarterly-ready:viewed', '1'); void fetch('/api/page-view', { method: 'POST' }).catch(() => undefined);
+    sessionStorage.setItem('quarterly-ready:viewed', '1'); void fetch('/api/page-view', { method: 'POST', headers: { 'x-quarterly-ready-client': pageViewClient() } }).catch(() => undefined);
   }
 }
 
@@ -367,6 +368,15 @@ function downloadBlob(name: string, contents: string, type: string): void {
 }
 
 function formatDate(value: string): string { return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00Z`)); }
+
+function pageViewClient(): string {
+  let client = localStorage.getItem(PAGE_VIEW_CLIENT_KEY);
+  if (!client) {
+    client = crypto.randomUUID();
+    localStorage.setItem(PAGE_VIEW_CLIENT_KEY, client);
+  }
+  return client;
+}
 
 const LICENSE_KEY = `sb_license:${SLUG}`;
 const VERDICT_KEY = `sb_license_verdict:${SLUG}`;

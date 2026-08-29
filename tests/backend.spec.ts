@@ -14,7 +14,6 @@ test('health reports the build identity', async ({ request }) => {
     status: 'ok',
     build_sha: process.env.EXPECTED_BUILD_SHA || 'dev',
     safe_qa_fixtures: true,
-    hmrc_integration_mode: process.env.VERIFY_ORIGIN ? 'hmrc_sandbox_no_filing' : 'approved_provider',
   });
 });
 
@@ -113,7 +112,7 @@ test('@regression:safe-paid-fixture proves share and submission paths without ch
   });
   expect(submission.status()).toBe(200);
   expect(await submission.json()).toMatchObject({
-    status: process.env.VERIFY_ORIGIN ? 'sandbox_accepted_no_filing' : 'fixture_only_no_filing',
+    status: 'fixture_only_no_filing',
     files_with_hmrc: false,
   });
 });
@@ -143,6 +142,16 @@ test('@regression:shared-write-limit allows 12 writes then returns 429 with Retr
   expect(responses.slice(0, 12).every(response => response.status() === 204)).toBe(true);
   expect(responses[12].status()).toBe(429);
   expect(responses[12].headers()['retry-after']).toBe('1');
+});
+
+test('@regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit', async ({ request }) => {
+  const firstBrowser = '0d0bde02-f4f3-46db-9b6d-08f10f1b48c1';
+  const secondBrowser = '4185d12f-873b-4882-bdb6-c302cb694ef1';
+  for (let index = 0; index < 12; index += 1) {
+    expect((await request.post('/api/page-view', { headers: { 'x-quarterly-ready-client': firstBrowser } })).status()).toBe(204);
+  }
+  expect((await request.post('/api/page-view', { headers: { 'x-quarterly-ready-client': firstBrowser } })).status()).toBe(429);
+  expect((await request.post('/api/page-view', { headers: { 'x-quarterly-ready-client': secondBrowser } })).status()).toBe(204);
 });
 
 test('@regression:unknown-route returns the designed page with a genuine 404', async ({ request }) => {
