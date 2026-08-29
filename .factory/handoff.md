@@ -29,6 +29,7 @@ All commands ran from `/work/repo` on 2026-08-29:
 ```text
 npm ci                                                        PASS — 60 packages, 0 vulnerabilities
 npm test                                                      PASS — typecheck, 11 Vitest, 13 Rust, deploy contract, build, 42 Playwright
+all 21 commands listed in .factory/claims.json               PASS individually from the local demo entry point
 cargo fmt -- --check                                         PASS
 cargo clippy --all-targets -- -D warnings                    PASS
 BUILD_SHA=repair-local cargo build --release                 PASS
