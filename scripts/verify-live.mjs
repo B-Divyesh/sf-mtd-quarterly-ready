@@ -15,6 +15,7 @@ const healthResponse = await response('/health');
 assert(healthResponse.status === 200, `/health returned ${healthResponse.status}`);
 const health = await healthResponse.json();
 assert(health.status === 'ok', '/health did not report ok');
+assert(health.safe_qa_fixtures === true, '/health reports SAFE_QA_FIXTURES is not enabled');
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }

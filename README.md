@@ -69,7 +69,7 @@ docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t quarterly-re
 docker run --rm -p 8080:8080 -v quarterly-ready-data:/data quarterly-ready
 ```
 
-The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA.
+The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA and the startup-resolved safe-fixture state used by release verification.
 
 Production currently uses one container replica because SQLite and the per-client limiter are process-local. Add a shared database and distributed limiter before increasing that replica count.
 
@@ -79,7 +79,7 @@ The server defaults to `/data` in the container and `./data` locally. It creates
 
 Optional variables are `DATA_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, and `HMRC_INTEGRATION_TOKEN`. `PORT` defaults to `8080`.
 
-Release deployment sets `SAFE_QA_FIXTURES=1` and refuses to report success until `/api/qa/entitlement` responds. That endpoint returns a token for only one exact bundled synthetic document. Its submission response is marked `fixture_only_no_filing`; it never contacts billing, Dodo, HMRC, or an integration.
+Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports `safe_qa_fixtures: true` and `/api/qa/entitlement` responds. That endpoint returns a token for only one exact bundled synthetic document. Its submission response is marked `fixture_only_no_filing`; it never contacts billing, Dodo, HMRC, or an integration.
 
 For live submission, configure an HTTPS endpoint for an approved MTD ITSA integration and its bearer token. The integration must return a JSON `submission_id` or `correlation_id`; otherwise Quarterly Ready reports that no submission was made. With no integration configured, the app remains safe and usable for records, CSV, and handoff downloads but refuses live submission.
 

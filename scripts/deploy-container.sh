@@ -80,7 +80,7 @@ echo "== wait for deployment"
 DEPLOYED=0
 for _ in $(seq 1 36); do
   HEALTH="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/health" || true)"
-  if [[ "${HEALTH}" == *"${SOURCE_SHA}"* ]]; then
+  if [[ "${HEALTH}" == *"${SOURCE_SHA}"* && "${HEALTH}" == *'"safe_qa_fixtures":true'* ]]; then
     printf '%s\n' "${HEALTH}"
     DEPLOYED=1
     break
@@ -89,7 +89,7 @@ for _ in $(seq 1 36); do
 done
 
 if [[ "${DEPLOYED}" != "1" ]]; then
-  echo "deployment did not expose ${SOURCE_SHA} on /health" >&2
+  echo "deployment did not expose ${SOURCE_SHA} with SAFE_QA_FIXTURES enabled on /health" >&2
   exit 1
 fi
 

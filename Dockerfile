@@ -23,6 +23,10 @@ WORKDIR /app
 COPY --from=server /build/target/release/quarterly-ready /app/quarterly-ready
 COPY --from=web /build/dist /app/dist
 USER app
-ENV PORT=8080 DATA_DIR=/data DATABASE_DIR=/tmp/quarterly-ready FRONTEND_DIR=/app/dist
+# The production verifier must be able to exercise the exact synthetic,
+# non-charging and non-filing fixture even if a platform template update drops
+# optional environment entries. The route remains restricted to its bundled
+# document and token; real licence and HMRC paths are unchanged.
+ENV PORT=8080 DATA_DIR=/data DATABASE_DIR=/tmp/quarterly-ready FRONTEND_DIR=/app/dist SAFE_QA_FIXTURES=1
 EXPOSE 8080
 CMD ["/app/quarterly-ready"]

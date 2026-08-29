@@ -69,6 +69,7 @@ struct AppState {
     client: reqwest::Client,
     billing_base_url: String,
     hmrc_integration: Option<ApprovedIntegration>,
+    safe_qa_fixtures: bool,
 }
 
 #[derive(Clone)]
@@ -81,6 +82,7 @@ struct ApprovedIntegration {
 struct Health<'a> {
     status: &'a str,
     build_sha: &'a str,
+    safe_qa_fixtures: bool,
 }
 
 #[derive(Deserialize)]
@@ -184,6 +186,7 @@ async fn main() {
         }
     });
     let hmrc_integration = approved_integration_from_env();
+    let safe_qa_fixtures = safe_fixtures_enabled();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -199,6 +202,7 @@ async fn main() {
         billing_base_url: env::var("SOCIOBOT_BILLING_URL")
             .unwrap_or_else(|_| "https://api.sociobot.in/api/v1".into()),
         hmrc_integration,
+        safe_qa_fixtures,
     };
     let integration_configured = state.hmrc_integration.is_some();
     let app = build_router(state, frontend_dir);
@@ -212,6 +216,7 @@ async fn main() {
         } else {
             "not_configured"
         },
+        safe_qa_fixtures,
         "quarterly_ready_started"
     );
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
@@ -253,10 +258,11 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .with_state(state)
 }
 
-async fn health() -> Json<Health<'static>> {
+async fn health(State(state): State<AppState>) -> Json<Health<'static>> {
     Json(Health {
         status: "ok",
         build_sha: BUILD_SHA,
+        safe_qa_fixtures: state.safe_qa_fixtures,
     })
 }
 
@@ -332,7 +338,7 @@ async fn create_share(
         )
     })?;
     validate_document(&input.document)?;
-    if !safe_fixture_authorized(&licence, &input.document) {
+    if !safe_fixture_authorized(state.safe_qa_fixtures, &licence, &input.document) {
         verify_licence_token(&state, &licence).await?;
     }
     let token = Uuid::new_v4().simple().to_string();
@@ -391,7 +397,7 @@ async fn submit_to_hmrc(
         StatusCode::PAYMENT_REQUIRED,
         "An active Sociobot subscription is required for live accountant links and HMRC submissions.",
     ))?;
-    if safe_fixture_authorized(&licence, &input.document) {
+    if safe_fixture_authorized(state.safe_qa_fixtures, &licence, &input.document) {
         let submission_id = format!("safe-fixture-no-filing-{}", unix_now());
         write_audit(
             &state,
@@ -466,8 +472,8 @@ async fn submit_to_hmrc(
     }))
 }
 
-async fn safe_qa_entitlement() -> Result<Json<Value>, ApiError> {
-    if !safe_fixtures_enabled() {
+async fn safe_qa_entitlement(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+    if !state.safe_qa_fixtures {
         return Err(ApiError(
             StatusCode::NOT_FOUND,
             "The safe QA fixture is not enabled.",
@@ -485,8 +491,8 @@ fn safe_fixtures_enabled() -> bool {
     env::var("SAFE_QA_FIXTURES").is_ok_and(|value| value == "1")
 }
 
-fn safe_fixture_authorized(token: &str, document: &Value) -> bool {
-    safe_fixtures_enabled() && token == SAFE_FIXTURE_TOKEN && document == &safe_fixture_document()
+fn safe_fixture_authorized(enabled: bool, token: &str, document: &Value) -> bool {
+    enabled && token == SAFE_FIXTURE_TOKEN && document == &safe_fixture_document()
 }
 
 fn safe_fixture_document() -> Value {
@@ -1374,6 +1380,7 @@ mod tests {
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
             hmrc_integration: None,
+            safe_qa_fixtures: false,
         };
         write_audit(&state, "workspace", "first", b"one")
             .await
@@ -1464,6 +1471,7 @@ mod tests {
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
             hmrc_integration: None,
+            safe_qa_fixtures: false,
         };
         verify_licence_token(&state, "annual-token").await.unwrap();
         server.await.unwrap();
@@ -1515,6 +1523,7 @@ mod tests {
                 url: format!("http://{address}/submit"),
                 token: "bridge-secret".into(),
             }),
+            safe_qa_fixtures: false,
         };
         let document = json!({
             "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",

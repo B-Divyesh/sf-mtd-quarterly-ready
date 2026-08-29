@@ -10,7 +10,17 @@ const validDocument = {
 test('health reports the build identity', async ({ request }) => {
   const response = await request.get('/health');
   expect(response.status()).toBe(200);
-  expect(await response.json()).toMatchObject({ status: 'ok', build_sha: 'dev' });
+  expect(await response.json()).toMatchObject({ status: 'ok', build_sha: 'dev', safe_qa_fixtures: true });
+});
+
+test('@regression:deployed-safe-qa-runtime is enabled and observable through health', async ({ request }) => {
+  const health = await (await request.get('/health')).json();
+  expect(health.safe_qa_fixtures).toBe(true);
+  const fixture = await request.get('/api/qa/entitlement', {
+    headers: { 'x-forwarded-for': '203.0.113.16' },
+  });
+  expect(fixture.status()).toBe(200);
+  expect(await fixture.json()).toMatchObject({ charges: false, files_with_hmrc: false });
 });
 
 test('workspace endpoints save and return an encrypted document', async ({ request }) => {
