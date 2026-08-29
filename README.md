@@ -2,7 +2,7 @@
 
 Turn UK business records into a checked quarterly update.
 
-Quarterly Ready is for sole traders, tutors, and landlords preparing for Making Tax Digital. It keeps one quarter focused: capture records, review categories, check totals, submit through an approved integration, or prepare an accountant handoff.
+Quarterly Ready is for sole traders, tutors, and landlords preparing for Making Tax Digital. Choose the current or a future UK quarter, capture records, review categories, check totals, submit through an approved integration, or prepare an accountant handoff.
 
 It does not give tax advice. Before a live submission, you review every total, confirm the submission yourself, and the server sends an MTD-compatible periodic update only through the configured approved integration.
 
@@ -27,7 +27,7 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 - Encrypted SQLite documents and a hash-chained audit log.
 - An offline browser copy after the first visit.
 
-The free version keeps one working quarter and all downloads. A £12 monthly or £99 annual Sociobot subscription adds live accountant links and approved-integration submissions. Checkout and server-side subscription checks use the Sociobot billing API.
+The free version keeps your working quarter and all downloads. Each quarter uses separate browser and encrypted server storage. A £12 monthly or £99 annual Sociobot subscription adds live accountant links and approved-integration submissions. Checkout and server-side subscription checks use the Sociobot billing API.
 
 The two required controller-side subscription registrations are specified in [`.factory/billing.md`](.factory/billing.md). The application POSTs to the correct monthly or annual Sociobot product endpoint, then follows only its returned Dodo checkout URL. Provider product and price IDs stay in the Sociobot controller.
 
@@ -78,6 +78,8 @@ Production currently uses one container replica because SQLite and the per-clien
 The server defaults to `/data` in the container and `./data` locally. It creates its AES-256-GCM key on first boot and stores it with restricted permissions.
 
 Optional variables are `DATA_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, and `HMRC_INTEGRATION_TOKEN`. `PORT` defaults to `8080`.
+
+Release verification may set `SAFE_QA_FIXTURES=1`. This exposes `/api/qa/entitlement`, whose token works only with the exact bundled synthetic document. Its submission response is marked `fixture_only_no_filing`; it never contacts billing, Dodo, HMRC, or an integration.
 
 For live submission, configure an HTTPS endpoint for an approved MTD ITSA integration and its bearer token. The integration must return a JSON `submission_id` or `correlation_id`; otherwise Quarterly Ready reports that no submission was made. With no integration configured, the app remains safe and usable for records, CSV, and handoff downloads but refuses live submission.
 

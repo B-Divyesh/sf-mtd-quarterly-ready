@@ -57,6 +57,33 @@ const malformed = await response('/api/workspace', {
 });
 assert(malformed.status === 422, `malformed workspace transaction returned ${malformed.status}, expected 422`);
 
+for (const [name, document] of [
+  ['impossible quarter', { ...durableDocument, quarterStart: '2026-02-30' }],
+  ['mismatched quarter', { ...durableDocument, quarterEnd: '2026-07-06' }],
+  ['out-of-quarter row', { ...durableDocument, transactions: [{ ...durableDocument.transactions[0], date: '2026-07-06' }] }],
+  ['zero row', { ...durableDocument, transactions: [{ ...durableDocument.transactions[0], amountPence: 0 }] }],
+  ['unknown category row', { ...durableDocument, transactions: [{ ...durableDocument.transactions[0], category: 'Bananas' }] }],
+]) {
+  const invalid = await response('/api/workspace', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'x-workspace-id': crypto.randomUUID(), 'x-forwarded-for': `203.0.113.${245 + name.length}` },
+    body: JSON.stringify({ document }),
+  });
+  assert(invalid.status === 422, `${name} returned ${invalid.status}, expected 422`);
+}
+
+const fixture = await response('/api/qa/entitlement', { headers: { 'x-forwarded-for': '203.0.113.230' } });
+assert(fixture.status === 200, `safe entitlement fixture returned ${fixture.status}`);
+const safe = await fixture.json();
+assert(safe.charges === false && safe.files_with_hmrc === false, 'safe fixture did not declare its non-charging, non-filing policy');
+const fixtureHeaders = { 'content-type': 'application/json', 'x-workspace-id': crypto.randomUUID(), 'x-sociobot-license': safe.token, 'x-forwarded-for': '203.0.113.231' };
+const fixtureShare = await response('/api/share', { method: 'POST', headers: fixtureHeaders, body: JSON.stringify({ document: safe.document }) });
+assert(fixtureShare.status === 201, `safe fixture accountant link returned ${fixtureShare.status}`);
+const fixtureSubmission = await response('/api/hmrc/submit', { method: 'POST', headers: { ...fixtureHeaders, 'x-forwarded-for': '203.0.113.232' }, body: JSON.stringify({ document: safe.document, review_confirmed: true }) });
+assert(fixtureSubmission.status === 200, `safe fixture submission returned ${fixtureSubmission.status}`);
+const fixtureSubmissionBody = await fixtureSubmission.json();
+assert(fixtureSubmissionBody.status === 'fixture_only_no_filing' && fixtureSubmissionBody.submission_id.startsWith('safe-fixture-no-filing-'), 'safe fixture submission was not explicitly non-filing');
+
 async function assertLimit(kind, allowance, clientIp) {
   const requests = Array.from({ length: allowance + 8 }, (_, index) => {
     const headers = { 'x-forwarded-for': clientIp };
@@ -75,4 +102,4 @@ async function assertLimit(kind, allowance, clientIp) {
 await assertLimit('read', 40, '203.0.113.242');
 await assertLimit('write', 12, '203.0.113.243');
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, read_limit: 40, write_limit: 12, status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, status: 'ok' }));

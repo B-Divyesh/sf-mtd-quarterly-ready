@@ -30,3 +30,12 @@ After registration, `npm run verify:live` requires each POST response to return
 a hosted Dodo checkout URL. Registration happens in the controller, not in this
 repository, because repository code must not contain payment-provider IDs or
 credentials.
+
+## Non-charging release fixture
+
+When the container has `SAFE_QA_FIXTURES=1`, `GET /api/qa/entitlement` returns a
+public QA token and one exact synthetic document. The token authorises only that
+unchanged document. It cannot authorise user records. Its submission result is
+labelled `fixture_only_no_filing` and does not call Sociobot, Dodo, HMRC, or the
+configured integration. `npm run verify:live` uses this path to prove the paid
+share and submission policy without a purchase or tax filing.

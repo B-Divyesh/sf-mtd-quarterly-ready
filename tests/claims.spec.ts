@@ -41,6 +41,48 @@ test('@claim:csv-import imports a bank CSV into the quarter', async ({ page }) =
   await expect(page.getByText('Revision lesson', { exact: true })).toBeVisible();
 });
 
+test('@regression:csv-invalid-rows-are-atomic rejects impossible, out-of-quarter, zero, and unknown-category rows without changing totals', async ({ page }) => {
+  await page.goto('/demo');
+  const originalRows = await page.locator('tbody tr').count();
+  const originalIncome = await page.getByText('£260.00', { exact: true }).first().textContent();
+  const cases = [
+    ['impossible.csv', 'date,description,amount,type,category\n2026-04-10,Valid lesson,25,income,Sales\n2026-02-30,Impossible,20,income,Sales', 'Row 3: The date is not a real calendar date'],
+    ['outside.csv', 'date,description,amount,type,category\n2026-07-06,Outside quarter,20,income,Sales', 'between 2026-04-06 and 2026-07-05'],
+    ['zero.csv', 'date,description,amount,type,category\n2026-04-10,Zero,0,income,Sales', 'between £0.01 and £1,000,000'],
+    ['category.csv', 'date,description,amount,type,category\n2026-04-10,Unknown,20,expense,Bananas', 'unknown category'],
+  ];
+  for (const [name, csv, message] of cases) {
+    await page.locator('#csv-input').setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await expect(page.getByText(new RegExp(message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'))).toBeVisible();
+    expect(await page.locator('tbody tr').count()).toBe(originalRows);
+    await expect(page.getByText(originalIncome || '', { exact: true }).first()).toBeVisible();
+  }
+});
+
+test('@claim:free-quarter-persistence @regression:current-and-future-quarters remain separate across reloads', async ({ page }) => {
+  await page.goto('/records');
+  const selector = page.getByLabel('Working quarter');
+  const currentStart = await selector.inputValue();
+  const currentDate = await page.locator('#add-form input[name="date"]').getAttribute('min');
+  await page.getByRole('button', { name: 'Add a transaction' }).click();
+  await page.locator('#add-form input[name="date"]').fill(currentDate!);
+  await page.locator('#add-form input[name="description"]').fill('Current-quarter lesson');
+  await page.locator('#add-form input[name="amount"]').fill('75.00');
+  await page.locator('#add-form select[name="category"]').selectOption('Sales');
+  await page.getByRole('button', { name: 'Save transaction' }).click();
+  await page.reload();
+  await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Create next quarter' }).click();
+  const nextStart = await page.getByLabel('Working quarter').inputValue();
+  expect(nextStart).not.toBe(currentStart);
+  await expect(page.getByRole('heading', { level: 3, name: 'No transactions in this quarter' })).toBeVisible();
+  await page.getByLabel('Working quarter').selectOption(currentStart);
+  await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).toContain(`quarterly-ready:document:${currentStart}`);
+  expect(keys).toContain(`quarterly-ready:document:${nextStart}`);
+});
+
 test('@claim:receipt-capture attaches a receipt to an existing expense', async ({ page }) => {
   await page.goto('/demo');
   const row = page.locator('tr', { hasText: 'Whiteboard markers' });
@@ -69,6 +111,9 @@ test('@claim:accountant-link opens a read-only sample pack', async ({ page }) =>
   await expect(link).toHaveAttribute('href', /\/share\/demo$/);
   await link.click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review this accountant pack');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset demo' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Start for real' })).toBeVisible();
   await expect(page.getByText('Maya Patel Tutoring')).toBeVisible();
   await expect(page.getByRole('button', { name: /delete/i })).toHaveCount(0);
 });

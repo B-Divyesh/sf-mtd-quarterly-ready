@@ -1,4 +1,5 @@
 import type { QuarterDocument } from './types';
+import { currentUkQuarter, type UkQuarter } from './quarters';
 
 export const SAMPLE_DOCUMENT: QuarterDocument = {
   schemaVersion: 1,
@@ -24,13 +25,13 @@ export const SAMPLE_DOCUMENT: QuarterDocument = {
   ]
 };
 
-export function emptyDocument(): QuarterDocument {
+export function emptyDocument(period: UkQuarter = currentUkQuarter()): QuarterDocument {
   return {
     schemaVersion: 1,
     businessName: '',
-    quarterLabel: '6 April to 5 July 2026',
-    quarterStart: '2026-04-06',
-    quarterEnd: '2026-07-05',
+    quarterLabel: period.label,
+    quarterStart: period.start,
+    quarterEnd: period.end,
     transactions: [],
     figuresReviewed: false,
     packDownloaded: false,

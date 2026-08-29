@@ -1,4 +1,17 @@
 import type { QuarterDocument, Summary, Transaction } from './types';
+import { isRealCalendarDate } from './quarters';
+
+export const CATEGORIES: Transaction['category'][] = ['Sales', 'Rent and rates', 'Travel', 'Office costs', 'Professional fees', 'Repairs', 'Other', ''];
+const MAX_AMOUNT_PENCE = 100_000_000;
+
+export function validateTransaction(transaction: Omit<Transaction, 'id'>, quarterStart: string, quarterEnd: string): void {
+  if (!isRealCalendarDate(transaction.date)) throw new Error('The date is not a real calendar date. Use YYYY-MM-DD.');
+  if (transaction.date < quarterStart || transaction.date > quarterEnd) throw new Error(`The date must be between ${quarterStart} and ${quarterEnd}.`);
+  if (!transaction.description.trim()) throw new Error('The description cannot be empty.');
+  if (!Number.isInteger(transaction.amountPence) || transaction.amountPence < 1 || transaction.amountPence > MAX_AMOUNT_PENCE) throw new Error('The amount must be between £0.01 and £1,000,000.');
+  if (transaction.kind !== 'income' && transaction.kind !== 'expense') throw new Error('The type must be income or expense.');
+  if (!CATEGORIES.includes(transaction.category)) throw new Error('The category is not recognised. Choose a listed category or leave it empty for review.');
+}
 
 export function summarise(document: QuarterDocument): Summary {
   const incomePence = document.transactions.filter(t => t.kind === 'income').reduce((sum, t) => sum + t.amountPence, 0);
@@ -57,7 +70,7 @@ export function hmrcHandoff(document: QuarterDocument): object {
   };
 }
 
-export function parseCsv(text: string): Omit<Transaction, 'id'>[] {
+export function parseCsv(text: string, quarterStart: string, quarterEnd: string): Omit<Transaction, 'id'>[] {
   const rows: string[][] = [];
   let row: string[] = [], cell = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
@@ -79,14 +92,21 @@ export function parseCsv(text: string): Omit<Transaction, 'id'>[] {
   if ([dateIndex, descriptionIndex, amountIndex].some(i => i < 0)) throw new Error('The CSV needs date, description and amount columns.');
   return rows.slice(1).map((values, offset) => {
     const amount = Number(values[amountIndex]?.replace(/[£,]/g, ''));
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(values[dateIndex] || '') || !values[descriptionIndex] || !Number.isFinite(amount)) {
+    if (!values[descriptionIndex] || !Number.isFinite(amount)) {
       throw new Error(`Row ${offset + 2} needs a valid date, description and amount.`);
     }
     const explicitType = values[typeIndex]?.toLowerCase();
+    if (explicitType && explicitType !== 'income' && explicitType !== 'expense') throw new Error(`Row ${offset + 2} has an unknown type. Use income or expense.`);
     const kind = explicitType === 'expense' || amount < 0 ? 'expense' : 'income';
-    return {
+    const categoryText = values[categoryIndex] || '';
+    const category = CATEGORIES.find(item => item.toLowerCase() === categoryText.toLowerCase());
+    if (category === undefined) throw new Error(`Row ${offset + 2} has an unknown category. Choose a listed category or leave it empty.`);
+    const transaction: Omit<Transaction, 'id'> = {
       date: values[dateIndex], description: values[descriptionIndex], amountPence: Math.round(Math.abs(amount) * 100), kind,
-      category: (values[categoryIndex] || '') as Transaction['category']
+      category
     };
+    try { validateTransaction(transaction, quarterStart, quarterEnd); }
+    catch (error) { throw new Error(`Row ${offset + 2}: ${error instanceof Error ? error.message : 'The row is not valid.'}`); }
+    return transaction;
   });
 }

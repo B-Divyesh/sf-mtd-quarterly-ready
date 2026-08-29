@@ -1,9 +1,0 @@
-{
-  "name": "Quarterly Ready",
-  "short_name": "Q Ready",
-  "start_url": "/records",
-  "display": "standalone",
-  "background_color": "#F2E9D5",
-  "theme_color": "#17201E",
-  "icons": [{"src":"/apple-touch-icon.png","sizes":"180x180","type":"image/png"}]
-}

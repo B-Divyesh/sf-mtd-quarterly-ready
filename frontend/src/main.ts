@@ -1,13 +1,13 @@
 import './styles.css';
-import { accountantCsv, hmrcHandoff, parseCsv, pounds, summarise } from './records';
-import { createShare, leaveDemo, loadDocument, loadRemote, loadShare, resetDemo, saveDocument, submitToHmrc } from './storage';
+import { accountantCsv, CATEGORIES, hmrcHandoff, parseCsv, pounds, summarise, validateTransaction } from './records';
+import { availableQuarters, nextUkQuarter, quarterFromStart } from './quarters';
+import { createShare, leaveDemo, loadDocument, loadRemote, loadShare, resetDemo, saveDocument, selectQuarter, submitToHmrc } from './storage';
 import type { Category, QuarterDocument, Transaction } from './types';
 
 const PRODUCT = 'Quarterly Ready';
 const SLUG = 'mtd-quarterly-ready';
 const BILLING = `https://api.sociobot.in/api/v1/products/${SLUG}`;
 const ANNUAL_BILLING = 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual';
-const CATEGORIES: Category[] = ['Sales', 'Rent and rates', 'Travel', 'Office costs', 'Professional fees', 'Repairs', 'Other', ''];
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let currentDocument: QuarterDocument | null = null;
 let currentDemo = false;
@@ -36,7 +36,7 @@ function homePage(): string {
   return layout(`<main id="main">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">MTD QUARTER CONTROL · UK 2026</p>
+        <p class="eyebrow">MTD QUARTER CONTROL · UK TAX YEARS</p>
         <h1 tabindex="-1">Turn records into a checked quarterly update</h1>
         <p class="lede">For UK sole traders, tutors and landlords who need MTD records without a full accounting suite.</p>
         <div class="hero-action"><a class="primary-button" href="/demo" data-link>Try it with sample data</a><span>Opens a private sample quarter. No account needed.</span></div>
@@ -65,8 +65,11 @@ function recordsPage(demo: boolean): string {
   const doc = currentDocument;
   const sum = summarise(doc);
   const completion = checklist(doc).filter(item => item.done).length;
+  const period = quarterFromStart(doc.quarterStart)!;
+  const quarterControls = demo ? '' : `<div class="quarter-controls"><label for="quarter-select">Working quarter</label><div><select id="quarter-select">${availableQuarters(doc.quarterStart).map(item => `<option value="${item.start}" ${item.start === doc.quarterStart ? 'selected' : ''}>${escapeHtml(item.shortLabel)} · ${escapeHtml(item.label)}</option>`).join('')}</select><button id="next-quarter" class="text-button" type="button">Create next quarter</button></div><small>Each quarter has separate browser and server records.</small></div>`;
   return layout(`<main id="main" class="app-main">
-    <div class="app-heading"><div><p class="eyebrow">QUARTER 1 · 2026–27</p><h1 tabindex="-1">Check this quarter</h1><p>${escapeHtml(doc.quarterLabel)} · ${escapeHtml(doc.businessName || 'Business name not entered')}</p></div><div class="connection" role="status"><span class="lamp ${navigator.onLine ? 'teal' : 'orange'}"></span>${navigator.onLine ? (demo ? 'Demo ready' : 'Saved in this browser') : 'Offline — browser copy active'}</div></div>
+    <div class="app-heading"><div><p class="eyebrow">${escapeHtml(period.shortLabel)}</p><h1 tabindex="-1">Check this quarter</h1><p>${escapeHtml(doc.quarterLabel)} · ${escapeHtml(doc.businessName || 'Business name not entered')}</p></div><div class="connection" role="status"><span class="lamp ${navigator.onLine ? 'teal' : 'orange'}"></span>${navigator.onLine ? (demo ? 'Demo ready' : 'Saved in this browser') : 'Offline — browser copy active'}</div></div>
+    ${quarterControls}
     <details class="business-settings"><summary>Business details</summary><form id="business-form"><label for="business-name">Business name</label><div><input id="business-name" name="businessName" maxlength="100" value="${escapeHtml(doc.businessName)}" required><button type="submit">Save business name</button></div></form></details>
     ${notice ? `<div class="notice" role="status">${escapeHtml(notice)}</div>` : ''}
     <section class="control-panel" aria-labelledby="summary-title">
@@ -113,7 +116,7 @@ function termsPage(): string {
 }
 
 function sharePage(token: string): string {
-  return layout(`<main id="main" class="prose-page"><p class="eyebrow">READ-ONLY ACCOUNTANT LINK</p><h1 tabindex="-1">Review this accountant pack</h1><div id="shared-pack" class="loading-state" role="status"><span class="spinner" aria-hidden="true"></span><p>Opening the encrypted snapshot…</p></div></main>`);
+  return layout(`<main id="main" class="prose-page"><p class="eyebrow">READ-ONLY ACCOUNTANT LINK</p><h1 tabindex="-1">Review this accountant pack</h1><div id="shared-pack" class="loading-state" role="status"><span class="spinner" aria-hidden="true"></span><p>Opening the encrypted snapshot…</p></div></main>`, token === 'demo');
 }
 
 function notFoundPage(): string {
@@ -135,6 +138,11 @@ function route(): void {
 
 function setPage(title: string, html: string): void {
   document.title = title;
+  const canonicalUrl = `https://mtd-quarterly-ready.sociobot.in${location.pathname}`;
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href', canonicalUrl);
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.setAttribute('content', canonicalUrl);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content', title);
   app.innerHTML = html;
   const heading = app.querySelector<HTMLHeadingElement>('h1');
   document.querySelector<HTMLDivElement>('#route-status')!.textContent = heading?.textContent || title;
@@ -144,6 +152,12 @@ function setPage(title: string, html: string): void {
 
 function bindLinks(): void {
   app.querySelectorAll<HTMLAnchorElement>('a[data-start-real]').forEach(link => link.addEventListener('click', () => leaveDemo(), { once: true }));
+  document.querySelector('#reset-demo')?.addEventListener('click', () => {
+    resetDemo();
+    if (location.pathname !== '/demo') history.pushState({}, '', '/demo');
+    notice = 'The sample quarter was reset.';
+    route();
+  });
 }
 
 function bindHome(): void {
@@ -176,7 +190,19 @@ async function startCheckout(plan: 'monthly' | 'annual'): Promise<void> {
 }
 
 function bindRecords(): void {
-  document.querySelector('#reset-demo')?.addEventListener('click', () => { currentDocument = resetDemo(); notice = 'The sample quarter was reset.'; rerenderRecords(); });
+  document.querySelector<HTMLSelectElement>('#quarter-select')?.addEventListener('change', event => {
+    currentDocument = selectQuarter((event.target as HTMLSelectElement).value);
+    notice = `Opened ${currentDocument.quarterLabel}.`;
+    rerenderRecords();
+    void refreshRemote();
+  });
+  document.querySelector('#next-quarter')?.addEventListener('click', () => {
+    const next = nextUkQuarter({ start: currentDocument!.quarterStart });
+    currentDocument = selectQuarter(next.start);
+    notice = `Opened ${currentDocument.quarterLabel}.`;
+    rerenderRecords();
+    void refreshRemote();
+  });
   const showForm = () => { const form = document.querySelector<HTMLFormElement>('#add-form')!; form.hidden = false; form.querySelector<HTMLInputElement>('input')?.focus(); };
   document.querySelector('#toggle-add')?.addEventListener('click', showForm);
   document.querySelector('#empty-add')?.addEventListener('click', showForm);
@@ -214,18 +240,21 @@ async function addTransaction(event: Event): Promise<void> {
   const form = event.currentTarget as HTMLFormElement; const data = new FormData(form); const file = data.get('receipt') as File;
   const amount = Number(data.get('amount'));
   const message = form.querySelector<HTMLParagraphElement>('#add-error')!;
-  if (!Number.isFinite(amount) || amount <= 0) { message.textContent = 'The amount must be more than zero. Enter pounds and pence.'; return; }
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) { message.textContent = 'The amount must be between £0.01 and £1,000,000.'; return; }
   if (file?.size > 1_500_000) { message.textContent = 'The receipt is larger than 1.5 MB. Choose a smaller image or PDF.'; return; }
   let receiptData = '';
   if (file?.size) receiptData = await fileToDataUrl(file);
-  currentDocument!.transactions.push({ id: crypto.randomUUID(), date: String(data.get('date')), description: String(data.get('description')).trim(), amountPence: Math.round(amount * 100), kind: data.get('kind') as Transaction['kind'], category: data.get('category') as Category, receiptName: file?.size ? file.name : undefined, receiptData: receiptData || undefined });
+  const transaction: Omit<Transaction, 'id'> = { date: String(data.get('date')), description: String(data.get('description')).trim(), amountPence: Math.round(amount * 100), kind: data.get('kind') as Transaction['kind'], category: data.get('category') as Category, receiptName: file?.size ? file.name : undefined, receiptData: receiptData || undefined };
+  try { validateTransaction(transaction, currentDocument!.quarterStart, currentDocument!.quarterEnd); }
+  catch (error) { message.textContent = error instanceof Error ? error.message : 'The transaction is not valid.'; return; }
+  currentDocument!.transactions.push({ ...transaction, id: crypto.randomUUID() });
   saveAndRender('Transaction added.');
 }
 
 async function importCsv(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return;
   try {
-    const imported = parseCsv(await file.text()).map(row => ({ ...row, id: crypto.randomUUID() }));
+    const imported = parseCsv(await file.text(), currentDocument!.quarterStart, currentDocument!.quarterEnd).map(row => ({ ...row, id: crypto.randomUUID() }));
     currentDocument!.transactions.push(...imported); saveAndRender(`${imported.length} transactions imported.`);
   } catch (error) { notice = error instanceof Error ? error.message : 'The CSV could not be imported. Check the columns and try again.'; rerenderRecords(); }
 }

@@ -134,6 +134,11 @@ button[disabled] { opacity: .55; cursor: not-allowed; transform: none !important
 .business-settings form { padding: 12px 0 22px; }
 .business-settings label { font-weight: 700; }
 .business-settings form > div { display: flex; align-items: end; gap: 10px; margin-top: 4px; }
+.quarter-controls { max-width: 780px; margin: -10px 0 28px; padding: 16px; border: 2px solid var(--ink); background: var(--paper-light); box-shadow: 0 4px 0 var(--brass); }
+.quarter-controls > label { display: block; font-weight: 800; }
+.quarter-controls > div { display: flex; align-items: center; gap: 12px; }
+.quarter-controls select { flex: 1; }
+.quarter-controls small { display: block; margin-top: 8px; color: var(--muted); }
 .control-panel { min-height: 250px; padding: 28px; display: grid; grid-template-columns: .8fr 1.2fr .8fr; align-items: stretch; gap: 20px; border: 3px solid var(--ink); background: var(--panel); box-shadow: var(--shadow); }
 .dial-block { display: flex; align-items: center; gap: 20px; }
 .dial-block strong { display: block; font: 700 1.3rem Georgia, serif; }
@@ -192,7 +197,7 @@ td strong, .receipt-mark { display: block; }
 .checklist li > span { display: grid; place-items: center; width: 36px; height: 36px; border: 2px solid var(--ink); border-radius: 50%; font-weight: 800; }
 .checklist li.done > span { background: var(--teal); color: white; }
 .checklist strong, .checklist small { display: block; }.checklist small { color: var(--muted); }
-.switch-label { display: flex; align-items: center; gap: 10px; padding: 8px; font-weight: 700; cursor: pointer; }
+.switch-label { min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 8px; font-weight: 700; cursor: pointer; }
 .switch-label input { width: 24px; min-height: 24px; margin: 0; }
 .ready-control { margin-top: 30px; display: flex; align-items: center; gap: 18px; }
 .ready-control p { margin: 0; }
@@ -268,6 +273,7 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
   .section-toolbar > div:last-child { width: 100%; flex-direction: column; }
   .form-grid { grid-template-columns: 1fr; }
   .business-settings form > div { align-items: stretch; flex-direction: column; }
+  .quarter-controls > div { align-items: stretch; flex-direction: column; }
   .table-wrap { overflow: visible; border: 0; background: transparent; box-shadow: none; }
   table, tbody { display: block; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }

@@ -1,6 +1,6 @@
 # Landing page copy audit
 
-Audited on 2026-08-28. Counts split hyphenated terms as one word. Labels and prices are included because a visitor may read them alone.
+Audited on 2026-08-29. Counts split hyphenated terms as one word. Labels and prices are included because a visitor may read them alone.
 
 | Copy | Words | Result |
 | --- | ---: | --- |

@@ -14,7 +14,7 @@ One bank transfer needs a category. One expense needs a receipt. These gaps make
 
 ## Isolation and reset
 
-Demo data uses the localStorage key `demo:quarterly-ready:document`. Real browser data uses `quarterly-ready:document` and a separate workspace ID.
+Demo data uses the localStorage key `demo:quarterly-ready:document`. Real browser data uses `quarterly-ready:document:<quarter-start>` and a separate workspace ID for each quarter.
 
 Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. The live submission control is disabled because sample records can never reach an approved integration.
 
@@ -27,6 +27,7 @@ Choose **Reset demo** in the persistent banner to restore the sample. Choose **S
 - Import a CSV with `date`, `description`, `amount`, `type`, and `category` columns.
 - Confirm the figures and download the accountant CSV or HMRC handoff JSON.
 - Make the demo accountant link and open its read-only pack.
+- Confirm that `/share/demo` keeps the demo banner, Reset demo, and Start for real controls.
 - Reload after disabling the network to verify the offline browser copy.
 
 The authoritative automated checks are listed in `.factory/claims.json`.

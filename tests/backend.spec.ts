@@ -29,6 +29,7 @@ test('@regression:workspace-rejects-malformed-transaction-objects before persist
     { ...validDocument.transactions[0], amountPence: 0 },
     { ...validDocument.transactions[0], kind: 'transfer' },
     { ...validDocument.transactions[0], category: 'Uncategorised' },
+    { ...validDocument.transactions[0], date: '2026-07-06' },
     { ...validDocument.transactions[0], receiptData: 'data:text/plain;base64,SGVsbG8=' },
   ];
   for (const transaction of malformed) {
@@ -37,6 +38,17 @@ test('@regression:workspace-rejects-malformed-transaction-objects before persist
   }
   expect((await request.get('/api/workspace', { headers })).status()).toBe(200);
   expect(await (await request.get('/api/workspace', { headers: { ...headers, 'x-forwarded-for': '203.0.113.23' } })).json()).toEqual({ document: null });
+});
+
+test('@regression:workspace-rejects-invalid-quarter-boundaries atomically', async ({ request }) => {
+  const headers = { 'x-workspace-id': 'f735ee38-13fe-4a21-985b-96a32a720cef', 'x-forwarded-for': '203.0.113.24' };
+  for (const document of [
+    { ...validDocument, quarterStart: '2026-02-30' },
+    { ...validDocument, quarterEnd: '2026-07-06' },
+  ]) {
+    expect((await request.put('/api/workspace', { headers, data: { document } })).status()).toBe(422);
+  }
+  expect(await (await request.get('/api/workspace', { headers })).json()).toEqual({ document: null });
 });
 
 test('@regression:empty-workspace returns a successful empty document', async ({ request }) => {
@@ -66,6 +78,26 @@ test('@regression:submission-needs-human-review refuses an unreviewed submission
   });
   expect(response.status()).toBe(422);
   expect(await response.json()).toEqual({ error: 'Confirm that you reviewed the totals before submitting to HMRC.' });
+});
+
+test('@regression:safe-paid-fixture proves share and submission paths without charging or filing', async ({ request }) => {
+  const fixtureResponse = await request.get('/api/qa/entitlement', { headers: { 'x-forwarded-for': '203.0.113.13' } });
+  expect(fixtureResponse.status()).toBe(200);
+  const fixture = await fixtureResponse.json();
+  expect(fixture).toMatchObject({ charges: false, files_with_hmrc: false });
+  const headers = {
+    'x-workspace-id': '35aa583d-84cf-43f1-8438-354ddbfd6358',
+    'x-sociobot-license': fixture.token,
+    'x-forwarded-for': '203.0.113.14',
+  };
+  const share = await request.post('/api/share', { headers, data: { document: fixture.document } });
+  expect(share.status()).toBe(201);
+  const submission = await request.post('/api/hmrc/submit', {
+    headers: { ...headers, 'x-forwarded-for': '203.0.113.15' },
+    data: { document: fixture.document, review_confirmed: true },
+  });
+  expect(submission.status()).toBe(200);
+  expect(await submission.json()).toMatchObject({ status: 'fixture_only_no_filing' });
 });
 
 test('@regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After', async ({ request }) => {

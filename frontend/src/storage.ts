@@ -1,26 +1,40 @@
 import { emptyDocument, SAMPLE_DOCUMENT } from './sample';
+import { currentUkQuarter, quarterFromStart } from './quarters';
+import { validateTransaction } from './records';
 import type { QuarterDocument } from './types';
 
 const DEMO_KEY = 'demo:quarterly-ready:document';
-const REAL_KEY = 'quarterly-ready:document';
-const WORKSPACE_KEY = 'quarterly-ready:workspace-id';
+const LEGACY_REAL_KEY = 'quarterly-ready:document';
+const REAL_PREFIX = 'quarterly-ready:document:';
+const ACTIVE_QUARTER_KEY = 'quarterly-ready:active-quarter';
+const WORKSPACE_PREFIX = 'quarterly-ready:workspace-id:';
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 
 export function loadDocument(demo: boolean): QuarterDocument {
-  const key = demo ? DEMO_KEY : REAL_KEY;
+  if (!demo) migrateLegacyDocument();
+  const activeStart = demo ? SAMPLE_DOCUMENT.quarterStart : activeQuarterStart();
+  const key = demo ? DEMO_KEY : `${REAL_PREFIX}${activeStart}`;
   const saved = localStorage.getItem(key);
   if (saved) {
-    try { return JSON.parse(saved) as QuarterDocument; } catch { localStorage.removeItem(key); }
+    try {
+      const document = JSON.parse(saved) as QuarterDocument;
+      const period = quarterFromStart(document.quarterStart);
+      if (!period || period.end !== document.quarterEnd || !Array.isArray(document.transactions)) throw new Error('Invalid quarter');
+      for (const transaction of document.transactions) validateTransaction(transaction, document.quarterStart, document.quarterEnd);
+      return document;
+    } catch { localStorage.removeItem(key); }
   }
-  const document = demo ? clone(SAMPLE_DOCUMENT) : emptyDocument();
+  const period = quarterFromStart(activeStart) || currentUkQuarter();
+  const document = demo ? clone(SAMPLE_DOCUMENT) : emptyDocument(period);
   localStorage.setItem(key, JSON.stringify(document));
   return document;
 }
 
 export function saveDocument(document: QuarterDocument, demo: boolean): void {
   document.updatedAt = new Date().toISOString();
-  localStorage.setItem(demo ? DEMO_KEY : REAL_KEY, JSON.stringify(document));
+  localStorage.setItem(demo ? DEMO_KEY : `${REAL_PREFIX}${document.quarterStart}`, JSON.stringify(document));
+  if (!demo) localStorage.setItem(ACTIVE_QUARTER_KEY, document.quarterStart);
   if (!demo && navigator.onLine) void saveRemote(document);
 }
 
@@ -31,43 +45,68 @@ export function resetDemo(): QuarterDocument {
 
 export function leaveDemo(): void { localStorage.removeItem(DEMO_KEY); }
 
-export function workspaceId(): string {
-  let id = localStorage.getItem(WORKSPACE_KEY);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(WORKSPACE_KEY, id); }
+export function selectQuarter(quarterStart: string): QuarterDocument {
+  if (!quarterFromStart(quarterStart)) throw new Error('Choose a standard UK quarter.');
+  localStorage.setItem(ACTIVE_QUARTER_KEY, quarterStart);
+  return loadDocument(false);
+}
+
+export function activeQuarterStart(): string {
+  const saved = localStorage.getItem(ACTIVE_QUARTER_KEY);
+  return saved && quarterFromStart(saved) ? saved : currentUkQuarter().start;
+}
+
+function migrateLegacyDocument(): void {
+  const saved = localStorage.getItem(LEGACY_REAL_KEY);
+  if (!saved) return;
+  try {
+    const document = JSON.parse(saved) as QuarterDocument;
+    if (quarterFromStart(document.quarterStart)) {
+      localStorage.setItem(`${REAL_PREFIX}${document.quarterStart}`, saved);
+      localStorage.setItem(ACTIVE_QUARTER_KEY, document.quarterStart);
+    }
+  } finally { localStorage.removeItem(LEGACY_REAL_KEY); }
+}
+
+export function workspaceId(quarterStart = activeQuarterStart()): string {
+  const key = `${WORKSPACE_PREFIX}${quarterStart}`;
+  let id = localStorage.getItem(key);
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); }
   return id;
 }
 
 export async function loadRemote(): Promise<QuarterDocument | null> {
-  const response = await fetch('/api/workspace', { headers: { 'x-workspace-id': workspaceId() } });
+  const quarterStart = activeQuarterStart();
+  const response = await fetch('/api/workspace', { headers: { 'x-workspace-id': workspaceId(quarterStart) } });
   if (!response.ok) throw new Error('Saved records could not be loaded. Your browser copy is still available.');
   const result = await response.json() as { document: QuarterDocument | null };
   if (!result.document) return null;
-  localStorage.setItem(REAL_KEY, JSON.stringify(result.document));
+  localStorage.setItem(`${REAL_PREFIX}${result.document.quarterStart}`, JSON.stringify(result.document));
   return result.document;
 }
 
 async function saveRemote(document: QuarterDocument): Promise<void> {
   try {
     const response = await fetch('/api/workspace', {
-      method: 'PUT', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId() },
+      method: 'PUT', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId(document.quarterStart) },
       body: JSON.stringify({ document })
     });
     if (!response.ok) window.dispatchEvent(new CustomEvent('save-error'));
   } catch { window.dispatchEvent(new CustomEvent('save-error')); }
 }
 
-function liveHeaders(): HeadersInit {
+function liveHeaders(document: QuarterDocument): HeadersInit {
   const licence = localStorage.getItem('sb_license:mtd-quarterly-ready');
   return {
     'content-type': 'application/json',
-    'x-workspace-id': workspaceId(),
+    'x-workspace-id': workspaceId(document.quarterStart),
     ...(licence ? { 'x-sociobot-license': licence } : {})
   };
 }
 
 export async function createShare(document: QuarterDocument): Promise<string> {
   const response = await fetch('/api/share', {
-    method: 'POST', headers: liveHeaders(),
+    method: 'POST', headers: liveHeaders(document),
     body: JSON.stringify({ document })
   });
   const result = await response.json().catch(() => ({})) as { token?: string; error?: string };
@@ -77,7 +116,7 @@ export async function createShare(document: QuarterDocument): Promise<string> {
 
 export async function submitToHmrc(document: QuarterDocument): Promise<string> {
   const response = await fetch('/api/hmrc/submit', {
-    method: 'POST', headers: liveHeaders(),
+    method: 'POST', headers: liveHeaders(document),
     body: JSON.stringify({ document, review_confirmed: true })
   });
   const result = await response.json().catch(() => ({})) as { submission_id?: string; error?: string };
@@ -93,4 +132,4 @@ export async function loadShare(token: string): Promise<QuarterDocument> {
   return result.document;
 }
 
-export const storageKeys = { demo: DEMO_KEY, real: REAL_KEY };
+export const storageKeys = { demo: DEMO_KEY, realPrefix: REAL_PREFIX, activeQuarter: ACTIVE_QUARTER_KEY };

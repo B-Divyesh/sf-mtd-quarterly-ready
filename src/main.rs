@@ -44,6 +44,8 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 };
 const MAX_DOCUMENT_BYTES: usize = 5 * 1024 * 1024;
 const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
+const SAFE_FIXTURE_TOKEN: &str = "quarterly-ready-safe-no-charge-fixture-v1";
+const SAFE_FIXTURE_BUSINESS: &str = "Quarterly Ready safe QA fixture";
 const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
 const PRODUCT_SLUGS: [&str; 2] = ["mtd-quarterly-ready", "mtd-quarterly-ready-annual"];
 const CATEGORIES: [&str; 7] = [
@@ -232,6 +234,7 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .route("/api/share", post(create_share))
         .route("/api/share/:token", get(get_share))
         .route("/api/hmrc/submit", post(submit_to_hmrc))
+        .route("/api/qa/entitlement", get(safe_qa_entitlement))
         .route("/api/page-view", post(page_view))
         .route_service("/", get_service(ServeFile::new(index.clone())))
         .route_service("/demo", get_service(ServeFile::new(index.clone())))
@@ -314,7 +317,6 @@ async fn create_share(
     let _persistence = state.persistence.lock().await;
     let id = workspace_id(&request)?;
     let licence = licence_token(&request)?;
-    verify_licence_token(&state, &licence).await?;
     let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
         .await
         .map_err(|_| {
@@ -330,6 +332,9 @@ async fn create_share(
         )
     })?;
     validate_document(&input.document)?;
+    if !safe_fixture_authorized(&licence, &input.document) {
+        verify_licence_token(&state, &licence).await?;
+    }
     let token = Uuid::new_v4().simple().to_string();
     let expires_at = unix_now() + SHARE_EXPIRY_SECONDS;
     let encrypted = encrypt_json(&state.key, &input.document)?;
@@ -375,11 +380,34 @@ async fn submit_to_hmrc(
             "The submission is not valid. Review the quarter and try again.",
         )
     })?;
+    if !input.review_confirmed {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Confirm that you reviewed the totals before submitting to HMRC.",
+        ));
+    }
     let payload = hmrc_compatible_payload(&input.document, input.review_confirmed)?;
     let licence = licence.ok_or(ApiError(
         StatusCode::PAYMENT_REQUIRED,
         "An active Sociobot subscription is required for live accountant links and HMRC submissions.",
     ))?;
+    if safe_fixture_authorized(&licence, &input.document) {
+        let submission_id = format!("safe-fixture-no-filing-{}", unix_now());
+        write_audit(
+            &state,
+            &id,
+            "safe_fixture_submission_checked",
+            submission_id.as_bytes(),
+        )
+        .await?;
+        persist_database_snapshot(&state.database_path, &state.snapshot_path)
+            .await
+            .map_err(internal)?;
+        return Ok(Json(SubmissionResult {
+            submission_id,
+            status: "fixture_only_no_filing",
+        }));
+    }
     verify_licence_token(&state, &licence).await?;
     let integration = state.hmrc_integration.as_ref().ok_or(ApiError(
         StatusCode::SERVICE_UNAVAILABLE,
@@ -436,6 +464,51 @@ async fn submit_to_hmrc(
         submission_id,
         status: "accepted",
     }))
+}
+
+async fn safe_qa_entitlement() -> Result<Json<Value>, ApiError> {
+    if !safe_fixtures_enabled() {
+        return Err(ApiError(
+            StatusCode::NOT_FOUND,
+            "The safe QA fixture is not enabled.",
+        ));
+    }
+    Ok(Json(json!({
+        "token": SAFE_FIXTURE_TOKEN,
+        "charges": false,
+        "files_with_hmrc": false,
+        "document": safe_fixture_document()
+    })))
+}
+
+fn safe_fixtures_enabled() -> bool {
+    env::var("SAFE_QA_FIXTURES").is_ok_and(|value| value == "1")
+}
+
+fn safe_fixture_authorized(token: &str, document: &Value) -> bool {
+    safe_fixtures_enabled() && token == SAFE_FIXTURE_TOKEN && document == &safe_fixture_document()
+}
+
+fn safe_fixture_document() -> Value {
+    json!({
+        "schemaVersion": 1,
+        "businessName": SAFE_FIXTURE_BUSINESS,
+        "quarterLabel": "6 July to 5 October 2099",
+        "quarterStart": "2099-07-06",
+        "quarterEnd": "2099-10-05",
+        "figuresReviewed": true,
+        "packDownloaded": true,
+        "markedReady": true,
+        "updatedAt": "2099-08-29T12:00:00.000Z",
+        "transactions": [{
+            "id": "safe-fixture-income-1",
+            "date": "2099-08-29",
+            "description": "Synthetic QA income — no customer data",
+            "amountPence": 100,
+            "kind": "income",
+            "category": "Sales"
+        }]
+    })
 }
 
 fn licence_token(request: &Request<Body>) -> Result<String, ApiError> {
@@ -711,6 +784,9 @@ async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next:
 
 async fn security_headers(request: Request<Body>, next: Next) -> Response {
     let immutable_asset = request.uri().path().starts_with("/assets/");
+    let revalidate = request.uri().path() == "/sw.js"
+        || !request.uri().path().contains('.')
+        || request.uri().path().ends_with(".html");
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
     headers.insert(
@@ -725,12 +801,18 @@ async fn security_headers(request: Request<Body>, next: Next) -> Response {
         HeaderName::from_static("permissions-policy"),
         HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
     );
+    headers.insert(
+        HeaderName::from_static("strict-transport-security"),
+        HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+    );
     headers.insert(HeaderName::from_static("content-security-policy"), HeaderValue::from_static("default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.sociobot.in; object-src 'none'; base-uri 'self'; form-action 'self' https://api.sociobot.in; frame-ancestors 'none'"));
     if immutable_asset {
         headers.insert(
             header::CACHE_CONTROL,
             HeaderValue::from_static("public, max-age=31536000, immutable"),
         );
+    } else if revalidate {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
     }
     response
 }
@@ -758,6 +840,28 @@ fn validate_document(value: &Value) -> Result<(), ApiError> {
         StatusCode::UNPROCESSABLE_ENTITY,
         "The records must be a document.",
     ))?;
+    let quarter_start = object
+        .get("quarterStart")
+        .and_then(Value::as_str)
+        .filter(|value| is_calendar_date(value))
+        .ok_or(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "The quarter needs a valid start date.",
+        ))?;
+    let quarter_end = object
+        .get("quarterEnd")
+        .and_then(Value::as_str)
+        .filter(|value| is_calendar_date(value))
+        .ok_or(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "The quarter needs a valid end date.",
+        ))?;
+    if !is_standard_uk_quarter(quarter_start, quarter_end) {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Choose a standard UK quarter with matching start and end dates.",
+        ));
+    }
     let transactions = object
         .get("transactions")
         .and_then(Value::as_array)
@@ -773,7 +877,7 @@ fn validate_document(value: &Value) -> Result<(), ApiError> {
     }
     let mut ids = std::collections::HashSet::with_capacity(transactions.len());
     for transaction in transactions {
-        validate_transaction(transaction, &mut ids)?;
+        validate_transaction(transaction, &mut ids, quarter_start, quarter_end)?;
     }
     Ok(())
 }
@@ -785,6 +889,8 @@ fn invalid_transaction(message: &'static str) -> ApiError {
 fn validate_transaction(
     transaction: &Value,
     ids: &mut std::collections::HashSet<String>,
+    quarter_start: &str,
+    quarter_end: &str,
 ) -> Result<(), ApiError> {
     let object = transaction
         .as_object()
@@ -798,12 +904,17 @@ fn validate_transaction(
     if !ids.insert(id.to_owned()) {
         return Err(invalid_transaction("Transaction IDs must be unique."));
     }
-    object
+    let date = object
         .get("date")
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| is_calendar_date(value))
         .ok_or_else(|| invalid_transaction("Every transaction needs a valid date."))?;
+    if date < quarter_start || date > quarter_end {
+        return Err(invalid_transaction(
+            "Every transaction date must be inside the selected quarter.",
+        ));
+    }
     object
         .get("description")
         .and_then(Value::as_str)
@@ -892,6 +1003,21 @@ fn is_calendar_date(value: &str) -> bool {
         _ => return false,
     };
     (1..=max_day).contains(&day)
+}
+
+fn is_standard_uk_quarter(start: &str, end: &str) -> bool {
+    if !is_calendar_date(start) || !is_calendar_date(end) {
+        return false;
+    }
+    let year = start[0..4].parse::<u32>().unwrap_or_default();
+    let expected = match &start[5..] {
+        "04-06" => format!("{year:04}-07-05"),
+        "07-06" => format!("{year:04}-10-05"),
+        "10-06" => format!("{:04}-01-05", year + 1),
+        "01-06" => format!("{year:04}-04-05"),
+        _ => return false,
+    };
+    end == expected
 }
 
 fn encrypt_json(key: &[u8; 32], value: &Value) -> Result<Vec<u8>, ApiError> {
@@ -1126,8 +1252,19 @@ mod tests {
 
     #[test]
     fn validates_transaction_document() {
-        assert!(validate_document(&json!({"transactions":[]})).is_ok());
+        assert!(validate_document(&json!({
+            "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05", "transactions":[]
+        }))
+        .is_ok());
         assert!(validate_document(&json!({"items":[]})).is_err());
+        assert!(validate_document(&json!({
+            "quarterStart": "2026-02-30", "quarterEnd": "2026-07-05", "transactions":[]
+        }))
+        .is_err());
+        assert!(validate_document(&json!({
+            "quarterStart": "2026-04-06", "quarterEnd": "2026-07-06", "transactions":[]
+        }))
+        .is_err());
     }
 
     #[test]
@@ -1144,9 +1281,29 @@ mod tests {
             json!({"id": "record-1", "date": "2026-04-09", "description": "Maths lesson", "amountPence": 4500, "kind": "transfer", "category": "Sales"}),
             json!({"id": "record-1", "date": "2026-04-09", "description": "Maths lesson", "amountPence": 4500, "kind": "income", "category": "Unknown"}),
         ] {
-            assert!(validate_document(&json!({"transactions": [invalid]})).is_err());
+            assert!(validate_document(&json!({
+                "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05", "transactions": [invalid]
+            }))
+            .is_err());
         }
-        assert!(validate_document(&json!({"transactions": [valid.clone(), valid]})).is_err());
+        assert!(validate_document(&json!({
+            "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05", "transactions": [valid.clone(), valid]
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn rejects_transactions_outside_the_selected_quarter() {
+        for date in ["2026-04-05", "2026-07-06"] {
+            let document = json!({
+                "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",
+                "transactions": [{
+                    "id": "record-1", "date": date, "description": "Maths lesson",
+                    "amountPence": 4500, "kind": "income", "category": "Sales"
+                }]
+            });
+            assert!(validate_document(&document).is_err(), "accepted {date}");
+        }
     }
 
     #[test]
@@ -1249,7 +1406,13 @@ mod tests {
 
     #[test]
     fn hmrc_payload_requires_explicit_human_review() {
-        let error = hmrc_compatible_payload(&json!({"transactions": []}), false).unwrap_err();
+        let error = hmrc_compatible_payload(
+            &json!({
+                "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05", "transactions": []
+            }),
+            false,
+        )
+        .unwrap_err();
         assert_eq!(error.0, StatusCode::UNPROCESSABLE_ENTITY);
         assert_eq!(
             error.1,

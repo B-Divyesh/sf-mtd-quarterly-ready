@@ -65,7 +65,7 @@ az rest --method patch --url "${APP_URL}" --body "$(cat <<JSON
         "name": "app",
         "image": "${IMAGE}",
         "resources": {"cpu": 0.5, "memory": "1Gi"},
-        "env": [{"name": "PORT", "value": "${PORT}"}],
+        "env": [{"name": "PORT", "value": "${PORT}"}, {"name": "SAFE_QA_FIXTURES", "value": "1"}],
         "volumeMounts": [{"volumeName": "workspace-data", "mountPath": "/data"}]
       }],
       "scale": {"minReplicas": 1, "maxReplicas": 1},

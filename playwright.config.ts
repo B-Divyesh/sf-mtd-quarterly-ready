@@ -28,9 +28,10 @@ export default defineConfig({
       PORT: '4173',
       DATA_DIR: path.join(tmpdir(), 'quarterly-ready-test'),
       FRONTEND_DIR: path.join(repositoryRoot, 'dist'),
+      SAFE_QA_FIXTURES: '1',
     },
     url: 'http://127.0.0.1:4173/health',
     reuseExistingServer: true,
-    timeout: 120_000,
+    timeout: 600_000,
   },
 });

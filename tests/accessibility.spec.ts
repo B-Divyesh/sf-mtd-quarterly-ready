@@ -32,6 +32,20 @@ test('@regression:mobile-navigation-and-footer-targets are at least 44 by 44 CSS
   }
 });
 
+test('@regression:mobile-review-control is at least 44 CSS pixels high', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  const box = await page.getByLabel('I checked these figures').locator('..').boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+});
+
+test('@regression:route-metadata follows SPA navigation', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://mtd-quarterly-ready.sociobot.in/demo');
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://mtd-quarterly-ready.sociobot.in/demo');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'Demo — Quarterly Ready');
+});
+
 test('@regression:cold-records-load has no console or failed-response errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
