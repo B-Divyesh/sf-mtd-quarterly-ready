@@ -420,17 +420,6 @@
   ],
   "surprises": [
     {
-      "source": "importCsv()",
-      "target": "parseCsv()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
       "source": "addTransaction()",
       "target": "validateTransaction()",
       "source_files": [
@@ -442,11 +431,11 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "availableQuarters()",
+      "source": "addTransaction()",
+      "target": "saveDocument()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -464,11 +453,22 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "quarterFromStart()",
+      "source": "bindRecords()",
+      "target": "saveDocument()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "bindRecords()",
+      "target": "selectQuarter()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
