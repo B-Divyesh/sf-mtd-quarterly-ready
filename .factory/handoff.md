@@ -1,116 +1,98 @@
-# Quarterly Ready — repair 3 handoff
+# Quarterly Ready — repair 4 handoff
 
-Work order: `mtd-quarterly-ready-repair-3`
-
-Completed: 2026-08-29
-
-Artifact: Rust/axum backend and Vite/TypeScript frontend in one container.
+Work order: `mtd-quarterly-ready-repair-4`  
+Completed: 2026-08-29  
+Artifact: Rust/axum and Vite/TypeScript in one Azure Container App.
 
 ## Outcome
 
-The repository defects from independent verification 5 are repaired. The
-product still preserves the isolated demo, real record persistence, free CSV
-and HMRC handoff downloads, reviewed approved-integration submission, and the
-£12/month and £99/year Sociobot subscription paths.
+The deploy failure is repaired and the public service is live at
+`https://mtd-quarterly-ready.sociobot.in`.
 
-Production billing remains an external release dependency. The Sociobot
-controller must enable the two registrations in
-[`billing.md`](billing.md). The repository deliberately contains no Dodo or
-other provider product/price IDs.
+- Deployed build SHA: `1b15e910ac46fd031fad5c7662b424e1f695a9d0`
+- Active Azure revision: `sf-mtd-quarterly-ready--0000013`
+- `/health`: `{"status":"ok","build_sha":"1b15e910ac46fd031fad5c7662b424e1f695a9d0"}`
+- Scale: exactly one minimum and maximum replica.
+- Durable storage: Azure Files share `sf-mtd-quarterly-ready-data-v3`, mounted
+  at `/data`; it contains the generated encryption key and encrypted database
+  snapshot. The live service uses a local SQLite working file and streams a
+  snapshot to Azure Files after every real workspace mutation. This avoids
+  SQLite advisory-lock failures on SMB while preserving state across restarts.
 
-## Reproduction before repair
+The requested base candidate `5f7e90dd581a8d1dbb8c24fdc42ffc65a1d62e7f`
+is preserved unchanged in Git history.
 
-The failures were reproduced against the live candidate before code changes:
+## Deployment failure reproduced and repaired
 
-- `/health` returned `fb8d5f29b93709dfd508a0220cd752e151504088`, not candidate
-  `c57eded4700510ee226ef0894f7c4724e99e8c6d`.
-- Both `checkout?plan=monthly` and `checkout?plan=annual` returned 404 with
-  `{"error":"enabled factory product","status":404}`.
-- A cold 390×844 `/records` visit received a 404 from `/api/workspace` and
-  Chromium logged `Failed to load resource`.
-- The designed unknown page returned HTTP 200.
-- Measured targets were 148×34 px for the wordmark, 39×44 px for Demo, and
-  about 22 px high for footer links.
-- `playwright.config.ts` set `FRONTEND_DIR=/work/repo/dist`.
-- The deployed app allowed request budgets to fragment while configured for
-  as many as three replicas.
+The initial candidate image built successfully, but its public deployment had
+three contract defects: its custom hostname was left with a disabled TLS
+binding, it allowed three replicas while both the limiter and SQLite were
+single-process, and `/data` was ephemeral. Adding an Azure Files mount exposed
+the underlying runtime failure: SQLite cannot reliably hold its database lock
+on that SMB share. A second issue was that the first deployment wrapper emitted
+escaped JSON, which Azure rejected.
 
-## Repairs and regression coverage
+`scripts/deploy-container.sh` is now the repository-owned work-order
+deployment configuration. It builds with ACR build arguments, configures the
+Azure Files share, applies the SNI certificate binding, and enforces one
+replica. `scripts/check-deploy-contract.mjs` guards all four settings. The
+backend now restores the encrypted SQLite snapshot from `/data` to local
+storage at boot, uses a single local SQLite connection, serializes snapshot
+writes, and streams snapshots without unsupported Azure Files metadata or
+rename operations.
 
-- An empty workspace is now the successful JSON value `{"document":null}`.
-  `@regression:empty-workspace` covers the API contract and
-  `@regression:cold-records-load` covers the real browser console.
-- Known SPA entry points are explicit server routes. Missing paths use the
-  designed recovery document with status 404. `@regression:unknown-route`
-  checks both.
-- Read requests share one per-client allowance across read routes; writes
-  share a separate allowance across write routes. Exact regressions permit 40
-  reads and 12 writes, then require 429 plus `Retry-After: 1`.
-- The production container is kept at one replica because both SQLite state
-  and the limiter are process-local. This gives all live requests one
-  authoritative limit and avoids split allowance. Moving above one replica
-  requires a shared database and distributed limiter first.
-- Header, navigation, and footer links now have 44×44 px minimum clickable
-  boxes. The 390 px browser regression measures rendered boxes.
-- Playwright derives the repository root from its own module URL and uses the
-  operating-system temporary directory. A clean clone under
-  `/tmp/quarterly-ready-portable.ym1Qrr` passed the complete suite.
-- `npm run verify:live` now checks deployed SHA, both hosted-checkout
-  redirects, empty workspace, genuine 404, and exact live read/write limits.
-- The paid-tier claim checks both stable checkout paths, free CSV access, the
-  two controller registration records, and absence of hard-coded provider
-  identifiers.
+Focused regression coverage:
 
-## Local verification evidence
+- `workspace_snapshot_is_restored_after_a_restart` proves snapshot restoration.
+- `startup_migration_retries_transient_sqlite_locks` covers the prior lock
+  classification.
+- `test:deploy-contract` asserts Azure Files, `/data`, SNI, one replica, and
+  build identity.
+- Existing shared read/write limiter regressions still assert 40 reads and 12
+  writes followed by 429 plus `Retry-After: 1`.
 
-- Fresh `npm ci`: 60 packages installed; 0 reported vulnerabilities.
-- `npm test`: passed — TypeScript, 4 Vitest tests, 8 Rust tests, production
-  Vite build, and 28 Playwright tests.
-- All 17 exact commands in `.factory/claims.json`: passed independently.
-- Alternate-path fresh clone: `npm ci` and full `npm test` passed outside
-  `/work/repo`.
-- `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, and
-  `BUILD_SHA=<commit> cargo build --release`: passed.
-- Release binary started with only `PORT`; it logged generated key status and
-  no secret. `/health` returned the compiled commit.
-- Release `verify-url.sh`: 633 ms, correct title and language, one H1, one
-  main landmark, image alt text, and no console/page errors.
-- Desktop keyboard and dialog paths passed. At 390×844 there was no overflow;
-  every tested header/footer target was at least 44×44; Axe serious/critical
-  count was 0.
-- Service-worker `update()` completed with no waiting worker, cache
-  `quarterly-ready-v2` was active, offline demo reload worked, and the complete
-  demo emitted no cross-origin request.
-- Response policy included CSP with `frame-ancestors 'none'`, nosniff,
-  referrer policy, and permissions policy.
-- Initial JS: 35,360 bytes raw / 11.66 kB gzip. CSS: 21,216 bytes raw /
-  5.27 kB gzip.
-- Lighthouse mobile: performance 100, accessibility 100, best practices 100,
-  SEO 100; FCP 1.2 s, LCP 1.4 s, TBT 0 ms, CLS 0.
-- Docker was unavailable in this worker. The Dockerfile uses multi-stage
-  `node:22-alpine`, unpinned `rust:1-alpine`, and a non-root runtime; ACR is the
-  container build gate used by deployment.
+## Verification evidence
 
-## Deployment and live verification
+- Clean `npm ci && npm test`: passed. It ran typechecking, 4 Vitest tests, 10
+  Rust tests, the deployment contract test, production Vite build, and all 28
+  Playwright tests.
+- `cargo fmt -- --check` and `cargo clippy --all-targets -- -D warnings`:
+  passed.
+- ACR run `chsf`: succeeded at `2026-08-29T02:15:02Z`. The source archive
+  explicitly excluded `.git`; the Dockerfile used `rust:1-alpine`, built with
+  `BUILD_SHA`, and started non-root on port 8080.
+- Public `verify-url.sh`: GET 200; title present; `lang=en-GB`; one h1; main
+  landmark; no missing image alt text; no browser console errors; 721 ms load.
+- The full local browser suite covers desktop and keyboard operation, dialog
+  focus, Axe serious/critical findings, 390 px mobile layout and 44 px targets,
+  200% text, reduced motion, demo privacy, offline reload/service-worker
+  update, CSV/HMRC/export paths, and no cold-load console failure.
+- Public limiter proof after deployment: 40 accepted reads then 8 responses
+  with HTTP 429 and `Retry-After: 1`; 12 accepted writes then 8 equivalent
+  429 responses, each under one forwarded client identity.
+- Public durability proof: workspace
+  `98ef9e76-d49b-410b-8378-7db5f662ca01` was saved with marker
+  `durability-98ef9e76-d49b-410b-8378-7db5f662ca01`; after an explicit restart
+  of revision `0000013`, the same marker was retrieved from `/api/workspace`.
+  The durable snapshot on Azure Files was 32,768 bytes after the save.
 
-Deploy the final committed SHA with the work-order container script, then set
-the Container App minimum and maximum replicas to one before running:
+## Run and deploy
 
 ```sh
-EXPECTED_BUILD_SHA=$(git rev-parse HEAD) npm run verify:live
+npm ci
+npm test
+./scripts/deploy-container.sh
 ```
 
-The live result and exact deployed SHA are reported in the work-order result.
+For the public identity and core backend contract, compare `/health` with the
+image source SHA, then exercise `/api/workspace` with a new UUID and a stable
+`X-Forwarded-For` header. The deployment wrapper is intentionally a brief
+single-replica handoff during release; this prevents concurrent SQLite writers
+while retaining workspace state.
 
-## Controller action required
+## Known external dependency
 
-Register and enable the `monthly` GBP 1,200-pence recurring plan and `annual`
-GBP 9,900-pence recurring plan for product slug `mtd-quarterly-ready`, with
-return URL `https://mtd-quarterly-ready.sociobot.in/records`. Both must issue
-the same product entitlement accepted by the existing verify endpoint. See
-[`billing.md`](billing.md) for the complete contract.
-
-A genuine HMRC submission also requires `HMRC_INTEGRATION_URL` and
-`HMRC_INTEGRATION_TOKEN` for an approved MTD ITSA integration. Without them,
-the service safely refuses submission and keeps the free records and handoff
-paths available.
+The Sociobot billing controller checkout registration remains external to this
+repository. At the time of this repair its `monthly` and `annual` checkout
+URLs returned the controller's 404 `enabled factory product` response. No
+payment provider identifier or credential has been added to this product.
