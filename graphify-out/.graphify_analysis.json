@@ -415,11 +415,11 @@
   ],
   "surprises": [
     {
-      "source": "resetDemo()",
-      "target": "clearDemoReceipts()",
+      "source": "addTransaction()",
+      "target": "validateTransaction()",
       "source_files": [
-        "frontend/src/storage.ts",
-        "frontend/src/receipts.ts"
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -437,17 +437,6 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "availableQuarters()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
       "source": "bindRecords()",
       "target": "nextUkQuarter()",
       "source_files": [
@@ -459,11 +448,22 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "quarterFromStart()",
+      "source": "bindRecords()",
+      "target": "selectQuarter()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "downloadPack()",
+      "target": "accountantCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
