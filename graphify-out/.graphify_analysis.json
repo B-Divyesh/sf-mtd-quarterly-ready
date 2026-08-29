@@ -1,58 +1,47 @@
 {
   "communities": {
     "0": [
+      "arc",
       "body",
-      "e",
+      "client",
+      "hashmap",
       "hashset",
+      "instant",
       "intoresponse",
       "json",
+      "mutex",
       "next",
       "path",
       "request",
       "response",
       "result",
-      "src_main",
       "src_main_apierror",
       "src_main_apierror_into_response",
-      "src_main_claim_accountant_link_expiry_is_thirty_days",
-      "src_main_claim_encrypted_storage",
+      "src_main_appstate",
       "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
       "src_main_create_share",
       "src_main_decrypt_json",
-      "src_main_default_log_filter_keeps_startup_information_visible",
       "src_main_encrypt_json",
       "src_main_get_share",
       "src_main_get_workspace",
-      "src_main_health",
       "src_main_hmrc_compatible_payload",
-      "src_main_hmrc_payload_requires_explicit_human_review",
-      "src_main_internal",
       "src_main_invalid_transaction",
-      "src_main_is_calendar_date",
-      "src_main_is_iso_date",
-      "src_main_is_standard_uk_quarter",
       "src_main_licence_token",
-      "src_main_licenceverdict",
       "src_main_page_view",
       "src_main_put_workspace",
       "src_main_rate_limit",
-      "src_main_rejects_each_malformed_transaction_field",
-      "src_main_rejects_transactions_outside_the_selected_quarter",
       "src_main_safe_fixture_authorized",
       "src_main_safe_fixture_document",
       "src_main_safe_fixtures_enabled",
       "src_main_safe_qa_entitlement",
       "src_main_security_headers",
       "src_main_shareresult",
-      "src_main_startup_migration_retries_transient_sqlite_locks",
       "src_main_submissionrequest",
       "src_main_submissionresult",
       "src_main_submit_to_hmrc",
-      "src_main_subscription_verification_accepts_the_annual_entitlement",
       "src_main_unix_now",
       "src_main_validate_document",
       "src_main_validate_transaction",
-      "src_main_validates_transaction_document",
       "src_main_verify_licence_token",
       "src_main_workspace_id",
       "src_main_workspacedocument",
@@ -61,7 +50,8 @@
       "statuscode",
       "string",
       "value",
-      "vec"
+      "vec",
+      "vecdeque"
     ],
     "1": [
       "frontend_src_main",
@@ -110,6 +100,49 @@
       "frontend_src_storage_submittohmrc"
     ],
     "2": [
+      "e",
+      "envfilter",
+      "error",
+      "fspath",
+      "option",
+      "pathbuf",
+      "router",
+      "sqlitepool",
+      "src_main",
+      "src_main_approved_integration_from_env",
+      "src_main_approvedintegration",
+      "src_main_build_router",
+      "src_main_claim_accountant_link_expiry_is_thirty_days",
+      "src_main_claim_anonymous_page_count",
+      "src_main_claim_encrypted_storage",
+      "src_main_claim_hash_chained_audit_log",
+      "src_main_cleanup_expired_shares",
+      "src_main_default_log_filter",
+      "src_main_default_log_filter_keeps_startup_information_visible",
+      "src_main_health",
+      "src_main_hmrc_payload_requires_explicit_human_review",
+      "src_main_internal",
+      "src_main_is_calendar_date",
+      "src_main_is_database_locked_message",
+      "src_main_is_iso_date",
+      "src_main_is_standard_uk_quarter",
+      "src_main_licenceverdict",
+      "src_main_load_or_create_key",
+      "src_main_log_filter",
+      "src_main_main",
+      "src_main_migrate",
+      "src_main_migrate_with_retry",
+      "src_main_persist_database_snapshot",
+      "src_main_rejects_each_malformed_transaction_field",
+      "src_main_rejects_transactions_outside_the_selected_quarter",
+      "src_main_restore_database_snapshot",
+      "src_main_shutdown_signal",
+      "src_main_startup_migration_retries_transient_sqlite_locks",
+      "src_main_subscription_verification_accepts_the_annual_entitlement",
+      "src_main_validates_transaction_document",
+      "src_main_workspace_snapshot_is_restored_after_a_restart"
+    ],
+    "3": [
       "frontend_src_main_checklist",
       "frontend_src_quarters",
       "frontend_src_quarters_availablequarters",
@@ -150,39 +183,6 @@
       "frontend_src_types_quarterdocument",
       "frontend_src_types_summary",
       "frontend_src_types_transaction"
-    ],
-    "3": [
-      "arc",
-      "client",
-      "envfilter",
-      "error",
-      "fspath",
-      "hashmap",
-      "instant",
-      "mutex",
-      "option",
-      "pathbuf",
-      "router",
-      "sqlitepool",
-      "src_main_approved_integration_from_env",
-      "src_main_approvedintegration",
-      "src_main_appstate",
-      "src_main_build_router",
-      "src_main_claim_anonymous_page_count",
-      "src_main_claim_hash_chained_audit_log",
-      "src_main_cleanup_expired_shares",
-      "src_main_default_log_filter",
-      "src_main_is_database_locked_message",
-      "src_main_load_or_create_key",
-      "src_main_log_filter",
-      "src_main_main",
-      "src_main_migrate",
-      "src_main_migrate_with_retry",
-      "src_main_persist_database_snapshot",
-      "src_main_restore_database_snapshot",
-      "src_main_shutdown_signal",
-      "src_main_workspace_snapshot_is_restored_after_a_restart",
-      "vecdeque"
     ],
     "4": [
       "axe_core_playwright",
@@ -285,10 +285,10 @@
     ]
   },
   "cohesion": {
-    "0": 0.10163934426229508,
+    "0": 0.11450980392156863,
     "1": 0.11839323467230443,
-    "2": 0.12692307692307692,
-    "3": 0.0967741935483871,
+    "2": 0.08414634146341464,
+    "3": 0.12692307692307692,
     "4": 0.06451612903225806,
     "5": 0.1,
     "6": 0.38095238095238093,
@@ -305,13 +305,13 @@
   },
   "gods": [
     {
-      "id": "src_main_appstate",
-      "label": "AppState",
+      "id": "src_main_apierror",
+      "label": "ApiError",
       "degree": 22
     },
     {
-      "id": "src_main_apierror",
-      "label": "ApiError",
+      "id": "src_main_appstate",
+      "label": "AppState",
       "degree": 22
     },
     {
@@ -357,44 +357,11 @@
   ],
   "surprises": [
     {
-      "source": "recordsPage()",
-      "target": "availableQuarters()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "quarterFromStart()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "summarise()",
+      "source": "addTransaction()",
+      "target": "validateTransaction()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "loadDocument()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -406,6 +373,39 @@
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "bindRecords()",
+      "target": "nextUkQuarter()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/quarters.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "bindRecords()",
+      "target": "selectQuarter()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "downloadPack()",
+      "target": "accountantCsv()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
