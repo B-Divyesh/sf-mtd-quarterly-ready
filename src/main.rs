@@ -30,7 +30,7 @@ use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
@@ -39,6 +39,7 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 };
 const MAX_DOCUMENT_BYTES: usize = 5 * 1024 * 1024;
 const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
+const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
 
 #[derive(Clone)]
 struct AppState {
@@ -123,11 +124,20 @@ async fn main() {
         data_dir.join("quarterly-ready.sqlite3").display()
     );
     let db = SqlitePoolOptions::new()
-        .max_connections(8)
+        // The deployed database is a single SQLite file on the mounted Azure
+        // Files share. One connection avoids self-contention and makes a
+        // rolling revision hand-off safe.
+        .max_connections(1)
         .connect(&database_url)
         .await
         .expect("open database");
-    migrate(&db).await.expect("run database migrations");
+    sqlx::query(&format!("PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}"))
+        .execute(&db)
+        .await
+        .expect("configure database busy timeout");
+    migrate_with_retry(&db)
+        .await
+        .expect("run database migrations");
     cleanup_expired_shares(&db)
         .await
         .expect("clean expired accountant links");
@@ -827,6 +837,28 @@ async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+async fn migrate_with_retry(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    const MAX_ATTEMPTS: u8 = 6;
+    for attempt in 1..=MAX_ATTEMPTS {
+        match migrate(db).await {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if is_database_locked_message(&error.to_string()) && attempt < MAX_ATTEMPTS =>
+            {
+                warn!(attempt, "database_locked_during_startup_migration");
+                tokio::time::sleep(Duration::from_millis(500 * u64::from(attempt))).await;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("migration loop returns on success or final error")
+}
+
+fn is_database_locked_message(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("database is locked") || message.contains("database is busy")
+}
+
 async fn cleanup_expired_shares(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM shares WHERE expires_at < ?")
         .bind(unix_now() as i64)
@@ -892,6 +924,13 @@ mod tests {
     fn validates_transaction_document() {
         assert!(validate_document(&json!({"transactions":[]})).is_ok());
         assert!(validate_document(&json!({"items":[]})).is_err());
+    }
+
+    #[test]
+    fn startup_migration_retries_transient_sqlite_locks() {
+        assert!(is_database_locked_message("database is locked"));
+        assert!(is_database_locked_message("SQLITE_BUSY: database is busy"));
+        assert!(!is_database_locked_message("no such table"));
     }
 
     #[tokio::test]
