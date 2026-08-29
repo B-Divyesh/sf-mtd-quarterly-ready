@@ -872,7 +872,7 @@
       "label": "submissionLabels()",
       "_callable": true,
       "_origin": "ast",
-      "community": 20,
+      "community": 21,
       "file_type": "code",
       "norm_label": "submissionlabels()",
       "source_file": "tests/accessibility.spec.ts",
@@ -883,7 +883,7 @@
       "label": ".put()",
       "_callable": true,
       "_origin": "ast",
-      "community": 26,
+      "community": 27,
       "file_type": "code",
       "norm_label": ".put()",
       "source_file": "tests/claims.spec.ts",
@@ -1499,10 +1499,60 @@
       "source_location": "L8"
     },
     {
+      "id": "next",
+      "label": "Next",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "next",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "response",
+      "label": "Response",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "response",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "src_main_apierror_into_response",
+      "label": ".into_response()",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": ".into_response()",
+      "source_file": "src/main.rs",
+      "source_location": "L139"
+    },
+    {
+      "id": "src_main_rate_limit",
+      "label": "rate_limit()",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "rate_limit()",
+      "source_file": "src/main.rs",
+      "source_location": "L871"
+    },
+    {
+      "id": "src_main_security_headers",
+      "label": "security_headers()",
+      "_origin": "ast",
+      "community": 12,
+      "file_type": "code",
+      "norm_label": "security_headers()",
+      "source_file": "src/main.rs",
+      "source_location": "L922"
+    },
+    {
       "id": "scripts_verify_durability",
       "label": "verify-durability.mjs",
       "_origin": "ast",
-      "community": 12,
+      "community": 13,
       "file_type": "code",
       "norm_label": "verify-durability.mjs",
       "source_file": "scripts/verify-durability.mjs",
@@ -1512,7 +1562,7 @@
       "id": "scripts_verify_durability_document",
       "label": "document",
       "_origin": "ast",
-      "community": 12,
+      "community": 13,
       "file_type": "code",
       "norm_label": "document",
       "source_file": "scripts/verify-durability.mjs",
@@ -1522,7 +1572,7 @@
       "id": "scripts_verify_durability_headers",
       "label": "headers",
       "_origin": "ast",
-      "community": 12,
+      "community": 13,
       "file_type": "code",
       "norm_label": "headers",
       "source_file": "scripts/verify-durability.mjs",
@@ -1532,7 +1582,7 @@
       "id": "scripts_verify_durability_state",
       "label": "state",
       "_origin": "ast",
-      "community": 12,
+      "community": 13,
       "file_type": "code",
       "norm_label": "state",
       "source_file": "scripts/verify-durability.mjs",
@@ -1542,7 +1592,7 @@
       "id": "scripts_deploy_container",
       "label": "deploy-container.sh",
       "_origin": "ast",
-      "community": 13,
+      "community": 14,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1556,7 +1606,7 @@
       "id": "scripts_deploy_container_sh__entry",
       "label": "deploy-container.sh script",
       "_origin": "ast",
-      "community": 13,
+      "community": 14,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1570,7 +1620,7 @@
       "id": "scripts_deploy_container_stop_revision_for_snapshot_handoff",
       "label": "stop_revision_for_snapshot_handoff()",
       "_origin": "ast",
-      "community": 13,
+      "community": 14,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1584,7 +1634,7 @@
       "id": "scripts_verify_url_errors",
       "label": "errors",
       "_origin": "ast",
-      "community": 14,
+      "community": 15,
       "file_type": "code",
       "norm_label": "errors",
       "source_file": "scripts/verify-url.mjs",
@@ -1594,7 +1644,7 @@
       "id": "scripts_verify_url_mjs_scripts_verify_url",
       "label": "verify-url.mjs",
       "_origin": "ast",
-      "community": 14,
+      "community": 15,
       "file_type": "code",
       "norm_label": "verify-url.mjs",
       "source_file": "scripts/verify-url.mjs",
@@ -1604,7 +1654,7 @@
       "id": "scripts_verify_url_url",
       "label": "url",
       "_origin": "ast",
-      "community": 14,
+      "community": 15,
       "file_type": "code",
       "norm_label": "url",
       "source_file": "scripts/verify-url.mjs",
@@ -1614,7 +1664,7 @@
       "id": "src_main_claim_encrypted_storage",
       "label": "claim_encrypted_storage()",
       "_origin": "ast",
-      "community": 15,
+      "community": 16,
       "file_type": "code",
       "norm_label": "claim_encrypted_storage()",
       "source_file": "src/main.rs",
@@ -1624,7 +1674,7 @@
       "id": "src_main_encrypt_json",
       "label": "encrypt_json()",
       "_origin": "ast",
-      "community": 15,
+      "community": 16,
       "file_type": "code",
       "norm_label": "encrypt_json()",
       "source_file": "src/main.rs",
@@ -1634,7 +1684,7 @@
       "id": "vec",
       "label": "Vec",
       "_origin": "ast",
-      "community": 15,
+      "community": 16,
       "file_type": "code",
       "norm_label": "vec",
       "source_file": "",
@@ -1644,7 +1694,7 @@
       "id": "frontend_public_sw",
       "label": "sw.js",
       "_origin": "ast",
-      "community": 16,
+      "community": 17,
       "file_type": "code",
       "norm_label": "sw.js",
       "source_file": "frontend/public/sw.js",
@@ -1654,7 +1704,7 @@
       "id": "frontend_public_sw_shell",
       "label": "SHELL",
       "_origin": "ast",
-      "community": 16,
+      "community": 17,
       "file_type": "code",
       "norm_label": "shell",
       "source_file": "frontend/public/sw.js",
@@ -1664,7 +1714,7 @@
       "id": "playwright_config",
       "label": "playwright.config.ts",
       "_origin": "ast",
-      "community": 17,
+      "community": 18,
       "file_type": "code",
       "norm_label": "playwright.config.ts",
       "source_file": "playwright.config.ts",
@@ -1674,7 +1724,7 @@
       "id": "playwright_config_repositoryroot",
       "label": "repositoryRoot",
       "_origin": "ast",
-      "community": 17,
+      "community": 18,
       "file_type": "code",
       "norm_label": "repositoryroot",
       "source_file": "playwright.config.ts",
@@ -1684,7 +1734,7 @@
       "id": "scripts_verify_azure_topology",
       "label": "verify-azure-topology.sh",
       "_origin": "ast",
-      "community": 18,
+      "community": 19,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1698,7 +1748,7 @@
       "id": "scripts_verify_azure_topology_sh__entry",
       "label": "verify-azure-topology.sh script",
       "_origin": "ast",
-      "community": 18,
+      "community": 19,
       "file_type": "code",
       "metadata": {
         "language": "bash",
@@ -1706,34 +1756,6 @@
       },
       "norm_label": "verify-azure-topology.sh script",
       "source_file": "scripts/verify-azure-topology.sh",
-      "source_location": "L1"
-    },
-    {
-      "id": "scripts_verify_url_sh__entry",
-      "label": "verify-url.sh script",
-      "_origin": "ast",
-      "community": 19,
-      "file_type": "code",
-      "metadata": {
-        "language": "bash",
-        "kind": "bash_entrypoint"
-      },
-      "norm_label": "verify-url.sh script",
-      "source_file": "scripts/verify-url.sh",
-      "source_location": "L1"
-    },
-    {
-      "id": "scripts_verify_url_sh_scripts_verify_url",
-      "label": "verify-url.sh",
-      "_origin": "ast",
-      "community": 19,
-      "file_type": "code",
-      "metadata": {
-        "language": "bash",
-        "kind": "file"
-      },
-      "norm_label": "verify-url.sh",
-      "source_file": "scripts/verify-url.sh",
       "source_location": "L1"
     },
     {
@@ -1797,10 +1819,38 @@
       "source_location": "L152"
     },
     {
+      "id": "scripts_verify_url_sh__entry",
+      "label": "verify-url.sh script",
+      "_origin": "ast",
+      "community": 20,
+      "file_type": "code",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "norm_label": "verify-url.sh script",
+      "source_file": "scripts/verify-url.sh",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_verify_url_sh_scripts_verify_url",
+      "label": "verify-url.sh",
+      "_origin": "ast",
+      "community": 20,
+      "file_type": "code",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "norm_label": "verify-url.sh",
+      "source_file": "scripts/verify-url.sh",
+      "source_location": "L1"
+    },
+    {
       "id": "tests_accessibility_spec",
       "label": "accessibility.spec.ts",
       "_origin": "ast",
-      "community": 20,
+      "community": 21,
       "file_type": "code",
       "norm_label": "accessibility.spec.ts",
       "source_file": "tests/accessibility.spec.ts",
@@ -1810,7 +1860,7 @@
       "id": "tests_backend_spec",
       "label": "backend.spec.ts",
       "_origin": "ast",
-      "community": 21,
+      "community": 22,
       "file_type": "code",
       "norm_label": "backend.spec.ts",
       "source_file": "tests/backend.spec.ts",
@@ -1820,7 +1870,7 @@
       "id": "tests_backend_spec_validdocument",
       "label": "validDocument",
       "_origin": "ast",
-      "community": 21,
+      "community": 22,
       "file_type": "code",
       "norm_label": "validdocument",
       "source_file": "tests/backend.spec.ts",
@@ -1830,7 +1880,7 @@
       "id": "frontend_vite_config",
       "label": "vite.config.ts",
       "_origin": "ast",
-      "community": 22,
+      "community": 23,
       "file_type": "code",
       "norm_label": "vite.config.ts",
       "source_file": "frontend/vite.config.ts",
@@ -1840,7 +1890,7 @@
       "id": "frontend_vitest_config",
       "label": "vitest.config.ts",
       "_origin": "ast",
-      "community": 23,
+      "community": 24,
       "file_type": "code",
       "norm_label": "vitest.config.ts",
       "source_file": "frontend/vitest.config.ts",
@@ -1850,7 +1900,7 @@
       "id": "pkg_quarterly_ready",
       "label": "quarterly-ready",
       "_origin": "ast",
-      "community": 24,
+      "community": 25,
       "ecosystem": "cargo",
       "file_type": "code",
       "norm_label": "quarterly-ready",
@@ -1863,7 +1913,7 @@
       "id": "tests_claims_spec",
       "label": "claims.spec.ts",
       "_origin": "ast",
-      "community": 25,
+      "community": 26,
       "file_type": "code",
       "norm_label": "claims.spec.ts",
       "source_file": "tests/claims.spec.ts",
@@ -2110,16 +2160,6 @@
       "source_location": "L1391"
     },
     {
-      "id": "src_main_verify_licence_token",
-      "label": "verify_licence_token()",
-      "_origin": "ast",
-      "community": 3,
-      "file_type": "code",
-      "norm_label": "verify_licence_token()",
-      "source_file": "src/main.rs",
-      "source_location": "L632"
-    },
-    {
       "id": "src_main_workspacedocument",
       "label": "WorkspaceDocument",
       "_origin": "ast",
@@ -2170,16 +2210,6 @@
       "source_location": ""
     },
     {
-      "id": "next",
-      "label": "Next",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "next",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "path",
       "label": "Path",
       "_origin": "ast",
@@ -2196,16 +2226,6 @@
       "community": 4,
       "file_type": "code",
       "norm_label": "request",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "response",
-      "label": "Response",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "response",
       "source_file": "",
       "source_location": ""
     },
@@ -2230,14 +2250,14 @@
       "source_location": "L136"
     },
     {
-      "id": "src_main_apierror_into_response",
-      "label": ".into_response()",
+      "id": "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
+      "label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
       "_origin": "ast",
       "community": 4,
       "file_type": "code",
-      "norm_label": ".into_response()",
+      "norm_label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
       "source_file": "src/main.rs",
-      "source_location": "L139"
+      "source_location": "L1783"
     },
     {
       "id": "src_main_create_share",
@@ -2300,16 +2320,6 @@
       "source_location": "L319"
     },
     {
-      "id": "src_main_rate_limit",
-      "label": "rate_limit()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "rate_limit()",
-      "source_file": "src/main.rs",
-      "source_location": "L871"
-    },
-    {
       "id": "src_main_safe_qa_entitlement",
       "label": "safe_qa_entitlement()",
       "_origin": "ast",
@@ -2318,16 +2328,6 @@
       "norm_label": "safe_qa_entitlement()",
       "source_file": "src/main.rs",
       "source_location": "L573"
-    },
-    {
-      "id": "src_main_security_headers",
-      "label": "security_headers()",
-      "_origin": "ast",
-      "community": 4,
-      "file_type": "code",
-      "norm_label": "security_headers()",
-      "source_file": "src/main.rs",
-      "source_location": "L922"
     },
     {
       "id": "src_main_submit_to_hmrc",
@@ -2348,6 +2348,16 @@
       "norm_label": "unix_now()",
       "source_file": "src/main.rs",
       "source_location": "L1337"
+    },
+    {
+      "id": "src_main_verify_licence_token",
+      "label": "verify_licence_token()",
+      "_origin": "ast",
+      "community": 4,
+      "file_type": "code",
+      "norm_label": "verify_licence_token()",
+      "source_file": "src/main.rs",
+      "source_location": "L632"
     },
     {
       "id": "src_main_workspace_id",
@@ -2638,16 +2648,6 @@
       "norm_label": "claim_hash_chained_audit_log()",
       "source_file": "src/main.rs",
       "source_location": "L1600"
-    },
-    {
-      "id": "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
-      "label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
-      "_origin": "ast",
-      "community": 6,
-      "file_type": "code",
-      "norm_label": "claim_hmrc_submission_uses_an_approved_integration_after_human_review()",
-      "source_file": "src/main.rs",
-      "source_location": "L1783"
     },
     {
       "id": "src_main_cleanup_expired_shares",
@@ -11121,5 +11121,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "9c0c66f8427e28503d4ed8789a8de7496f9efc3f"
+  "built_at_commit": "83f57de73f07bcc90d9c72eb5ed324c347159f5a"
 }

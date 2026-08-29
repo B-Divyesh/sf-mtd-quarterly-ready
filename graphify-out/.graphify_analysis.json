@@ -150,7 +150,6 @@
       "src_main_validate_document",
       "src_main_validate_transaction",
       "src_main_validates_transaction_document",
-      "src_main_verify_licence_token",
       "src_main_workspacedocument",
       "value"
     ],
@@ -158,24 +157,21 @@
       "body",
       "intoresponse",
       "json",
-      "next",
       "path",
       "request",
-      "response",
       "result",
       "src_main_apierror",
-      "src_main_apierror_into_response",
+      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
       "src_main_create_share",
       "src_main_get_share",
       "src_main_get_workspace",
       "src_main_licence_token",
       "src_main_page_view",
       "src_main_put_workspace",
-      "src_main_rate_limit",
       "src_main_safe_qa_entitlement",
-      "src_main_security_headers",
       "src_main_submit_to_hmrc",
       "src_main_unix_now",
+      "src_main_verify_licence_token",
       "src_main_workspace_id",
       "src_main_write_audit",
       "state",
@@ -209,7 +205,6 @@
       "sqlitepool",
       "src_main_claim_anonymous_page_count",
       "src_main_claim_hash_chained_audit_log",
-      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
       "src_main_cleanup_expired_shares",
       "src_main_durable_snapshot_restores_key_records_links_audit_and_page_count",
       "src_main_is_database_locked_message",
@@ -288,63 +283,70 @@
       "scripts_check_deploy_contract_verifyurlscript"
     ],
     "12": [
+      "next",
+      "response",
+      "src_main_apierror_into_response",
+      "src_main_rate_limit",
+      "src_main_security_headers"
+    ],
+    "13": [
       "scripts_verify_durability",
       "scripts_verify_durability_document",
       "scripts_verify_durability_headers",
       "scripts_verify_durability_state"
     ],
-    "13": [
+    "14": [
       "scripts_deploy_container",
       "scripts_deploy_container_sh__entry",
       "scripts_deploy_container_stop_revision_for_snapshot_handoff"
     ],
-    "14": [
+    "15": [
       "scripts_verify_url_errors",
       "scripts_verify_url_mjs_scripts_verify_url",
       "scripts_verify_url_url"
     ],
-    "15": [
+    "16": [
       "src_main_claim_encrypted_storage",
       "src_main_encrypt_json",
       "vec"
     ],
-    "16": [
+    "17": [
       "frontend_public_sw",
       "frontend_public_sw_shell"
     ],
-    "17": [
+    "18": [
       "playwright_config",
       "playwright_config_repositoryroot"
     ],
-    "18": [
+    "19": [
       "scripts_verify_azure_topology",
       "scripts_verify_azure_topology_sh__entry"
     ],
-    "19": [
+    "20": [
       "scripts_verify_url_sh__entry",
       "scripts_verify_url_sh_scripts_verify_url"
     ],
-    "20": [
+    "21": [
       "tests_accessibility_spec",
       "tests_accessibility_spec_submissionlabels"
     ],
-    "21": [
+    "22": [
       "tests_backend_spec",
       "tests_backend_spec_validdocument"
     ],
-    "22": [
+    "23": [
       "frontend_vite_config"
     ],
-    "23": [
+    "24": [
       "frontend_vitest_config"
     ],
-    "24": [
+    "25": [
       "pkg_quarterly_ready"
     ],
-    "25": [
+    "26": [
       "tests_claims_spec"
     ],
-    "26": [
+    "27": [
       "tests_claims_spec_idbobjectstore_put"
     ]
   },
@@ -352,20 +354,20 @@
     "0": 0.09480519480519481,
     "1": 0.058823529411764705,
     "2": 0.18226600985221675,
-    "3": 0.1282051282051282,
-    "4": 0.25666666666666665,
+    "3": 0.13230769230769232,
+    "4": 0.2987012987012987,
     "5": 0.1,
-    "6": 0.1895424836601307,
+    "6": 0.20588235294117646,
     "7": 0.2087912087912088,
     "8": 0.3076923076923077,
     "9": 0.18181818181818182,
     "10": 0.32142857142857145,
     "11": 0.2857142857142857,
-    "12": 0.5,
-    "13": 1.0,
-    "14": 0.6666666666666666,
+    "12": 0.6,
+    "13": 0.5,
+    "14": 1.0,
     "15": 0.6666666666666666,
-    "16": 1.0,
+    "16": 0.6666666666666666,
     "17": 1.0,
     "18": 1.0,
     "19": 1.0,
@@ -375,7 +377,8 @@
     "23": 1.0,
     "24": 1.0,
     "25": 1.0,
-    "26": 1.0
+    "26": 1.0,
+    "27": 1.0
   },
   "gods": [
     {
