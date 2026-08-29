@@ -25,7 +25,12 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::{fs, signal, sync::Mutex};
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncWriteExt},
+    signal,
+    sync::Mutex,
+};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -875,7 +880,17 @@ async fn persist_database_snapshot(
     // Azure Files supports overwrite copies but not the POSIX rename used for
     // an atomic replace. All real mutations are serialized by `persistence`,
     // so a direct overwrite is a consistent snapshot for this one replica.
-    fs::copy(database, snapshot).await.map(|_| ())
+    let mut source = fs::File::open(database).await?;
+    let mut destination = fs::File::create(snapshot).await?;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let bytes = source.read(&mut buffer).await?;
+        if bytes == 0 {
+            break;
+        }
+        destination.write_all(&buffer[..bytes]).await?;
+    }
+    destination.sync_all().await
 }
 
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
