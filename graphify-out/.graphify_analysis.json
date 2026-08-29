@@ -419,13 +419,13 @@
       "degree": 15
     },
     {
-      "id": "src_main_put_workspace",
-      "label": "put_workspace()",
+      "id": "package_scripts",
+      "label": "scripts",
       "degree": 15
     },
     {
-      "id": "package_scripts",
-      "label": "scripts",
+      "id": "src_main_put_workspace",
+      "label": "put_workspace()",
       "degree": 15
     },
     {
