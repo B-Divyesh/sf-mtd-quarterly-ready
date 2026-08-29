@@ -1,57 +1,6 @@
 {
   "communities": {
     "0": [
-      "body",
-      "e",
-      "intoresponse",
-      "json",
-      "next",
-      "path",
-      "request",
-      "response",
-      "result",
-      "src_main",
-      "src_main_apierror",
-      "src_main_apierror_into_response",
-      "src_main_claim_accountant_link_expiry_is_thirty_days",
-      "src_main_claim_encrypted_storage",
-      "src_main_claim_hash_chained_audit_log",
-      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
-      "src_main_create_share",
-      "src_main_decrypt_json",
-      "src_main_default_log_filter_keeps_startup_information_visible",
-      "src_main_encrypt_json",
-      "src_main_get_share",
-      "src_main_get_workspace",
-      "src_main_health",
-      "src_main_hmrc_compatible_payload",
-      "src_main_hmrc_payload_requires_explicit_human_review",
-      "src_main_internal",
-      "src_main_is_iso_date",
-      "src_main_licence_token",
-      "src_main_licenceverdict",
-      "src_main_page_view",
-      "src_main_put_workspace",
-      "src_main_rate_limit",
-      "src_main_security_headers",
-      "src_main_shareresult",
-      "src_main_submissionrequest",
-      "src_main_submissionresult",
-      "src_main_submit_to_hmrc",
-      "src_main_unix_now",
-      "src_main_validate_document",
-      "src_main_validates_transaction_document",
-      "src_main_verify_licence_token",
-      "src_main_workspace_id",
-      "src_main_workspacedocument",
-      "src_main_write_audit",
-      "state",
-      "statuscode",
-      "string",
-      "value",
-      "vec"
-    ],
-    "1": [
       "axe_core_playwright",
       "package",
       "package_devdependencies",
@@ -73,6 +22,7 @@
       "package_scripts_test_rust",
       "package_scripts_test_unit",
       "package_scripts_typecheck",
+      "package_scripts_verify_live",
       "package_type",
       "package_version",
       "playwright_core",
@@ -82,34 +32,7 @@
       "vite",
       "vitest"
     ],
-    "2": [
-      "arc",
-      "client",
-      "envfilter",
-      "error",
-      "fspath",
-      "hashmap",
-      "instant",
-      "mutex",
-      "option",
-      "pathbuf",
-      "router",
-      "sqlitepool",
-      "src_main_approved_integration_from_env",
-      "src_main_approvedintegration",
-      "src_main_appstate",
-      "src_main_build_router",
-      "src_main_claim_anonymous_page_count",
-      "src_main_cleanup_expired_shares",
-      "src_main_default_log_filter",
-      "src_main_load_or_create_key",
-      "src_main_log_filter",
-      "src_main_main",
-      "src_main_migrate",
-      "src_main_shutdown_signal",
-      "vecdeque"
-    ],
-    "3": [
+    "1": [
       "ref_dom",
       "ref_dom_iterable",
       "ref_es2022",
@@ -131,7 +54,7 @@
       "tsconfig_compileroptions_usedefineforclassfields",
       "tsconfig_include"
     ],
-    "4": [
+    "2": [
       "frontend_src_main",
       "frontend_src_main_bindhome",
       "frontend_src_main_categories",
@@ -149,41 +72,104 @@
       "frontend_src_main_setpage",
       "frontend_src_main_sharepage",
       "frontend_src_main_storeandverifylicense",
-      "frontend_src_main_termspage"
+      "frontend_src_main_termspage",
+      "frontend_src_storage_loadremote"
     ],
-    "5": [
-      "frontend_src_records",
-      "frontend_src_records_accountantcsv",
-      "frontend_src_records_hmrchandoff",
-      "frontend_src_records_parsecsv",
-      "frontend_src_records_quotecsv",
-      "frontend_src_records_summarise",
-      "frontend_src_records_test",
+    "3": [
       "frontend_src_sample",
-      "frontend_src_sample_sample_document",
-      "frontend_src_types",
-      "frontend_src_types_category",
-      "frontend_src_types_quarterdocument",
-      "frontend_src_types_summary",
-      "frontend_src_types_transaction"
-    ],
-    "6": [
       "frontend_src_sample_emptydocument",
+      "frontend_src_sample_sample_document",
       "frontend_src_storage",
       "frontend_src_storage_clone",
-      "frontend_src_storage_createshare",
-      "frontend_src_storage_liveheaders",
       "frontend_src_storage_loaddocument",
-      "frontend_src_storage_loadremote",
       "frontend_src_storage_loadshare",
       "frontend_src_storage_resetdemo",
       "frontend_src_storage_savedocument",
       "frontend_src_storage_saveremote",
       "frontend_src_storage_storagekeys",
-      "frontend_src_storage_submittohmrc",
-      "frontend_src_storage_workspaceid"
+      "frontend_src_storage_workspaceid",
+      "frontend_src_types",
+      "frontend_src_types_category",
+      "frontend_src_types_quarterdocument"
+    ],
+    "4": [
+      "arc",
+      "client",
+      "hashmap",
+      "instant",
+      "mutex",
+      "path",
+      "src_main_appstate",
+      "src_main_get_share",
+      "src_main_page_view",
+      "src_main_put_workspace",
+      "src_main_unix_now",
+      "src_main_write_audit",
+      "state",
+      "vecdeque"
+    ],
+    "5": [
+      "e",
+      "intoresponse",
+      "src_main_apierror",
+      "src_main_decrypt_json",
+      "src_main_get_workspace",
+      "src_main_hmrc_compatible_payload",
+      "src_main_hmrc_payload_requires_explicit_human_review",
+      "src_main_internal",
+      "src_main_is_iso_date",
+      "src_main_submissionrequest",
+      "src_main_validate_document",
+      "src_main_workspacedocument",
+      "statuscode",
+      "value"
+    ],
+    "6": [
+      "envfilter",
+      "error",
+      "fspath",
+      "option",
+      "pathbuf",
+      "router",
+      "src_main_approved_integration_from_env",
+      "src_main_approvedintegration",
+      "src_main_build_router",
+      "src_main_default_log_filter",
+      "src_main_load_or_create_key",
+      "src_main_log_filter",
+      "src_main_main",
+      "src_main_shutdown_signal"
     ],
     "7": [
+      "sqlitepool",
+      "src_main",
+      "src_main_claim_accountant_link_expiry_is_thirty_days",
+      "src_main_claim_anonymous_page_count",
+      "src_main_claim_encrypted_storage",
+      "src_main_claim_hash_chained_audit_log",
+      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
+      "src_main_cleanup_expired_shares",
+      "src_main_default_log_filter_keeps_startup_information_visible",
+      "src_main_encrypt_json",
+      "src_main_licenceverdict",
+      "src_main_migrate",
+      "src_main_validates_transaction_document",
+      "vec"
+    ],
+    "8": [
+      "body",
+      "request",
+      "result",
+      "src_main_create_share",
+      "src_main_licence_token",
+      "src_main_shareresult",
+      "src_main_submissionresult",
+      "src_main_submit_to_hmrc",
+      "src_main_verify_licence_token",
+      "src_main_workspace_id",
+      "string"
+    ],
+    "9": [
       "frontend_src_main_addtransaction",
       "frontend_src_main_bindrecords",
       "frontend_src_main_downloadblob",
@@ -195,7 +181,28 @@
       "frontend_src_main_rerenderrecords",
       "frontend_src_main_saveandrender"
     ],
-    "8": [
+    "10": [
+      "frontend_src_records",
+      "frontend_src_records_accountantcsv",
+      "frontend_src_records_hmrchandoff",
+      "frontend_src_records_parsecsv",
+      "frontend_src_records_quotecsv",
+      "frontend_src_records_summarise",
+      "frontend_src_records_test",
+      "frontend_src_types_summary",
+      "frontend_src_types_transaction"
+    ],
+    "11": [
+      "frontend_src_main_bindlinks",
+      "frontend_src_main_islicensed",
+      "frontend_src_main_sharepack",
+      "frontend_src_main_submithmrc",
+      "frontend_src_storage_createshare",
+      "frontend_src_storage_leavedemo",
+      "frontend_src_storage_liveheaders",
+      "frontend_src_storage_submittohmrc"
+    ],
+    "12": [
       "frontend_src_main_categoryoptions",
       "frontend_src_main_checklist",
       "frontend_src_main_escapehtml",
@@ -205,58 +212,73 @@
       "frontend_src_main_transactiontable",
       "frontend_src_records_pounds"
     ],
-    "9": [
-      "frontend_src_main_bindlinks",
-      "frontend_src_main_islicensed",
-      "frontend_src_main_sharepack",
-      "frontend_src_main_submithmrc",
-      "frontend_src_storage_leavedemo"
+    "13": [
+      "json",
+      "next",
+      "response",
+      "src_main_apierror_into_response",
+      "src_main_health",
+      "src_main_rate_limit",
+      "src_main_security_headers"
     ],
-    "10": [
+    "14": [
+      "scripts_verify_live",
+      "scripts_verify_live_assert",
+      "scripts_verify_live_assertlimit",
+      "scripts_verify_live_response",
+      "scripts_verify_live_workspaceid"
+    ],
+    "15": [
       "frontend_public_sw",
       "frontend_public_sw_shell"
     ],
-    "11": [
-      "frontend_vite_config"
-    ],
-    "12": [
-      "frontend_vitest_config"
-    ],
-    "13": [
-      "pkg_quarterly_ready"
-    ],
-    "14": [
-      "playwright_config"
-    ],
-    "15": [
-      "tests_accessibility_spec"
-    ],
     "16": [
-      "tests_backend_spec"
+      "playwright_config",
+      "playwright_config_repositoryroot"
     ],
     "17": [
+      "frontend_vite_config"
+    ],
+    "18": [
+      "frontend_vitest_config"
+    ],
+    "19": [
+      "pkg_quarterly_ready"
+    ],
+    "20": [
+      "tests_accessibility_spec"
+    ],
+    "21": [
+      "tests_backend_spec"
+    ],
+    "22": [
       "tests_claims_spec"
     ]
   },
   "cohesion": {
-    "0": 0.1284013605442177,
-    "1": 0.06896551724137931,
-    "2": 0.10666666666666667,
-    "3": 0.1,
-    "4": 0.23529411764705882,
-    "5": 0.27472527472527475,
-    "6": 0.25274725274725274,
-    "7": 0.35555555555555557,
-    "8": 0.4642857142857143,
-    "9": 0.4,
-    "10": 1.0,
-    "11": 1.0,
-    "12": 1.0,
-    "13": 1.0,
-    "14": 1.0,
+    "0": 0.06666666666666667,
+    "1": 0.1,
+    "2": 0.2222222222222222,
+    "3": 0.23809523809523808,
+    "4": 0.2087912087912088,
+    "5": 0.1978021978021978,
+    "6": 0.16483516483516483,
+    "7": 0.1978021978021978,
+    "8": 0.43636363636363634,
+    "9": 0.35555555555555557,
+    "10": 0.3888888888888889,
+    "11": 0.2857142857142857,
+    "12": 0.4642857142857143,
+    "13": 0.42857142857142855,
+    "14": 0.6,
     "15": 1.0,
     "16": 1.0,
-    "17": 1.0
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0
   },
   "gods": [
     {
@@ -305,23 +327,12 @@
       "degree": 11
     },
     {
-      "id": "src_main_get_share",
-      "label": "get_share()",
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
       "degree": 10
     }
   ],
   "surprises": [
-    {
-      "source": "refreshRemote()",
-      "target": "loadRemote()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/storage.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
     {
       "source": "downloadPack()",
       "target": "accountantCsv()",
@@ -357,6 +368,17 @@
     },
     {
       "source": "checklist()",
+      "target": "summarise()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
       "target": "summarise()",
       "source_files": [
         "frontend/src/main.ts",
