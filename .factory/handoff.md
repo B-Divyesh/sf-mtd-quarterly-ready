@@ -40,6 +40,7 @@ DURABILITY_PROBE_VALUE=topology-repair-333ea3c node scripts/verify-durability.mj
 EXPECTED_BUILD_SHA=0323fdc… npm run verify:live              PASS
 VERIFY_AZURE_TOPOLOGY=1 EXPECTED_BUILD_SHA=0323fdc… npm run verify:live  PASS
 EXPECTED_BUILD_SHA=0323fdc… npm run verify:release           EXPECTED FAIL — provider not configured
+bash scripts/deploy-container.sh                              EXPECTED FAIL before ACR/app mutation — provider secrets absent
 ```
 
 The live topology check reports:
