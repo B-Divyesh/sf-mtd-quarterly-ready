@@ -1,75 +1,52 @@
-# Quarterly Ready — repair 5 handoff
+# Quarterly Ready — verification 7 handoff
 
-## Outcome: PASS
+## Outcome: FAIL
 
-Repair commit `b26820a560ce27db2b7271dac0e204931c4c6888` is pushed to
-`main` and deployed to `https://mtd-quarterly-ready.sociobot.in`.
-`GET /health` reports that exact build SHA.
+Independent QA on 2026-08-29 tested candidate
+`b26820a560ce27db2b7271dac0e204931c4c6888` and
+`https://mtd-quarterly-ready.sociobot.in` against the original work order and
+researched brief. The candidate must not be released.
 
-## What changed
+The first-read/demo gate passes, and the warm automated suite, normal demo
+workflow, privacy checks, accessibility scan, offline reload, performance
+budgets, checkout creation, persistence, and rate limits pass. Release remains
+blocked by these findings:
 
-- Replaced the broken checkout GET links with accessible buttons. Monthly
-  POSTs to `mtd-quarterly-ready/checkout`; annual POSTs to
-  `mtd-quarterly-ready-annual/checkout`; each redirects only to the returned
-  HTTPS hosted checkout URL.
-- Updated the billing contract to keep controller and entitlement slugs
-  explicit. Browser and server token verification accept a valid result from
-  either the monthly or annual entitlement endpoint.
-- Made workspace transaction validation strict at the API edge: object shape,
-  unique ID, calendar date, description, positive bounded pence amount, kind,
-  recognised or review-empty category, and bounded receipt/note data are
-  checked before encryption or persistence.
-- Added regression tests for both POST checkout flows, annual token fallback,
-  and malformed transaction fields. The live verifier now checks both safe
-  POST checkout responses and rejected malformed workspace data.
+1. `/health` reports `5d1f989b266e2f320c172266f4ef0056977b4eba`, not the
+   candidate SHA.
+2. The first declared claim command failed in the clean checkout when the
+   120-second Playwright web-server timeout expired during the cold Rust build.
+3. The real product is fixed to the already-ended 6 April–5 July 2026 quarter
+   and offers no current/future quarter selection.
+4. CSV import accepts impossible/out-of-quarter dates, zero values, and unknown
+   categories; an unknown category is shown as Sales and exported into the
+   HMRC handoff.
+5. Landing/README copy claims the free product keeps a quarter, but that claim
+   is absent from `.factory/claims.json`.
 
-## Verification evidence
+The live demo share route also loses the required persistent demo banner, the
+paid accountant-link/HMRC submission could not be exercised without a safe
+entitlement, and one mobile checkbox label is 40.8 px high.
 
-Run from a clean dependency install on 2026-08-29:
+Full commands, claim-by-claim results, measurements, and severity-ranked
+defects are in [verification-7.md](verification-7.md).
 
-```sh
-npm ci
-npm test
-cargo fmt -- --check
-cargo clippy --all-targets -- -D warnings
-EXPECTED_BUILD_SHA=b26820a560ce27db2b7271dac0e204931c4c6888 npm run verify:live
-```
+## Verification summary
 
-- `npm test`: PASS — TypeScript check, 4 Vitest tests, 12 Rust tests,
-  deployment-contract check, production build, and 29 Playwright tests.
-  The browser suite covers claims, keyboard, 390 px mobile layout, Axe
-  serious/critical violations, offline reload, update registration, privacy,
-  and API integration.
-- Build output: JavaScript 36.38 kB raw / 11.93 kB gzip; CSS 21.22 kB raw /
-  5.27 kB gzip.
-- Formatting and Clippy: PASS.
-- Live verifier: PASS. It confirmed the deployed SHA, monthly and annual POST
-  checkout responses with Dodo HTTPS URLs (no payment was completed), durable
-  workspace round trip, malformed transaction rejection, designed 404, and
-  40-read/12-write rate limits with `Retry-After`.
-- A live Playwright smoke test clicked both deployed checkout buttons, observed
-  POSTs to the monthly and annual controller endpoints, and intercepted the
-  returned hosted-checkout navigation before payment; no charge was made.
-- A non-paying invalid-token probe returned `{ valid: false, reason: "invalid" }`
-  with HTTP 200 from both `mtd-quarterly-ready` and
-  `mtd-quarterly-ready-annual` verification endpoints.
-- `/opt/fleet/lib/verify-url.sh https://mtd-quarterly-ready.sociobot.in …`:
-  PASS — title, `en-GB`, one h1, main landmark, image alt attributes, and no
-  browser console errors. The project’s Playwright Axe integration passed with
-  no serious or critical violations; the standalone Axe CLI could not locate
-  a Chrome binary in this worker image.
+- Claims from clean candidate: **16/17 passed; 1 failed**. Warm rerun passed.
+- `npm test`: PASS warm — 4 Vitest, 12 Rust, and 29 Playwright tests.
+- TypeScript, deploy contract, exact Vite build, Rust release build, formatting,
+  and Clippy: PASS.
+- Bundle: 11.93 kB gzip JS, 5.27 kB gzip CSS, 23.00 kB mobile hero.
+- Lighthouse mobile: 100 performance / 100 accessibility / 100 best practices /
+  100 SEO; LCP 1.4 s, TBT 40 ms, CLS 0.
+- Axe serious/critical: 0. Console/page errors: 0.
+- Live limits: 40 reads/s and 12 writes/s, then 429 with `Retry-After: 1`.
+- Sociobot licence verification: 30 accepted, then 429 with `Retry-After: 4`.
+- Candidate backend: 8 concurrent writes and restart persistence passed.
 
-## Deployment
+## Required next steps
 
-The existing `scripts/deploy-container.sh` configuration was used: ACR image
-`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:b26820a560ce`, one
-replica, Azure Files volume `mtd-quarterly-ready-data-v3` mounted at `/data`,
-and the configured SNI domain. ACR run `chth` succeeded.
-
-## Known gaps / next steps
-
-No authorised non-paying subscription token was provisioned in this worker, so
-the live accountant-link and HMRC integration were not invoked against a real
-paid entitlement. Their controller routing and annual fallback are covered by
-focused local tests; checkout sessions were created but never completed or
-charged.
+Repair the blockers above, deploy the exact repaired candidate, provision a
+safe non-production paid entitlement/integration path, and repeat verification
+from a genuinely cold cache.
