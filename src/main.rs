@@ -192,6 +192,9 @@ async fn main() {
         .expect("create data directory");
     let database_path = data_dir.join("quarterly-ready.sqlite3");
     let legacy_snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
+    recover_interrupted_empty_database(&database_path)
+        .await
+        .expect("recover interrupted empty database");
     restore_legacy_snapshot(&legacy_snapshot_path, &database_path)
         .await
         .expect("restore legacy database snapshot");
@@ -1609,6 +1612,27 @@ async fn restore_legacy_snapshot(
     Ok(())
 }
 
+/// A zero-byte SQLite file cannot contain an acknowledged workspace write. It
+/// is left behind when a process is interrupted between SQLite opening the
+/// file and its first page write. On Azure Files, the accompanying rollback
+/// journal can retain the file lock long after that failed start. Remove only
+/// that provably invalid pair, allowing the one-time legacy snapshot import
+/// (or a new database) to proceed. Existing database bytes are never changed.
+async fn recover_interrupted_empty_database(database: &FsPath) -> Result<bool, std::io::Error> {
+    let is_empty = matches!(fs::metadata(database).await, Ok(metadata) if metadata.len() == 0);
+    if !is_empty {
+        return Ok(false);
+    }
+
+    fs::remove_file(database).await?;
+    let journal = PathBuf::from(format!("{}-journal", database.display()));
+    if fs::metadata(&journal).await.is_ok() {
+        fs::remove_file(&journal).await?;
+    }
+    warn!(database = %database.display(), "removed_interrupted_zero_byte_sqlite_database");
+    Ok(true)
+}
+
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS shares(token TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, payload BLOB NOT NULL, expires_at INTEGER NOT NULL)").execute(db).await?;
@@ -1793,6 +1817,44 @@ mod tests {
             fs::read(&database).await.unwrap(),
             b"legacy encrypted workspace snapshot"
         );
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn zero_byte_database_and_rollback_journal_are_recovered_before_snapshot_import() {
+        let root = std::env::temp_dir().join(format!("quarterly-ready-zero-db-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).await.unwrap();
+        let database = root.join("quarterly-ready.sqlite3");
+        let journal = PathBuf::from(format!("{}-journal", database.display()));
+        let snapshot = root.join("quarterly-ready.snapshot.sqlite3");
+        fs::write(&database, []).await.unwrap();
+        fs::write(&journal, b"interrupted rollback journal")
+            .await
+            .unwrap();
+        fs::write(&snapshot, b"valid legacy database")
+            .await
+            .unwrap();
+
+        assert!(recover_interrupted_empty_database(&database).await.unwrap());
+        assert!(fs::metadata(&database).await.is_err());
+        assert!(fs::metadata(&journal).await.is_err());
+        restore_legacy_snapshot(&snapshot, &database).await.unwrap();
+        assert_eq!(fs::read(&database).await.unwrap(), b"valid legacy database");
+
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn non_empty_database_is_never_recovered_or_rewritten() {
+        let root =
+            std::env::temp_dir().join(format!("quarterly-ready-nonzero-db-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).await.unwrap();
+        let database = root.join("quarterly-ready.sqlite3");
+        fs::write(&database, b"durable data").await.unwrap();
+
+        assert!(!recover_interrupted_empty_database(&database).await.unwrap());
+        assert_eq!(fs::read(&database).await.unwrap(), b"durable data");
+
         fs::remove_dir_all(root).await.unwrap();
     }
 
