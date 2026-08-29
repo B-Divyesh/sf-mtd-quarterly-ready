@@ -68,6 +68,15 @@ Run on 2026-08-29 from a clean `npm ci` (60 packages, 0 vulnerabilities):
 | `VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in npm run verify:rate-limit` | PASS — read 41 first limited; write 13 first limited; both return `Retry-After: 1`; socket reuse observed. |
 | Live Playwright rate regressions | PASS — 2/2 through the stable-connection helper. |
 | Approved release preflight | EXPECTED BLOCK — required approved-provider Key Vault references are absent; no Azure mutation occurred. |
+| ACR container build | PASS — build `ch16y`; image digest `sha256:497d18c91feaf701576a7dac567eee41402e2927ec41d3663fdc44e33bb59d78`. |
+| Handoff-only deployment | PASS — implementation commit `a4d1d09c45e07970c0c2b4417c2202aa56f0fc5b`; revision `sf-mtd-quarterly-ready--0000051`. |
+| Restart and revision replacement | PASS — encrypted workspace and accountant link remained readable after both operations. |
+| Live full Playwright suite | PASS — 48 passed, 1 expected direct-origin-only skip. |
+| Live `verify:url` on `/` and `/demo` | PASS — titles, `lang=en-GB`, one main/H1, alt attributes, and zero console/page errors. |
+| Live desktop and 390 px browser checks | PASS — no overflow, cookies, third-party requests, console errors, or page errors. |
+| Live Lighthouse mobile | PASS — performance 100, accessibility 100, best practices 100, SEO 100; FCP 1,200 ms, LCP 1,350 ms, TBT 21 ms, CLS 0, total 94,144 bytes. |
+| `EXPECTED_BUILD_SHA=a4d1d09c… npm run verify:live` | PASS — exact identity, durable workspace, checkout, safe fixture, stable 40/12 rate limits. |
+| `EXPECTED_BUILD_SHA=a4d1d09c… npm run verify:release` | EXPECTED BLOCK — `production has no approved HMRC integration configured`. |
 
 The full Playwright run covers desktop Chromium, 390 px mobile, 200% text,
 keyboard and dialog focus, touch targets, reduced motion, Axe serious/critical,
@@ -75,9 +84,9 @@ same-origin privacy, no cookies, offline reload, update policy, response headers
 unknown-route status, workspace persistence, receipts, and checkout boundaries.
 No product copy or passing behavior changed in this repair.
 
-Local Docker is unavailable in this worker. The work-order deployment uses the
-same multi-stage `Dockerfile` through Azure Container Registry, which is the
-container build gate for this artifact.
+Local Docker is unavailable in this worker. Azure Container Registry built the
+same multi-stage `Dockerfile` from the source archive without `.git`, and the
+result ran as the work-order container artifact.
 
 ## Run and verify
 
