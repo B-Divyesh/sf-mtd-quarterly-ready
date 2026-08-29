@@ -4,6 +4,7 @@ import { constants } from 'node:fs';
 const deployment = await readFile(new URL('./deploy-container.sh', import.meta.url), 'utf8');
 const topologyVerifier = await readFile(new URL('./verify-azure-topology.sh', import.meta.url), 'utf8');
 const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
+const server = await readFile(new URL('../src/main.rs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const verifyUrlScript = new URL('./verify-url.sh', import.meta.url);
 const verifyRateLimitScript = new URL('./verify-rate-limit.mjs', import.meta.url);
@@ -59,8 +60,11 @@ for (const text of [
   if (!topologyVerifier.includes(text)) throw new Error(`Topology regression check is missing ${text}`);
 }
 
-if (!/^ENV .*DATA_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile) || dockerfile.includes('DATABASE_DIR=')) {
-  throw new Error('Container runtime must keep the live SQLite database directly on the mounted /data volume.');
+if (!/^ENV .*DATA_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile)
+  || !server.includes('"/tmp/quarterly-ready"')
+  || !server.includes('persist_database_snapshot')
+  || !server.includes('destination.sync_all().await?')) {
+  throw new Error('Container runtime must persist each local SQLite mutation to the mounted /data snapshot before success.');
 }
 if (deployment.indexOf('missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
   throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');
@@ -87,4 +91,4 @@ if (packageJson.scripts['verify:rate-limit'] !== 'node scripts/verify-rate-limit
 await access(verifyUrlScript, constants.X_OK);
 await access(verifyRateLimitScript, constants.R_OK);
 
-console.log('Deployment contract: direct durable /data database, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider with taxpayer OAuth consent, explicit handoff-only fallback, concurrent persistence verification, non-charging QA fixture, and repeatable URL accessibility check are configured.');
+console.log('Deployment contract: synced durable /data SQLite snapshot, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider with taxpayer OAuth consent, explicit handoff-only fallback, concurrent persistence verification, non-charging QA fixture, and repeatable URL accessibility check are configured.');

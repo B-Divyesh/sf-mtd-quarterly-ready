@@ -26,7 +26,12 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::{fs, signal, sync::Mutex};
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncWriteExt},
+    signal,
+    sync::Mutex,
+};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -58,6 +63,8 @@ const CATEGORIES: [&str; 7] = [
 struct AppState {
     db: SqlitePool,
     key: [u8; 32],
+    database_path: PathBuf,
+    snapshot_path: PathBuf,
     write_lock: Arc<Mutex<()>>,
     limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
     client: reqwest::Client,
@@ -186,16 +193,21 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
     let data_dir = PathBuf::from(env::var("DATA_DIR").unwrap_or_else(|_| "./data".into()));
+    // SQLite uses byte-range locks that Azure Files does not reliably support.
+    // Keep its live file on local disk and synchronously persist a complete
+    // snapshot to the mounted share after every acknowledged mutation.
+    let database_dir =
+        PathBuf::from(env::var("DATABASE_DIR").unwrap_or_else(|_| "/tmp/quarterly-ready".into()));
     let frontend_dir = PathBuf::from(env::var("FRONTEND_DIR").unwrap_or_else(|_| "./dist".into()));
     fs::create_dir_all(&data_dir)
         .await
         .expect("create data directory");
-    let database_path = data_dir.join("quarterly-ready.sqlite3");
-    let legacy_snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
-    recover_interrupted_empty_database(&database_path)
+    fs::create_dir_all(&database_dir)
         .await
-        .expect("recover interrupted empty database");
-    restore_legacy_snapshot(&legacy_snapshot_path, &database_path)
+        .expect("create database directory");
+    let snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
+    let database_path = database_dir.join("quarterly-ready.sqlite3");
+    restore_database_snapshot(&snapshot_path, &database_path)
         .await
         .expect("restore legacy database snapshot");
     let (key, generated) = load_or_create_key(&data_dir.join("quarterly-ready.key"))
@@ -203,10 +215,8 @@ async fn main() {
         .expect("load encryption key");
     let database_url = format!("sqlite://{}?mode=rwc", database_path.display());
     let db = SqlitePoolOptions::new()
-        // The Container App has one active replica and mounts Azure Files at
-        // /data. Keeping the database at that mount makes a successful write
-        // durable before the API acknowledges it; copying a local snapshot
-        // left a window where another replica could serve stale data.
+        // The Container App runs one active replica. Writes are serialized,
+        // committed locally, copied to /data, synced, then acknowledged.
         .max_connections(1)
         .connect(&database_url)
         .await
@@ -229,16 +239,9 @@ async fn main() {
     cleanup_expired_shares(&db)
         .await
         .expect("clean expired accountant links");
-    let cleanup_db = db.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
-        loop {
-            interval.tick().await;
-            if let Err(error) = cleanup_expired_shares(&cleanup_db).await {
-                error!(%error, "expired_share_cleanup_failed");
-            }
-        }
-    });
+    persist_database_snapshot(&database_path, &snapshot_path)
+        .await
+        .expect("persist startup database snapshot");
     let hmrc_integration = approved_integration_from_env();
     let safe_qa_fixtures = safe_fixtures_enabled();
     let client = reqwest::Client::builder()
@@ -248,6 +251,8 @@ async fn main() {
     let state = AppState {
         db,
         key,
+        database_path,
+        snapshot_path,
         write_lock: Arc::new(Mutex::new(())),
         limits: Arc::new(Mutex::new(HashMap::new())),
         client,
@@ -256,6 +261,24 @@ async fn main() {
         hmrc_integration,
         safe_qa_fixtures,
     };
+    let cleanup_state = state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60));
+        loop {
+            interval.tick().await;
+            let _write = cleanup_state.write_lock.lock().await;
+            if let Err(error) = cleanup_expired_shares(&cleanup_state.db).await {
+                error!(%error, "expired_share_cleanup_failed");
+            } else if let Err(error) = persist_database_snapshot(
+                &cleanup_state.database_path,
+                &cleanup_state.snapshot_path,
+            )
+            .await
+            {
+                error!(%error, "expired_share_cleanup_persist_failed");
+            }
+        }
+    });
     let integration_configured = state.hmrc_integration.is_some();
     let integration_mode = state
         .hmrc_integration
@@ -383,6 +406,7 @@ async fn put_workspace(
     sqlx::query("INSERT INTO workspaces(id, payload, updated_at) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at")
         .bind(&id).bind(encrypted).bind(now as i64).execute(&state.db).await.map_err(internal)?;
     write_audit(&state, &id, "records_saved", &bytes).await?;
+    persist_state(&state).await?;
     Ok(Json(json!({ "saved": true, "updated_at": now })))
 }
 
@@ -423,6 +447,7 @@ async fn create_share(
         .await
         .map_err(internal)?;
     write_audit(&state, &id, "accountant_link_created", token.as_bytes()).await?;
+    persist_state(&state).await?;
     Ok((StatusCode::CREATED, Json(ShareResult { token, expires_at })))
 }
 
@@ -479,6 +504,7 @@ async fn submit_to_hmrc(
             submission_id.as_bytes(),
         )
         .await?;
+        persist_state(&state).await?;
         return Ok(Json(SubmissionResult {
             submission_id,
             status: "fixture_only_no_filing",
@@ -515,6 +541,7 @@ async fn submit_to_hmrc(
         result.submission_id.as_bytes(),
     )
     .await?;
+    persist_state(&state).await?;
     Ok(Json(result))
 }
 
@@ -674,6 +701,7 @@ async fn start_hmrc_consent(
         consent.provider_approval_reference.as_bytes(),
     )
     .await?;
+    persist_state(&state).await?;
     let mut url = Url::parse(&consent.authorize_url).map_err(|_| {
         ApiError(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -741,6 +769,7 @@ async fn hmrc_consent_callback(
             .execute(&state.db)
             .await
             .map_err(internal)?;
+        persist_state(&state).await?;
         row
     };
     let state_row = state_row.ok_or(ApiError(
@@ -811,6 +840,7 @@ async fn hmrc_consent_callback(
         b"provider_oauth",
     )
     .await?;
+    persist_state(&state).await?;
     Ok(Redirect::to("/records?hmrc-consent=connected"))
 }
 
@@ -1208,6 +1238,7 @@ async fn page_view(State(state): State<AppState>) -> Result<StatusCode, ApiError
     let day = unix_now() / 86_400;
     sqlx::query("INSERT INTO page_views(day, count) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET count=count+1")
         .bind(day as i64).execute(&state.db).await.map_err(internal)?;
+    persist_state(&state).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1583,6 +1614,12 @@ async fn write_audit(
     Ok(())
 }
 
+async fn persist_state(state: &AppState) -> Result<(), ApiError> {
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)
+}
+
 async fn load_or_create_key(path: &FsPath) -> Result<([u8; 32], bool), std::io::Error> {
     if let Ok(bytes) = fs::read(path).await {
         if bytes.len() == 32 {
@@ -1608,7 +1645,7 @@ async fn load_or_create_key(path: &FsPath) -> Result<([u8; 32], bool), std::io::
     Ok((key, true))
 }
 
-async fn restore_legacy_snapshot(
+async fn restore_database_snapshot(
     snapshot: &FsPath,
     database: &FsPath,
 ) -> Result<(), std::io::Error> {
@@ -1622,25 +1659,30 @@ async fn restore_legacy_snapshot(
     Ok(())
 }
 
-/// A zero-byte SQLite file cannot contain an acknowledged workspace write. It
-/// is left behind when a process is interrupted between SQLite opening the
-/// file and its first page write. On Azure Files, the accompanying rollback
-/// journal can retain the file lock long after that failed start. Remove only
-/// that provably invalid pair, allowing the one-time legacy snapshot import
-/// (or a new database) to proceed. Existing database bytes are never changed.
-async fn recover_interrupted_empty_database(database: &FsPath) -> Result<bool, std::io::Error> {
-    let is_empty = matches!(fs::metadata(database).await, Ok(metadata) if metadata.len() == 0);
-    if !is_empty {
-        return Ok(false);
+async fn persist_database_snapshot(
+    database: &FsPath,
+    snapshot: &FsPath,
+) -> Result<(), std::io::Error> {
+    if fs::metadata(database).await.is_err() {
+        return Ok(());
     }
 
-    fs::remove_file(database).await?;
-    let journal = PathBuf::from(format!("{}-journal", database.display()));
-    if fs::metadata(&journal).await.is_ok() {
-        fs::remove_file(&journal).await?;
+    // Azure Files accepts a normal overwrite but can reject metadata copying
+    // and does not give SQLite reliable byte-range locks. This stream copy
+    // runs while the process-wide mutation lock is held; sync_all completes
+    // before the route returns success.
+    let mut source = fs::File::open(database).await?;
+    let mut destination = fs::File::create(snapshot).await?;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let bytes = source.read(&mut buffer).await?;
+        if bytes == 0 {
+            break;
+        }
+        destination.write_all(&buffer[..bytes]).await?;
     }
-    warn!(database = %database.display(), "removed_interrupted_zero_byte_sqlite_database");
-    Ok(true)
+    destination.sync_all().await?;
+    Ok(())
 }
 
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
@@ -1812,7 +1854,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_snapshot_is_imported_once_before_direct_database_startup() {
+    async fn mounted_snapshot_is_imported_to_local_sqlite_without_copying_permissions() {
         let root =
             std::env::temp_dir().join(format!("quarterly-ready-snapshot-{}", Uuid::new_v4()));
         let durable = root.join("durable");
@@ -1822,7 +1864,9 @@ mod tests {
         fs::write(&snapshot, b"legacy encrypted workspace snapshot")
             .await
             .unwrap();
-        restore_legacy_snapshot(&snapshot, &database).await.unwrap();
+        restore_database_snapshot(&snapshot, &database)
+            .await
+            .unwrap();
         assert_eq!(
             fs::read(&database).await.unwrap(),
             b"legacy encrypted workspace snapshot"
@@ -1831,49 +1875,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn zero_byte_database_and_rollback_journal_are_recovered_before_snapshot_import() {
-        let root = std::env::temp_dir().join(format!("quarterly-ready-zero-db-{}", Uuid::new_v4()));
-        fs::create_dir_all(&root).await.unwrap();
-        let database = root.join("quarterly-ready.sqlite3");
-        let journal = PathBuf::from(format!("{}-journal", database.display()));
-        let snapshot = root.join("quarterly-ready.snapshot.sqlite3");
-        fs::write(&database, []).await.unwrap();
-        fs::write(&journal, b"interrupted rollback journal")
-            .await
-            .unwrap();
-        fs::write(&snapshot, b"valid legacy database")
-            .await
-            .unwrap();
-
-        assert!(recover_interrupted_empty_database(&database).await.unwrap());
-        assert!(fs::metadata(&database).await.is_err());
-        assert!(fs::metadata(&journal).await.is_err());
-        restore_legacy_snapshot(&snapshot, &database).await.unwrap();
-        assert_eq!(fs::read(&database).await.unwrap(), b"valid legacy database");
-
-        fs::remove_dir_all(root).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn non_empty_database_is_never_recovered_or_rewritten() {
-        let root =
-            std::env::temp_dir().join(format!("quarterly-ready-nonzero-db-{}", Uuid::new_v4()));
-        fs::create_dir_all(&root).await.unwrap();
-        let database = root.join("quarterly-ready.sqlite3");
-        fs::write(&database, b"durable data").await.unwrap();
-
-        assert!(!recover_interrupted_empty_database(&database).await.unwrap());
-        assert_eq!(fs::read(&database).await.unwrap(), b"durable data");
-
-        fs::remove_dir_all(root).await.unwrap();
-    }
-
-    #[tokio::test]
     async fn durable_database_restores_key_records_links_audit_and_page_count_after_restart() {
         let root = std::env::temp_dir().join(format!("quarterly-ready-state-{}", Uuid::new_v4()));
         let durable = root.join("durable");
+        let local = root.join("local");
         fs::create_dir_all(&durable).await.unwrap();
-        let database_path = durable.join("quarterly-ready.sqlite3");
+        fs::create_dir_all(&local).await.unwrap();
+        let database_path = local.join("quarterly-ready.sqlite3");
+        let snapshot_path = durable.join("quarterly-ready.snapshot.sqlite3");
         let key_path = durable.join("quarterly-ready.key");
         let (key, generated) = load_or_create_key(&key_path).await.unwrap();
         assert!(generated);
@@ -1908,6 +1917,8 @@ mod tests {
         let state = AppState {
             db,
             key,
+            database_path: database_path.clone(),
+            snapshot_path: snapshot_path.clone(),
             write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
@@ -1924,7 +1935,12 @@ mod tests {
             .execute(&state.db)
             .await
             .unwrap();
+        persist_state(&state).await.unwrap();
         state.db.close().await;
+        fs::remove_file(&database_path).await.unwrap();
+        restore_database_snapshot(&snapshot_path, &database_path)
+            .await
+            .unwrap();
 
         let (restored_key, regenerated) = load_or_create_key(&key_path).await.unwrap();
         assert!(!regenerated);
@@ -1986,6 +2002,8 @@ mod tests {
         let state = AppState {
             db,
             key: [9u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
@@ -2126,6 +2144,8 @@ mod tests {
         let state = AppState {
             db,
             key: [5u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
@@ -2308,6 +2328,8 @@ mod tests {
         let state = AppState {
             db,
             key: [3u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
@@ -2355,6 +2377,8 @@ mod tests {
         let state = AppState {
             db,
             key: [4u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),

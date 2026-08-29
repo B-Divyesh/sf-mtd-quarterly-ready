@@ -82,13 +82,13 @@ docker run --rm -p 8080:8080 -v quarterly-ready-data:/data quarterly-ready
 
 The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA and the startup-resolved safe-fixture state used by release verification.
 
-Production uses one active container replica. The encrypted SQLite database and its AES-256-GCM key both live directly on the mounted Azure Files share at `/data`; SQLite uses `DELETE` journalling and `FULL` synchronous commits. The service serialises mutations before acknowledging them. Keep one replica unless records and rate limiting move to shared infrastructure.
+Production uses one active container replica. SQLite stays on the container's local filesystem because Azure Files cannot reliably provide SQLite byte-range locks. The service serialises each mutation, commits it, streams a synced database snapshot to the mounted Azure Files share at `/data`, and only then acknowledges success. The AES-256-GCM key and restart snapshot live on `/data`. Keep one replica unless records and rate limiting move to shared infrastructure.
 
 ## Data and configuration
 
-The server defaults to `/data` in the container and `./data` locally. It creates its AES-256-GCM key on first boot and stores it with restricted permissions.
+The server defaults to `/data` in the container and `./data` locally. Its live SQLite path defaults to `/tmp/quarterly-ready` and can be overridden with `DATABASE_DIR`. It creates its AES-256-GCM key on first boot and stores it with restricted permissions when the filesystem supports POSIX modes.
 
-Optional variables are `DATA_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, `HMRC_INTEGRATION_TOKEN`, and `HMRC_INTEGRATION_MODE`. A production direct-submission configuration also needs `HMRC_CONSENT_AUTHORIZE_URL`, `HMRC_CONSENT_TOKEN_URL`, `HMRC_CONSENT_CLIENT_ID`, `HMRC_CONSENT_CLIENT_SECRET`, `HMRC_CONSENT_REDIRECT_URI`, `HMRC_PROVIDER_NAME`, and `HMRC_PROVIDER_APPROVAL_REFERENCE`. `PORT` defaults to `8080`.
+Optional variables are `DATA_DIR`, `DATABASE_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, `HMRC_INTEGRATION_TOKEN`, and `HMRC_INTEGRATION_MODE`. A production direct-submission configuration also needs `HMRC_CONSENT_AUTHORIZE_URL`, `HMRC_CONSENT_TOKEN_URL`, `HMRC_CONSENT_CLIENT_ID`, `HMRC_CONSENT_CLIENT_SECRET`, `HMRC_CONSENT_REDIRECT_URI`, `HMRC_PROVIDER_NAME`, and `HMRC_PROVIDER_APPROVAL_REFERENCE`. `PORT` defaults to `8080`.
 
 Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports the fixture, approved-provider capability with taxpayer consent, the immutable image identity, and the durable one-replica topology. The fixture token authorises one exact synthetic document and never files a return.
 
