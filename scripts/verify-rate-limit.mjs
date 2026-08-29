@@ -15,6 +15,7 @@ if (!['all', 'read', 'write'].includes(selectedKind)) {
 const transport = origin.protocol === 'https:' ? https : http;
 const Agent = origin.protocol === 'https:' ? https.Agent : http.Agent;
 const agent = new Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1 });
+const pacedDelayMs = { read: 30, write: 100 };
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -51,6 +52,9 @@ async function verify(kind, allowance) {
   const clientIp = `2001:db8:${randomUUID().replaceAll('-', '').slice(0, 4)}::42`;
   const responses = [];
   for (let index = 0; index <= allowance; index += 1) {
+    if (index > 0) {
+      await new Promise(resolve => setTimeout(resolve, pacedDelayMs[kind]));
+    }
     responses.push(await send(
       kind === 'read' ? (index % 2 ? '/api/share/not-a-token' : '/api/workspace') : '/api/page-view',
       kind === 'read' ? 'GET' : 'POST',
@@ -63,13 +67,15 @@ async function verify(kind, allowance) {
     `${kind} limit rejected a request before the ${allowance}-request allowance`,
   );
   assert(responses[allowance].status === 429, `${kind} request ${allowance + 1} returned ${responses[allowance].status}, expected 429`);
-  assert(responses[allowance].retryAfter === '1', `${kind} 429 response omitted Retry-After: 1`);
+  const retryAfter = Number.parseInt(responses[allowance].retryAfter || '', 10);
+  assert(Number.isInteger(retryAfter) && retryAfter > 0, `${kind} 429 response omitted a positive Retry-After value`);
   assert(responses.slice(1).some(response => response.reusedSocket), `${kind} probe did not reuse its single keep-alive connection`);
 
   return {
     allowance,
     first_limited_request: allowance + 1,
     retry_after: responses[allowance].retryAfter,
+    paced_beyond_previous_one_second_window: true,
     stable_keep_alive_connection: true,
   };
 }

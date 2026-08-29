@@ -5,6 +5,7 @@ use aes_gcm::{
 use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Path, Query, State},
+    handler::Handler,
     http::{header, HeaderName, HeaderValue, Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Redirect, Response},
@@ -19,18 +20,21 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     env,
     net::SocketAddr,
     path::{Path as FsPath, PathBuf},
     sync::Arc,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     fs,
     io::{AsyncReadExt, AsyncWriteExt},
     signal,
     sync::Mutex,
+};
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::KeyExtractor, GovernorError, GovernorLayer,
 };
 use tower_http::{
     services::{ServeDir, ServeFile},
@@ -48,6 +52,9 @@ const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
 const SAFE_FIXTURE_TOKEN: &str = "quarterly-ready-safe-no-charge-fixture-v1";
 const SAFE_FIXTURE_BUSINESS: &str = "Quarterly Ready safe QA fixture";
 const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
+const RATE_LIMIT_REFILL_SECONDS: u64 = 60;
+const READ_RATE_LIMIT_BURST: u32 = 40;
+const WRITE_RATE_LIMIT_BURST: u32 = 12;
 const PRODUCT_SLUGS: [&str; 2] = ["mtd-quarterly-ready", "mtd-quarterly-ready-annual"];
 const CATEGORIES: [&str; 7] = [
     "Sales",
@@ -66,7 +73,6 @@ struct AppState {
     database_path: PathBuf,
     snapshot_path: PathBuf,
     write_lock: Arc<Mutex<()>>,
-    limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
     client: reqwest::Client,
     billing_base_url: String,
     hmrc_integration: Option<ApprovedIntegration>,
@@ -175,6 +181,34 @@ struct SubmissionResult {
 #[derive(Debug)]
 struct ApiError(StatusCode, &'static str);
 
+#[derive(Clone)]
+struct ForwardedClientKeyExtractor;
+
+impl KeyExtractor for ForwardedClientKeyExtractor {
+    type Key = String;
+
+    fn extract<T>(&self, request: &Request<T>) -> Result<Self::Key, GovernorError> {
+        Ok(request
+            .headers()
+            .get("x-forwarded-for")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(',').next())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .or_else(|| {
+                request
+                    .headers()
+                    .get("x-quarterly-ready-client")
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::trim)
+                    .filter(|value| Uuid::parse_str(value).is_ok())
+                    .map(|value| format!("browser:{value}"))
+            })
+            .unwrap_or_else(|| "direct".to_owned()))
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (self.0, Json(json!({ "error": self.1 }))).into_response()
@@ -254,7 +288,6 @@ async fn main() {
         database_path,
         snapshot_path,
         write_lock: Arc::new(Mutex::new(())),
-        limits: Arc::new(Mutex::new(HashMap::new())),
         client,
         billing_base_url: env::var("SOCIOBOT_BILLING_URL")
             .unwrap_or_else(|_| "https://api.sociobot.in/api/v1".into()),
@@ -313,19 +346,38 @@ async fn main() {
 
 fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
     let index = frontend_dir.join("index.html");
+    let read_limit = rate_limit_layer(READ_RATE_LIMIT_BURST);
+    let write_limit = rate_limit_layer(WRITE_RATE_LIMIT_BURST);
     Router::new()
         .route("/health", get(health))
-        .route("/api/workspace", get(get_workspace).put(put_workspace))
-        .route("/api/share", post(create_share))
-        .route("/api/share/:token", get(get_share))
-        .route("/api/hmrc/submit", post(submit_to_hmrc))
+        .route(
+            "/api/workspace",
+            get(get_workspace.layer(read_limit.clone()))
+                .put(put_workspace.layer(write_limit.clone())),
+        )
+        .route("/api/share", post(create_share.layer(write_limit.clone())))
+        .route(
+            "/api/share/:token",
+            get(get_share.layer(read_limit.clone())),
+        )
+        .route(
+            "/api/hmrc/submit",
+            post(submit_to_hmrc.layer(write_limit.clone())),
+        )
         .route(
             "/api/hmrc/consent",
-            get(hmrc_consent_status).post(start_hmrc_consent),
+            get(hmrc_consent_status.layer(read_limit.clone()))
+                .post(start_hmrc_consent.layer(write_limit.clone())),
         )
-        .route("/api/hmrc/consent/callback", get(hmrc_consent_callback))
-        .route("/api/qa/entitlement", get(safe_qa_entitlement))
-        .route("/api/page-view", post(page_view))
+        .route(
+            "/api/hmrc/consent/callback",
+            get(hmrc_consent_callback.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/qa/entitlement",
+            get(safe_qa_entitlement.layer(read_limit)),
+        )
+        .route("/api/page-view", post(page_view.layer(write_limit)))
         .route_service("/", get_service(ServeFile::new(index.clone())))
         .route_service("/demo", get_service(ServeFile::new(index.clone())))
         .route_service("/records", get_service(ServeFile::new(index.clone())))
@@ -338,9 +390,47 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         )
         .layer(DefaultBodyLimit::max(MAX_DOCUMENT_BYTES))
         .layer(middleware::from_fn(security_headers))
-        .layer(middleware::from_fn_with_state(state.clone(), rate_limit))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+fn rate_limit_layer(
+    burst_size: u32,
+) -> GovernorLayer<ForwardedClientKeyExtractor, governor::middleware::StateInformationMiddleware> {
+    let config = GovernorConfigBuilder::default()
+        .per_second(RATE_LIMIT_REFILL_SECONDS)
+        .burst_size(burst_size)
+        .key_extractor(ForwardedClientKeyExtractor)
+        .error_handler(rate_limit_error)
+        .use_headers()
+        .finish()
+        .expect("rate limit configuration is valid");
+    GovernorLayer {
+        config: Arc::new(config),
+    }
+}
+
+fn rate_limit_error(error: GovernorError) -> Response {
+    match error {
+        GovernorError::TooManyRequests { headers, .. } => {
+            let mut response = (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({
+                    "error": "Too many requests. Wait for the Retry-After time and try again."
+                })),
+            )
+                .into_response();
+            if let Some(headers) = headers {
+                response.headers_mut().extend(headers);
+            }
+            response
+        }
+        _ => ApiError(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "The request limit could not identify this connection. Try again.",
+        )
+        .into_response(),
+    }
 }
 
 async fn health(State(state): State<AppState>) -> Json<Health> {
@@ -1242,57 +1332,6 @@ async fn page_view(State(state): State<AppState>) -> Result<StatusCode, ApiError
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn rate_limit(State(state): State<AppState>, request: Request<Body>, next: Next) -> Response {
-    if !request.uri().path().starts_with("/api/") {
-        return next.run(request).await;
-    }
-    let write_request = request.method() != axum::http::Method::GET;
-    let key = request
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-        .map(str::to_owned)
-        .or_else(|| {
-            request
-                .headers()
-                .get("x-quarterly-ready-client")
-                .and_then(|v| v.to_str().ok())
-                .map(str::trim)
-                .filter(|v| Uuid::parse_str(v).is_ok())
-                .map(|v| format!("browser:{v}"))
-        })
-        .unwrap_or_else(|| "direct".to_owned())
-        + if write_request { ":write" } else { ":read" };
-    let allowance = if write_request { 12 } else { 40 };
-    let now = Instant::now();
-    let mut limits = state.limits.lock().await;
-    let hits = limits.entry(key).or_default();
-    while hits
-        .front()
-        .is_some_and(|t| now.duration_since(*t) >= Duration::from_secs(1))
-    {
-        hits.pop_front();
-    }
-    if hits.len() >= allowance {
-        drop(limits);
-        let mut response = (
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(json!({ "error": "Too many requests. Wait one second and try again." })),
-        )
-            .into_response();
-        response
-            .headers_mut()
-            .insert(header::RETRY_AFTER, HeaderValue::from_static("1"));
-        return response;
-    }
-    hits.push_back(now);
-    drop(limits);
-    next.run(request).await
-}
-
 async fn security_headers(request: Request<Body>, next: Next) -> Response {
     let immutable_asset = request.uri().path().starts_with("/assets/");
     let revalidate = request.uri().path() == "/sw.js"
@@ -1920,7 +1959,6 @@ mod tests {
             database_path: database_path.clone(),
             snapshot_path: snapshot_path.clone(),
             write_lock: Arc::new(Mutex::new(())),
-            limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
             hmrc_integration: None,
@@ -2005,7 +2043,6 @@ mod tests {
             database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
             snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
-            limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
             hmrc_integration: None,
@@ -2147,7 +2184,6 @@ mod tests {
             database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
             snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
-            limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
             hmrc_integration: Some(ApprovedIntegration {
@@ -2331,7 +2367,6 @@ mod tests {
             database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
             snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
-            limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
             hmrc_integration: None,
@@ -2380,7 +2415,6 @@ mod tests {
             database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
             snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
             write_lock: Arc::new(Mutex::new(())),
-            limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
             hmrc_integration: Some(ApprovedIntegration {

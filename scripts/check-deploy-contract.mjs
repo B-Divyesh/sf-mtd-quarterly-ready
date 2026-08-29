@@ -66,6 +66,19 @@ if (!/^ENV .*DATA_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile)
   || !server.includes('destination.sync_all().await?')) {
   throw new Error('Container runtime must persist each local SQLite mutation to the mounted /data snapshot before success.');
 }
+for (const text of [
+  'tower_governor',
+  'RATE_LIMIT_REFILL_SECONDS: u64 = 60',
+  'READ_RATE_LIMIT_BURST: u32 = 40',
+  'WRITE_RATE_LIMIT_BURST: u32 = 12',
+  'x-forwarded-for',
+  'GovernorLayer',
+]) {
+  if (!server.includes(text)) throw new Error(`Server rate-limit contract is missing ${text}`);
+}
+if (!server.includes('hmrc_consent_callback.layer(write_limit.clone())')) {
+  throw new Error('The OAuth callback must use the stricter write quota.');
+}
 if (deployment.indexOf('missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
   throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');
 }

@@ -147,7 +147,8 @@ test('@regression:shared-read-limit allows 40 reads across routes then returns 4
       encoding: 'utf8',
       env: process.env,
     }).trim());
-    expect(result).toMatchObject({ status: 'ok', read: { allowance: 40, first_limited_request: 41, retry_after: '1', stable_keep_alive_connection: true } });
+    expect(result).toMatchObject({ status: 'ok', read: { allowance: 40, first_limited_request: 41, stable_keep_alive_connection: true, paced_beyond_previous_one_second_window: true } });
+    expect(Number.parseInt(result.read.retry_after, 10)).toBeGreaterThan(0);
     return;
   }
   const headers = { 'x-forwarded-for': '203.0.113.99' };
@@ -156,10 +157,11 @@ test('@regression:shared-read-limit allows 40 reads across routes then returns 4
     responses.push(index % 2 === 0
       ? await request.get('/api/workspace', { headers })
       : await request.get('/api/share/not-a-token', { headers }));
+    if (index < 40) await new Promise(resolve => setTimeout(resolve, 30));
   }
   expect(responses.slice(0, 40).every(response => response.status() !== 429)).toBe(true);
   expect(responses[40].status()).toBe(429);
-  expect(responses[40].headers()['retry-after']).toBe('1');
+  expect(Number.parseInt(responses[40].headers()['retry-after'], 10)).toBeGreaterThan(0);
 });
 
 test('static files never consume the API rate allowance', async ({ request }) => {
@@ -174,15 +176,29 @@ test('@regression:shared-write-limit allows 12 writes then returns 429 with Retr
       encoding: 'utf8',
       env: process.env,
     }).trim());
-    expect(result).toMatchObject({ status: 'ok', write: { allowance: 12, first_limited_request: 13, retry_after: '1', stable_keep_alive_connection: true } });
+    expect(result).toMatchObject({ status: 'ok', write: { allowance: 12, first_limited_request: 13, stable_keep_alive_connection: true, paced_beyond_previous_one_second_window: true } });
+    expect(Number.parseInt(result.write.retry_after, 10)).toBeGreaterThan(0);
     return;
   }
   const headers = { 'x-forwarded-for': '203.0.113.98' };
   const responses = [];
-  for (let index = 0; index < 13; index += 1) responses.push(await request.post('/api/page-view', { headers }));
+  for (let index = 0; index < 13; index += 1) {
+    responses.push(await request.post('/api/page-view', { headers }));
+    if (index < 12) await new Promise(resolve => setTimeout(resolve, 100));
+  }
   expect(responses.slice(0, 12).every(response => response.status() === 204)).toBe(true);
   expect(responses[12].status()).toBe(429);
-  expect(responses[12].headers()['retry-after']).toBe('1');
+  expect(Number.parseInt(responses[12].headers()['retry-after'], 10)).toBeGreaterThan(0);
+});
+
+test('@regression:OAuth callback shares the stricter write quota', async ({ request }) => {
+  const headers = { 'x-forwarded-for': '203.0.113.96' };
+  for (let index = 0; index < 12; index += 1) {
+    expect((await request.post('/api/page-view', { headers })).status()).toBe(204);
+  }
+  const callback = await request.get('/api/hmrc/consent/callback?state=missing', { headers });
+  expect(callback.status()).toBe(429);
+  expect(Number.parseInt(callback.headers()['retry-after'], 10)).toBeGreaterThan(0);
 });
 
 test('@regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit', async ({ request }) => {
