@@ -10,8 +10,8 @@ ENVIRONMENT="factory-env"
 REGISTRY="sociobotregistry"
 SUBSCRIPTION="${AZURE_SUBSCRIPTION_ID:-283af945-693b-4a6e-b952-df928d0a18a9}"
 STORAGE_ACCOUNT="sociobotblob"
-FILE_SHARE="sf-mtd-quarterly-ready-data"
-ENV_STORAGE="mtd-quarterly-ready-data"
+FILE_SHARE="sf-mtd-quarterly-ready-data-v2"
+ENV_STORAGE="mtd-quarterly-ready-data-v2"
 PORT=8080
 SOURCE_SHA="$(git rev-parse HEAD)"
 IMAGE_TAG="${APP}:${SOURCE_SHA:0:12}"
@@ -40,6 +40,14 @@ az containerapp env storage set --resource-group "${RESOURCE_GROUP}" --name "${E
 unset STORAGE_KEY
 
 echo "== container app (one replica, mounted /data)"
+# SQLite uses an advisory file lock. In single-revision mode Azure otherwise
+# keeps the old replica alive until the new one is ready, which deadlocks a
+# shared SQLite volume. Stop that one replica immediately before its successor
+# is created; the process handles SIGTERM gracefully and the state is durable.
+READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --name "${APP}" --query 'properties.latestReadyRevisionName' -o tsv 2>/dev/null || true)"
+if [[ -n "${READY_REVISION}" ]]; then
+  az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --only-show-errors -o none || true
+fi
 az rest --method patch --url "${APP_URL}" --body "$(cat <<JSON
 {
   "properties": {
