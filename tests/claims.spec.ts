@@ -276,7 +276,12 @@ test('@claim:accountant-link opens a read-only sample pack', async ({ page }) =>
 
 test('@claim:offline-browser-copy reloads the demo after the network is disabled', async ({ page, context }) => {
   await page.goto('/demo');
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  const update = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+    return { active: Boolean(registration.active), controlled: Boolean(navigator.serviceWorker.controller) };
+  });
+  expect(update).toEqual({ active: true, controlled: true });
   await context.setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Offline — browser copy active')).toBeVisible();

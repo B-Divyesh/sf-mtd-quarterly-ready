@@ -14,6 +14,8 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.VERIFY_ORIGIN || 'http://127.0.0.1:4173',
+    channel: 'chromium',
+    launchOptions: { args: ['--disable-gpu'] },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

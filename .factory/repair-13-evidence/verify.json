@@ -1,0 +1,14 @@
+{
+  "url": "https://mtd-quarterly-ready.sociobot.in",
+  "loadMs": 631,
+  "errors": [],
+  "a11y": {
+    "title": "Quarterly Ready — Check your MTD quarter",
+    "lang": "en-GB",
+    "h1": 1,
+    "main": true,
+    "imgsMissingAlt": 0,
+    "buttonsUnlabeled": 0,
+    "textLength": 1669
+  }
+}

@@ -254,6 +254,7 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
   .preview-section, .how-section, .limits-section, .pricing-section, .review-section, .handoff-section { padding: 64px 16px; }
   .section-label { grid-template-columns: 1fr; gap: 0; }
   .mini-panel { padding: 12px; }
+  .mini-summary { grid-template-columns: 1fr; }
   .mini-summary > div { min-height: 88px; padding: 12px 8px; }
   .mini-summary strong { font-size: 1.25rem; }
   .preview-line { align-items: flex-start; flex-wrap: wrap; }

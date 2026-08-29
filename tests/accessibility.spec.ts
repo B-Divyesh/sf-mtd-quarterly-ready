@@ -46,6 +46,22 @@ test('@regression:mobile-review-control is at least 44 CSS pixels high', async (
   expect(box?.height).toBeGreaterThanOrEqual(44);
 });
 
+test('@regression:two-hundred-percent-text keeps the mobile first action usable without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  expect(width.scroll).toBeLessThanOrEqual(width.client);
+  await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
+});
+
+test('@regression:reduced-motion makes the quarter dial transition effectively instant', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/demo');
+  const duration = await page.locator('.dial-hand').evaluate(element => getComputedStyle(element).transitionDuration);
+  expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.00001);
+});
+
 test('@regression:route-metadata follows SPA navigation', async ({ page }) => {
   await page.goto('/demo');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://mtd-quarterly-ready.sociobot.in/demo');
