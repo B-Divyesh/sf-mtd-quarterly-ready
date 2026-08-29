@@ -29,6 +29,8 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 
 The free version keeps one working quarter and all downloads. A £12 monthly or £99 annual Sociobot subscription adds live accountant links and approved-integration submissions. Checkout and server-side subscription checks use the Sociobot billing API.
 
+The two required controller-side subscription registrations are specified in [`.factory/billing.md`](.factory/billing.md). The application sends only its slug and the stable `monthly` or `annual` plan name. Provider product and price IDs must stay in the Sociobot controller.
+
 ## Run locally
 
 Requirements: Node 22+, npm, and current stable Rust.
@@ -53,9 +55,12 @@ npm run dev
 ```sh
 npm test
 npm run typecheck
+npm run verify:live
 ```
 
 This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright claim tests, and Axe checks. Claim definitions live in [`.factory/claims.json`](.factory/claims.json).
+
+Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity as well as checkout, 404, empty-workspace, and rate-limit policies.
 
 ## Container
 

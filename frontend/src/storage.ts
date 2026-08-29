@@ -39,9 +39,9 @@ export function workspaceId(): string {
 
 export async function loadRemote(): Promise<QuarterDocument | null> {
   const response = await fetch('/api/workspace', { headers: { 'x-workspace-id': workspaceId() } });
-  if (response.status === 404) return null;
   if (!response.ok) throw new Error('Saved records could not be loaded. Your browser copy is still available.');
-  const result = await response.json() as { document: QuarterDocument };
+  const result = await response.json() as { document: QuarterDocument | null };
+  if (!result.document) return null;
   localStorage.setItem(REAL_KEY, JSON.stringify(result.document));
   return result.document;
 }

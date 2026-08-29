@@ -19,6 +19,31 @@ test('mobile layout does not overflow at 390px', async ({ page }) => {
   expect(width.scroll).toBeLessThanOrEqual(width.client);
 });
 
+test('@regression:mobile-navigation-and-footer-targets are at least 44 by 44 CSS pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const targets = page.locator('.wordmark, .site-header nav a, .site-footer a');
+  for (let index = 0; index < await targets.count(); index += 1) {
+    const target = targets.nth(index);
+    if (!(await target.isVisible())) continue;
+    const box = await target.boundingBox();
+    expect(box?.width, await target.getAttribute('href') || `target ${index}`).toBeGreaterThanOrEqual(44);
+    expect(box?.height, await target.getAttribute('href') || `target ${index}`).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('@regression:cold-records-load has no console or failed-response errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  const workspaceResponse = page.waitForResponse(response => response.url().endsWith('/api/workspace'));
+  await page.goto('/records');
+  await expect(page.getByRole('heading', { level: 3, name: 'No transactions in this quarter' })).toBeVisible();
+  expect((await workspaceResponse).status()).toBe(200);
+  expect(errors).toEqual([]);
+});
+
 test('all internal links return successful pages', async ({ page, request }) => {
   await page.goto('/');
   const links = await page.locator('a[href]').evaluateAll(items => [...new Set(items.map(item => (item as HTMLAnchorElement).href).filter(href => new URL(href).origin === location.origin))]);

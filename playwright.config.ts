@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+const repositoryRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   testDir: './tests',
@@ -16,7 +21,14 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'npm run build && PORT=4173 DATA_DIR=/tmp/quarterly-ready-test FRONTEND_DIR=/work/repo/dist cargo run',
+    command: 'npm run build && cargo run',
+    cwd: repositoryRoot,
+    env: {
+      ...process.env,
+      PORT: '4173',
+      DATA_DIR: path.join(tmpdir(), 'quarterly-ready-test'),
+      FRONTEND_DIR: path.join(repositoryRoot, 'dist'),
+    },
     url: 'http://127.0.0.1:4173/health',
     reuseExistingServer: true,
     timeout: 120_000,

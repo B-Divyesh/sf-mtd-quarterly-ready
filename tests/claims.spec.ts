@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps sample changes separate from real records', async ({ page, context }) => {
   const outgoing: string[] = [];
@@ -89,4 +90,8 @@ test('@claim:paid-tier uses Sociobot subscription checkout and keeps CSV free', 
   await expect(page.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
   await page.getByRole('button', { name: 'Make accountant link' }).click();
   await expect(page.getByText('A live accountant link needs an active Sociobot subscription. The CSV remains free.')).toBeVisible();
+  const registration = readFileSync(new URL('../.factory/billing.md', import.meta.url), 'utf8');
+  expect(registration).toContain('`monthly` | GBP 1,200 pence | monthly');
+  expect(registration).toContain('`annual` | GBP 9,900 pence | yearly');
+  expect(registration).not.toMatch(/(?:price|product)_[A-Za-z0-9]{8,}/);
 });
