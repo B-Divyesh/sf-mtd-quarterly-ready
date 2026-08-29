@@ -19,6 +19,11 @@ it accepts only one byte-for-byte bundled synthetic document, states
 and returns `fixture_only_no_filing` without calling Sociobot billing, Dodo,
 HMRC, or an approved integration.
 
+The repair is deployed at https://mtd-quarterly-ready.sociobot.in as
+`032df0ef3cc731b88170ea0d94ca49c61791d8bb`. The active Container App revision
+is `sf-mtd-quarterly-ready--0000020`; its runtime configuration has both
+`PORT=8080` and `SAFE_QA_FIXTURES=1`.
+
 ## Repair
 
 - Kept the existing explicit deployment setting for `SAFE_QA_FIXTURES=1`.
@@ -62,22 +67,23 @@ Results:
 
 ## Release verification
 
-After the repair commit is pushed, deploy with:
+Deployed and verified with:
 
 ```sh
 ./scripts/deploy-container.sh
-EXPECTED_BUILD_SHA="$(git rev-parse HEAD)" npm run verify:live
+EXPECTED_BUILD_SHA=032df0ef3cc731b88170ea0d94ca49c61791d8bb npm run verify:live
 ```
 
+The deployment script passed its live fixture smoke check. `verify:live` also
+passed and reported the exact build SHA, both Sociobot hosted-checkout paths,
+durable workspace storage, invalid-input rejection, the safe
+subscription-gated accountant-link and HMRC-submission paths, designed 404
+handling, plus read allowance 40 and write allowance 12 with `Retry-After`.
 The deploy command now fails unless the exact deployed build and safe
-non-charging fixture are both live. `verify:live` then checks identity, both
-Sociobot hosted-checkout paths, durable workspace storage, invalid input
-rejection, the safe subscription-gated accountant-link and HMRC-submission
-paths, designed 404 handling, and rate limits.
+non-charging fixture are both live.
 
 ## Known gaps
 
 Docker is not installed in this worker container, so a local Docker build could
-not be run. The repository's deploy-contract regression and the Azure ACR
-container build cover the deployment path; the live deployment evidence is
-recorded after the command above completes.
+not be run. Azure ACR successfully built the committed multi-stage container
+from its `.git`-free source archive before the verified live deployment.
