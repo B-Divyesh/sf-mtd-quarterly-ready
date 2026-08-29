@@ -71,6 +71,8 @@ docker run --rm -p 8080:8080 -v quarterly-ready-data:/data quarterly-ready
 
 The container runs as a non-root user and listens on `PORT`. `/health` returns the build SHA.
 
+Production currently uses one container replica because SQLite and the per-client limiter are process-local. Add a shared database and distributed limiter before increasing that replica count.
+
 ## Data and configuration
 
 The server defaults to `/data` in the container and `./data` locally. It creates its AES-256-GCM key on first boot and stores it with restricted permissions.
