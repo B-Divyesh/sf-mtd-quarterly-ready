@@ -1,76 +1,117 @@
-# Quarterly Ready — independent verification 11 handoff
+# Quarterly Ready — repair 11 handoff
 
 ## Release status
 
-**FAIL. Do not release candidate `019edac73cad38697754dda3a725b483ab710a83`
-from the current production configuration.**
+**BLOCKED — not a releasable submission service until an approved HMRC
+integration is provisioned.**
 
-Tested on 2026-08-29 at https://mtd-quarterly-ready.sociobot.in. The live
-health response and image tag match the candidate. The active revision is
-`sf-mtd-quarterly-ready--0000030`.
+The deployed repair artifact is commit
+`a84fc7d71e40e0f26c96163bb51125b48e77d728`, image
+`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:a84fc7d`
+(`sha256:870d0b113646d8d1ea5add8928ee8c0c71bb08e00891788474bac58a54f5649d`),
+on live revision `sf-mtd-quarterly-ready--0000032`.
 
-## Release blockers
+This repair resolves the durable-state, replica, rate-limit, claim-registry,
+and deployment-contract findings from independent verification 11. It does not
+pretend that the missing HMRC credentials are fixed: live `/health` reports
+`hmrc_integration_configured:false`, and the hardened release command correctly
+fails on that condition.
 
-1. Production has three ready replicas, `maxReplicas:3`, and no volume or
-   `/data` mount. One successful synthetic workspace save was missing from 20
-   of 30 immediate reads. A new paid-path accountant link returned 404 on 20 of
-   30 immediate reads.
-2. The process-local limiter is tripled by that topology. A single client burst
-   received 120 reads and 36 writes before limiting, versus the documented
-   40/12. Limited responses did include `Retry-After: 1`.
-3. Production reports `hmrc_integration_configured:false` and has no HMRC
-   secret bindings. The UI honestly provides only the handoff fallback, but the
-   original researched brief requires approved-integration submission.
-4. Claim-like copy about receipt locality, separate server records per quarter,
-   and conditional submission is not fully represented by exact claim entries
-   and observable tests in `.factory/claims.json`.
+## What changed
 
-Full evidence and required fixes are in `.factory/verification-11.md`.
+- Reconfigured the live Container App to one running replica with the registered
+  Azure Files `mtd-quarterly-ready-data-v3` volume mounted at `/data`. This
+  restores the SQLite snapshot, encryption key, audit log, real workspaces, and
+  accountant links to durable storage and returns the external rate allowance to
+  40 reads / 12 writes per client per second.
+- Proved a synthetic workspace survives both a replica restart and a revision
+  replacement using `scripts/verify-durability.mjs`.
+- Added three exact registered claims and regressions:
+  `receipt-locality` records the outgoing workspace body and IndexedDB state;
+  `quarter-record-separation` checks distinct browser keys, workspace IDs, and
+  restored server documents; `conditional-submission` checks the control for
+  configured and unavailable server capability.
+- Added `npm run verify:release`. It requires both the Azure one-replica/
+  Azure-Files topology and `hmrc_integration_configured:true`; it cannot approve
+  a handoff-only deployment as the researched submission product.
+- The deployment script now supplies `Content-Type: application/json` to its
+  Azure PATCH and checks the two managed Key Vault secret references before any
+  ACR build or Container App mutation. The contract test protects both details.
 
-## What passed
+## Verified
 
-- Cold first-read and one-click sample demo gate.
-- All 18 `.factory/claims.json` commands run individually from the candidate
-  checkout.
-- `npm ci`, `npm test`, TypeScript checks, 11 Vitest tests, 13 Rust tests, 40
-  local Chromium tests, deployment-contract test, and production frontend build.
-- `cargo fmt -- --check`, Clippy with warnings denied, and optimized Rust build
-  with the candidate SHA.
-- Exact live build identity and exact local/live hashes for HTML, JavaScript,
-  and CSS.
-- Continuous demo flow: invalid-input recovery, £1,000,000 boundary, CSV import,
-  receipt, review, CSV, HMRC handoff, and read-only demo pack.
-- Same-origin demo traffic, zero cookies, zero console/page errors, security and
-  caching headers, service-worker update, and offline reload.
-- Live Axe baseline on four routes, keyboard path, designed focus, 390 px layout,
-  44 px controls, reduced motion, and 200% text resize.
-- Lighthouse: 100 performance/accessibility/best-practices/SEO; LCP 1,351 ms,
-  TBT 58 ms, CLS 0; 92,500-byte first load.
-- 100 concurrent health requests returned 100 HTTP 200 responses in 440 ms.
+Local clean-install and quality evidence:
 
-## Reproduce
-
-```sh
-npm ci
-npm test
-cargo fmt -- --check
-cargo clippy --all-targets -- -D warnings
-BUILD_SHA=019edac73cad38697754dda3a725b483ab710a83 cargo build --release
-EXPECTED_BUILD_SHA=019edac73cad38697754dda3a725b483ab710a83 npm run verify:live
-npm run verify:topology
+```text
+npm ci                                                       pass (60 packages, 0 vulnerabilities)
+npm run typecheck                                            pass
+npm run test:unit                                            pass (11 tests)
+cargo test                                                   pass (13 tests)
+cargo fmt -- --check                                         pass
+cargo clippy --all-targets -- -D warnings                    pass
+npm run test:deploy-contract                                 pass
+npm test                                                     pass (42 Chromium, 13 Rust, 11 Vitest)
+npm run build                                                pass (dist/; 44.69 KB JS, 21.67 KB CSS)
+BUILD_SHA=a84fc7d... cargo build --release                  pass
+bash -n scripts/deploy-container.sh                          pass
+node --check scripts/verify-live.mjs                         pass
 ```
 
-The final command currently fails. Azure currently reports three running
-replicas, no volume mounts, and no volumes. The repository's custom deployment
-script describes the correct one-replica/Azure Files configuration, but that is
-not the configuration serving production.
+Each of the 21 `.factory/claims.json` commands was run independently after the
+clean install; all passed. The full live demo/claim suite also passed: 15
+Playwright scenarios cover every registered browser claim, CSV, receipt quota
+recovery, privacy request logging, offline reload, and checkout behavior.
 
-## Next steps
+Production evidence at `https://mtd-quarterly-ready.sociobot.in`:
 
-Deploy with a durable Azure Files `/data` mount and `minReplicas=maxReplicas=1`,
-then prove workspace and accountant-link durability across both a replica
-restart and revision replacement. Provision an approved HMRC integration via
-managed Key Vault references and complete its sandbox acceptance. Finally,
-close the claim-registry gaps and rerun independent verification.
+```text
+EXPECTED_BUILD_SHA=a84fc7d... npm run verify:live            pass
+npm run verify:topology                                      pass
+durability seed → replica restart → check                    pass
+durability check after revision 0000031 → 0000032            pass
+VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in \
+  npx playwright test tests/claims.spec.ts                   pass (15)
+VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in \
+  npx playwright test tests/accessibility.spec.ts --grep ... pass (12)
+```
 
-No product source or infrastructure was changed during this verification.
+Live browser checks covered desktop, 390 px mobile layout and 44 px targets,
+keyboard demo entry, route metadata, empty real-records load, internal-link
+crawl, service-worker offline reload/update, demo isolation, and no
+third-party/cookie traffic. The Playwright Axe integration found zero serious
+or critical issues on `/`, `/demo`, `/privacy`, and `/terms`. The factory
+`verify-url.sh` passed live `/` and `/demo` with correct title, `lang`, one H1,
+main landmark, image alt text, and zero console errors. The standalone
+`@axe-core/cli` was also attempted with the preinstalled Chromium path but its
+Selenium/ChromeDriver launcher exited before auditing; the Playwright Axe
+integration is the authoritative successful accessibility evidence.
+
+The ACR multi-stage container build passed in Azure (Docker is not installed in
+this worker). The image uses the existing non-root runtime and starts with only
+its required `PORT` configuration; live health reported the exact build SHA and
+`safe_qa_fixtures:true`. Live headers include CSP with `frame-ancestors 'none'`,
+HSTS, `nosniff`, strict-origin referrer policy, permissions policy, and
+`no-cache` HTML policy.
+
+## Remaining blocker and next step
+
+The Key Vault metadata lookup for both required secrets failed with
+`SecretNotFound`:
+
+- `mtd-quarterly-ready-hmrc-integration-url`
+- `mtd-quarterly-ready-hmrc-integration-token`
+
+No real approved HMRC endpoint or token is present in this repository or the
+available Key Vault. Creating a fake endpoint or test token would make a false
+submission claim, so it was not done. Provision both secrets as managed Key
+Vault references for the existing user-assigned identity, then run:
+
+```sh
+bash scripts/deploy-container.sh
+EXPECTED_BUILD_SHA=<deployed-commit> npm run verify:release
+```
+
+The latter must complete a provider-approved sandbox submission after the
+human-review gate before this product can be marked releasable. Until then, the
+live UI correctly exposes the reviewed HMRC handoff instead of a direct
+submission control.
