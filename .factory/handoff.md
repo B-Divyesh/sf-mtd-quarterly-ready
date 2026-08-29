@@ -1,127 +1,83 @@
-# Quarterly Ready — independent verification 8 handoff
+# Quarterly Ready — repair 8 handoff
 
 ## Outcome
 
-**FAIL — do not release candidate `2611ee3c3238aa16603e0212e950b3ddf7e1116d` yet.**
+Repaired the independent verification-8 P1 release blocker. The verifier's
+exact command was first reproduced against candidate
+`2611ee3c3238aa16603e0212e950b3ddf7e1116d`:
 
-The deployed URL https://mtd-quarterly-ready.sociobot.in reports that exact
-build SHA and its live assets hash-match a fresh local candidate build. All
-18 mandatory claims passed from this checkout, as did `npm test`, the
-production frontend build, optimized Rust build, format, and Clippy checks.
+```sh
+EXPECTED_BUILD_SHA=2611ee3c3238aa16603e0212e950b3ddf7e1116d npm run verify:live
+# Error: safe entitlement fixture returned 404
+```
 
-The release blocker is deployment-only: with that exact SHA expected,
-`npm run verify:live` fails because live `/api/qa/entitlement` returns 404.
-The repository's own verifier cannot therefore safely prove the live,
-subscription-gated accountant-link and HMRC-submission paths. See
-[`verification-8.md`](verification-8.md) for exact output and resolution.
+The deployed Container App revision reported the candidate SHA but its active
+template had only `PORT=8080`; it had dropped the required
+`SAFE_QA_FIXTURES=1`. The source fixture was already deliberately constrained:
+it accepts only one byte-for-byte bundled synthetic document, states
+`charges: false` and `files_with_hmrc: false`, creates no billable entitlement,
+and returns `fixture_only_no_filing` without calling Sociobot billing, Dodo,
+HMRC, or an approved integration.
 
-The live demo itself passed cold first-read, 390px, keyboard, offline,
-privacy-request, response-header, rate-limit, and independent Axe checks.
-Observed API limits were 40 reads and 12 writes per forwarded client IP, with
-429 responses carrying `Retry-After: 1`.
+## Repair
 
-## Repairs
+- Kept the existing explicit deployment setting for `SAFE_QA_FIXTURES=1`.
+- Made `scripts/deploy-container.sh` wait for the target build identity and
+  then require a successful `/api/qa/entitlement` response with both safety
+  declarations before it can report deployment success.
+- Added deploy-contract regression coverage for the runtime setting and the
+  post-deployment entitlement smoke check. This specifically prevents a
+  healthy image with a missing runtime variable from being treated as a
+  successful release.
+- Updated the operations documentation so the release fixture and its safe
+  non-filing policy match the enforced deployment behavior.
 
-- Reproduced the exact cold failure with empty `CARGO_HOME` and
-  `CARGO_TARGET_DIR`, `CARGO_BUILD_JOBS=1`, and the first declared claim. The
-  old 120-second Playwright limit expired while Rust compiled.
-- Raised the declared web-server allowance to 600 seconds. The same claim then
-  passed from new empty caches; Rust took 2m00s and the command took 2.1m.
-- Added standard UK quarter generation. `/records` opens the current quarter,
-  offers current and future periods, and can keep creating later quarters.
-  Browser documents and server workspace IDs are separated by quarter.
-- Validated real calendar dates, matching UK quarter boundaries, period
-  membership, positive amounts up to £1,000,000, type, and the category allow
-  list before browser or server mutation.
-- CSV import now reports the failing row and remains atomic. Regression probes
-  cover `2026-02-30`, `2026-07-06`, zero, and `Bananas`; all leave the original
-  ten demo rows and £260 income unchanged.
-- Registered `free-quarter-persistence` in `.factory/claims.json`. Its clean
-  browser test saves, reloads, rolls forward, and returns without cross-quarter
-  data loss.
-- `/share/demo` now keeps the persistent demo banner, Reset demo, and Start for
-  real controls.
-- The mobile “I checked these figures” target now measures 44 CSS px.
-- Canonical, Open Graph URL/title, and Twitter title now follow SPA routes. The
-  unused, non-conforming install manifest was removed; offline browser support
-  remains.
-- Added an opt-in safe paid fixture. It authorises only one byte-for-byte
-  bundled synthetic document, declares `charges: false` and
-  `files_with_hmrc: false`, never contacts billing or an integration, and
-  returns `fixture_only_no_filing`. Live verification exercises both paid
-  accountant-link and submission policy with it.
-- Added HSTS and explicit revalidation policy for HTML, API, and service-worker
-  responses while retaining immutable hashed assets.
+## Local verification
 
-## Verification evidence
-
-Commands run from `/work/repo`:
+Run in a clean checkout on 2026-08-29:
 
 ```sh
 npm ci
 npm test
 cargo fmt -- --check
 cargo clippy --all-targets -- -D warnings
-BUILD_SHA=repair-verification cargo build --release
-npm run test:deploy-contract
-# every `test` command in .factory/claims.json, separately and in order
+BUILD_SHA=repair-entitlement-qa cargo build --release
+# every command declared in .factory/claims.json, separately and in order
 ```
 
 Results:
 
-- Clean install: 60 packages, 0 vulnerabilities.
-- Claims: 18/18 independent commands passed. The first claim also passed from
-  empty Rust registry and target directories with one compiler job.
-- Full suite: 9 Vitest, 13 Rust, and 35 Playwright tests passed.
-- TypeScript, Rust formatting, Clippy with warnings denied, deploy contract,
-  and optimized build passed.
-- Production frontend: 41.02 kB JS / 13.40 kB gzip; 21.67 kB CSS / 5.33 kB
-  gzip; mobile hero 23.00 kB.
-- Chromium: 1440×900 desktop and 390×844 mobile passed with no overflow,
-  console errors, or page errors. Current period was Q2 2026–27. Keyboard demo
-  navigation and submission-dialog focus passed.
-- Axe integration: 0 serious or critical findings on `/`, `/demo`, `/privacy`,
-  and `/terms`.
-- Mobile review control: 44 px. All tested header/footer controls: at least
-  44×44 px.
-- Offline/update: service-worker readiness, network-off reload, preserved demo
-  records, and “Offline — browser copy active” passed.
-- Privacy: demo flow had no cookies or cross-origin requests.
-- HTTP: CSP with header-only `frame-ancestors`, HSTS, nosniff, referrer and
-  permissions policies, `no-cache` shell/API responses, and immutable hashed
-  assets were observed.
-- Lighthouse mobile: performance 100, accessibility 100, best practices 100,
-  SEO 100; FCP 1.2 s, LCP 1.5 s, TBT 20 ms, CLS 0.
-- Default runtime: started with only `PORT`; logged generated key state and
-  build identity without a secret. A 100-request concurrent health smoke
-  returned 100 HTTP 200 responses.
-- Docker was unavailable locally. The deploy-contract test passed; the Azure
-  ACR deployment performs the real multi-stage container build from a
-  `.git`-free source upload.
+- `npm ci`: 60 packages, 0 vulnerabilities.
+- `npm test`: TypeScript typecheck; 9 Vitest tests; 13 Rust tests; deployment
+  contract; production Vite build; 35 Chromium tests all passed.
+- Browser coverage includes desktop, 390px mobile, keyboard navigation and
+  dialog focus, Axe serious/critical checks on `/`, `/demo`, `/privacy`, and
+  `/terms`, response errors, offline reload, privacy requests, and read/write
+  rate limits with `Retry-After`.
+- All 18 declared claims passed when each manifest command was run separately.
+- Rust formatting and Clippy with warnings denied passed. The optimized Rust
+  build produced `target/release/quarterly-ready` (12 MB).
+- Frontend production build: JavaScript 41.02 kB (13.40 kB gzip), CSS 21.67 kB
+  (5.33 kB gzip).
 
-## Release and operations
+## Release verification
 
-Deploy with:
+After the repair commit is pushed, deploy with:
 
 ```sh
 ./scripts/deploy-container.sh
 EXPECTED_BUILD_SHA="$(git rev-parse HEAD)" npm run verify:live
 ```
 
-`verify:live` checks exact `/health` identity, both hosted checkout creation
-paths, durable storage, invalid quarter/row rejection, the safe entitlement
-share/submission path, real 404 behavior, and read/write rate limits with
-`Retry-After`.
-
-The container remains the original `web-with-backend` artifact: Vite and
-TypeScript served by Rust/axum with encrypted SQLite. It starts with only
-`PORT`; `SAFE_QA_FIXTURES=1` is optional and limited to the exact synthetic
-fixture.
+The deploy command now fails unless the exact deployed build and safe
+non-charging fixture are both live. `verify:live` then checks identity, both
+Sociobot hosted-checkout paths, durable workspace storage, invalid input
+rejection, the safe subscription-gated accountant-link and HMRC-submission
+paths, designed 404 handling, and rate limits.
 
 ## Known gaps
 
-P1 release blocker: enable the deliberately restricted safe fixture for the
-release verification target, or provide an equivalent safe verification route,
-then rerun `EXPECTED_BUILD_SHA=<candidate> npm run verify:live`. Docker was
-not installed in this QA container, so its multi-stage build could not be
-executed locally.
+Docker is not installed in this worker container, so a local Docker build could
+not be run. The repository's deploy-contract regression and the Azure ACR
+container build cover the deployment path; the live deployment evidence is
+recorded after the command above completes.

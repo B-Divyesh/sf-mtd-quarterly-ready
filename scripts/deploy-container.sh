@@ -77,14 +77,29 @@ JSON
 )" --only-show-errors -o none
 
 echo "== wait for deployment"
+DEPLOYED=0
 for _ in $(seq 1 36); do
   HEALTH="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/health" || true)"
   if [[ "${HEALTH}" == *"${SOURCE_SHA}"* ]]; then
     printf '%s\n' "${HEALTH}"
-    exit 0
+    DEPLOYED=1
+    break
   fi
   sleep 10
 done
 
-echo "deployment did not expose ${SOURCE_SHA} on /health" >&2
-exit 1
+if [[ "${DEPLOYED}" != "1" ]]; then
+  echo "deployment did not expose ${SOURCE_SHA} on /health" >&2
+  exit 1
+fi
+
+# The release verifier uses this deliberately harmless, exact synthetic document
+# to exercise paid routes. Checking it here catches a Container Apps template
+# that drops SAFE_QA_FIXTURES even when the image itself is healthy.
+echo "== verify non-charging QA entitlement"
+QA_FIXTURE="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/api/qa/entitlement" || true)"
+if [[ "${QA_FIXTURE}" != *'"charges":false'* || "${QA_FIXTURE}" != *'"files_with_hmrc":false'* ]]; then
+  echo "deployment did not enable the non-charging QA entitlement fixture" >&2
+  exit 1
+fi
+printf '%s\n' "${QA_FIXTURE}"

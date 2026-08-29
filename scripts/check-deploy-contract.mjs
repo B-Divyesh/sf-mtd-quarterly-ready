@@ -10,10 +10,15 @@ const required = [
   '"bindingType": "SniEnabled"',
   'BUILD_SHA=${SOURCE_SHA}',
   'az containerapp revision deactivate',
+  '"name": "SAFE_QA_FIXTURES", "value": "1"',
+  'verify non-charging QA entitlement',
+  '/api/qa/entitlement',
+  '"charges":false',
+  '"files_with_hmrc":false',
 ];
 
 for (const text of required) {
   if (!deployment.includes(text)) throw new Error(`Deployment contract is missing ${text}`);
 }
 
-console.log('Deployment contract: durable /data, one replica, SNI binding, and build identity are configured.');
+console.log('Deployment contract: durable /data, one replica, SNI binding, build identity, and the verified non-charging QA fixture are configured.');

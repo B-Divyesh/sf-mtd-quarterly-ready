@@ -33,7 +33,8 @@ credentials.
 
 ## Non-charging release fixture
 
-When the container has `SAFE_QA_FIXTURES=1`, `GET /api/qa/entitlement` returns a
+The release deployment sets `SAFE_QA_FIXTURES=1` and checks
+`GET /api/qa/entitlement` before it reports success. The endpoint returns a
 public QA token and one exact synthetic document. The token authorises only that
 unchanged document. It cannot authorise user records. Its submission result is
 labelled `fixture_only_no_filing` and does not call Sociobot, Dodo, HMRC, or the
