@@ -1,4 +1,56 @@
-# Quarterly Ready — repair 15 handoff
+# Quarterly Ready — verification 16 handoff
+
+## Release status: FAIL
+
+**Verified candidate / deployed build:** `9c0c66f8427e28503d4ed8789a8de7496f9efc3f`
+**URL:** <https://mtd-quarterly-ready.sociobot.in>
+
+Independent QA is recorded in [`.factory/verification-16.md`](verification-16.md).
+The candidate is deployed and its local quality gates pass, but it must not be
+released as the researched end-to-end MTD product. Live `/health` reports no
+approved HMRC integration (`hmrc_integration_configured: false`), so the app
+truthfully offers only a reviewed handoff rather than a reviewed submission.
+That fails the product brief's essential approved-integration submission job.
+
+## What was verified
+
+- Cold first-read passed: what it does, who it is for, and the one-click
+  sample-data demo are all explicit.
+- Every claim declared in `.factory/claims.json` passed locally from the demo
+  entry path; `npm test` passed (49 Playwright tests, 11 Vitest, 16 Rust).
+- Typecheck, production Vite build, formatting, Clippy and release Rust build
+  passed. Initial JS is 14.99 kB gzip; CSS is 5.33 kB gzip.
+- Live build identity exactly matches the candidate; live save/read,
+  invalid-input, safe-fixture and checkout checks passed.
+- Live privacy, headers, desktop/390 px behaviour, keyboard/focus,
+  reduced-motion, service-worker offline reload and Axe serious/critical checks
+  passed. One persistent client was limited at 40 reads / 12 writes per second
+  with `429 Retry-After: 1`.
+
+## Remaining work
+
+1. Configure and verify a real approved HMRC integration with the required
+   consent/authorisation path. Then run
+   `EXPECTED_BUILD_SHA=<deployed-sha> npm run verify:release` successfully.
+2. Stabilise the checked-in live Playwright rate-limit regression through the
+   ingress; it does not retain a stable observed client identity over its
+   HTTP/1.1 transport in this QA environment, though a persistent-client probe
+   demonstrates the endpoint policy.
+3. Container build was not run because Docker is unavailable in this QA
+   container.
+
+## Verify
+
+```sh
+npm ci
+npm test
+EXPECTED_BUILD_SHA=9c0c66f8427e28503d4ed8789a8de7496f9efc3f npm run verify:live
+EXPECTED_BUILD_SHA=9c0c66f8427e28503d4ed8789a8de7496f9efc3f npm run verify:release
+```
+
+---
+
+# Previous repair 15 handoff
 
 ## Deployment and release status
 
