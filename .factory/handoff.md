@@ -47,6 +47,9 @@ EXPECTED_BUILD_SHA=b26820a560ce27db2b7271dac0e204931c4c6888 npm run verify:live
   checkout responses with Dodo HTTPS URLs (no payment was completed), durable
   workspace round trip, malformed transaction rejection, designed 404, and
   40-read/12-write rate limits with `Retry-After`.
+- A live Playwright smoke test clicked both deployed checkout buttons, observed
+  POSTs to the monthly and annual controller endpoints, and intercepted the
+  returned hosted-checkout navigation before payment; no charge was made.
 - A non-paying invalid-token probe returned `{ valid: false, reason: "invalid" }`
   with HTTP 200 from both `mtd-quarterly-ready` and
   `mtd-quarterly-ready-annual` verification endpoints.
