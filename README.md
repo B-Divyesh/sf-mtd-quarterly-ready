@@ -29,7 +29,7 @@ Demo changes use the `demo:quarterly-ready:document` browser key. They never rea
 
 The free version keeps one working quarter and all downloads. A £12 monthly or £99 annual Sociobot subscription adds live accountant links and approved-integration submissions. Checkout and server-side subscription checks use the Sociobot billing API.
 
-The two required controller-side subscription registrations are specified in [`.factory/billing.md`](.factory/billing.md). The application sends only its slug and the stable `monthly` or `annual` plan name. Provider product and price IDs must stay in the Sociobot controller.
+The two required controller-side subscription registrations are specified in [`.factory/billing.md`](.factory/billing.md). The application POSTs to the correct monthly or annual Sociobot product endpoint, then follows only its returned Dodo checkout URL. Provider product and price IDs stay in the Sociobot controller.
 
 ## Run locally
 

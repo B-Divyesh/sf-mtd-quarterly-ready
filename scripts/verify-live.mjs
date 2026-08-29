@@ -1,7 +1,7 @@
 import process from 'node:process';
 
 const origin = process.env.VERIFY_ORIGIN || 'https://mtd-quarterly-ready.sociobot.in';
-const billing = 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready';
+const billing = 'https://api.sociobot.in/api/v1/products';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -19,11 +19,12 @@ if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }
 
-for (const plan of ['monthly', 'annual']) {
-  const checkout = await fetch(`${billing}/checkout?plan=${plan}`, { redirect: 'manual' });
-  assert([301, 302, 303, 307, 308].includes(checkout.status), `${plan} checkout returned ${checkout.status}, expected a hosted-checkout redirect`);
-  const location = checkout.headers.get('location');
-  assert(location?.startsWith('https://'), `${plan} checkout did not return an HTTPS location`);
+for (const [plan, slug] of [['monthly', 'mtd-quarterly-ready'], ['annual', 'mtd-quarterly-ready-annual']]) {
+  const checkout = await fetch(`${billing}/${slug}/checkout`, { method: 'POST', headers: { accept: 'application/json' } });
+  assert(checkout.status === 200, `${plan} checkout returned ${checkout.status}, expected a checkout URL`);
+  const body = await checkout.json();
+  const url = new URL(body.checkout_url || '');
+  assert(url.protocol === 'https:' && url.hostname === 'checkout.dodopayments.com', `${plan} checkout did not return a Dodo HTTPS URL`);
 }
 
 const unknown = await response(`/release-regression-${Date.now()}`);
@@ -34,7 +35,12 @@ const workspaceId = crypto.randomUUID();
 const empty = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
 assert(empty.status === 200, `empty workspace returned ${empty.status}`);
 assert((await empty.json()).document === null, 'empty workspace did not return document: null');
-const durableDocument = { transactions: [{ description: `Live durability probe ${workspaceId}` }] };
+const durableDocument = {
+  schemaVersion: 1, businessName: 'Live durability probe', quarterLabel: '6 April to 5 July 2026',
+  quarterStart: '2026-04-06', quarterEnd: '2026-07-05', figuresReviewed: false, packDownloaded: false,
+  markedReady: false, updatedAt: new Date().toISOString(),
+  transactions: [{ id: workspaceId, date: '2026-04-09', description: `Live durability probe ${workspaceId}`, amountPence: 100, kind: 'income', category: 'Sales' }],
+};
 const saved = await response('/api/workspace', {
   method: 'PUT',
   headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' },
@@ -44,6 +50,12 @@ assert(saved.status === 200, `workspace save returned ${saved.status}`);
 const restored = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
 assert(restored.status === 200, `saved workspace read returned ${restored.status}`);
 assert((await restored.json()).document?.transactions?.[0]?.description === durableDocument.transactions[0].description, 'saved workspace was not restored');
+const malformed = await response('/api/workspace', {
+  method: 'PUT',
+  headers: { 'content-type': 'application/json', 'x-workspace-id': crypto.randomUUID(), 'x-forwarded-for': '203.0.113.244' },
+  body: JSON.stringify({ document: { ...durableDocument, transactions: [{ ...durableDocument.transactions[0], date: 'not-a-date' }] } }),
+});
+assert(malformed.status === 422, `malformed workspace transaction returned ${malformed.status}, expected 422`);
 
 async function assertLimit(kind, allowance, clientIp) {
   const requests = Array.from({ length: allowance + 8 }, (_, index) => {

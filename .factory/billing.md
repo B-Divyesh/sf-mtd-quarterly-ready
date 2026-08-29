@@ -7,25 +7,26 @@ enabled recurring plans under one product slug:
 | Product slug | Plan query value | Customer price | Billing interval |
 | --- | --- | --- | --- |
 | `mtd-quarterly-ready` | `monthly` | GBP 1,200 pence | monthly |
-| `mtd-quarterly-ready` | `annual` | GBP 9,900 pence | yearly |
+| `mtd-quarterly-ready-annual` | `annual` | GBP 9,900 pence | yearly |
 
 Both registrations require:
 
 - enabled production checkout;
-- entitlement product `mtd-quarterly-ready` so one licence verifies at
-  `/api/v1/products/mtd-quarterly-ready/verify`;
+- entitlement products `mtd-quarterly-ready` and `mtd-quarterly-ready-annual`;
+  the application accepts a valid subscription token from either verification endpoint;
 - return URL `https://mtd-quarterly-ready.sociobot.in/records` with the
   controller-provided `license` query value preserved;
 - recurring subscription mode, with Sociobot as merchant of record;
 - the same entitlement for live accountant links and approved-integration
   submissions.
 
-The browser URLs are deliberately stable and contain no provider IDs:
+The browser makes a deliberate `POST` to these stable controller URLs and then
+redirects only to the returned Dodo URL. They contain no provider IDs:
 
-- `https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=monthly`
-- `https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=annual`
+- `https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout`
+- `https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual/checkout`
 
-After registration, `npm run verify:live` requires each URL to return a hosted
-checkout redirect. Registration happens in the controller, not in this
+After registration, `npm run verify:live` requires each POST response to return
+a hosted Dodo checkout URL. Registration happens in the controller, not in this
 repository, because repository code must not contain payment-provider IDs or
 credentials.

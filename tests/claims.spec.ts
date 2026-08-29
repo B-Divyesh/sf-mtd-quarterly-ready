@@ -83,9 +83,21 @@ test('@claim:offline-browser-copy reloads the demo after the network is disabled
 });
 
 test('@claim:paid-tier uses Sociobot subscription checkout and keeps CSV free', async ({ page }) => {
+  const checkoutRequests: { url: string; method: string }[] = [];
+  await page.route('https://api.sociobot.in/api/v1/products/*/checkout', async route => {
+    checkoutRequests.push({ url: route.request().url(), method: route.request().method() });
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ checkout_url: 'https://checkout.dodopayments.com/session/test-session' }) });
+  });
+  await page.route('https://checkout.dodopayments.com/**', route => route.fulfill({ contentType: 'text/html', body: '<title>Test checkout</title>' }));
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Choose monthly' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=monthly');
-  await expect(page.getByRole('link', { name: /Choose annual/ })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout?plan=annual');
+  await page.getByRole('button', { name: 'Choose monthly' }).click();
+  await expect.poll(() => checkoutRequests.length).toBe(1);
+  expect(checkoutRequests[0]).toEqual({ url: 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout', method: 'POST' });
+  await page.waitForURL('https://checkout.dodopayments.com/session/test-session');
+  await page.goto('/');
+  await page.getByRole('button', { name: /Choose annual/ }).click();
+  await expect.poll(() => checkoutRequests.length).toBe(2);
+  expect(checkoutRequests[1]).toEqual({ url: 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual/checkout', method: 'POST' });
   await page.goto('/records');
   await expect(page.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
   await page.getByRole('button', { name: 'Make accountant link' }).click();

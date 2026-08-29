@@ -45,6 +45,16 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 const MAX_DOCUMENT_BYTES: usize = 5 * 1024 * 1024;
 const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
 const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
+const PRODUCT_SLUGS: [&str; 2] = ["mtd-quarterly-ready", "mtd-quarterly-ready-annual"];
+const CATEGORIES: [&str; 7] = [
+    "Sales",
+    "Rent and rates",
+    "Travel",
+    "Office costs",
+    "Professional fees",
+    "Repairs",
+    "Other",
+];
 
 #[derive(Clone)]
 struct AppState {
@@ -443,38 +453,44 @@ fn licence_token(request: &Request<Body>) -> Result<String, ApiError> {
 }
 
 async fn verify_licence_token(state: &AppState, token: &str) -> Result<(), ApiError> {
-    let endpoint = format!(
-        "{}/products/mtd-quarterly-ready/verify",
-        state.billing_base_url.trim_end_matches('/')
-    );
-    let response = state
-        .client
-        .get(endpoint)
-        .query(&[("license", token)])
-        .send()
-        .await
-        .map_err(|_| ApiError(
+    let mut reached_service = false;
+    for slug in PRODUCT_SLUGS {
+        let endpoint = format!(
+            "{}/products/{slug}/verify",
+            state.billing_base_url.trim_end_matches('/')
+        );
+        let response = match state
+            .client
+            .get(endpoint)
+            .query(&[("license", token)])
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(_) => continue,
+        };
+        reached_service = true;
+        if !response.status().is_success() {
+            continue;
+        }
+        let verdict: LicenceVerdict = response.json().await.map_err(|_| ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The Sociobot licence service gave an unreadable response. Try again before creating a live link.",
+        ))?;
+        if verdict.valid {
+            return Ok(());
+        }
+    }
+    if !reached_service {
+        return Err(ApiError(
             StatusCode::SERVICE_UNAVAILABLE,
             "The Sociobot licence service could not be reached. Try again before creating a live link.",
-        ))?;
-    if !response.status().is_success() {
-        return Err(ApiError(
-            StatusCode::PAYMENT_REQUIRED,
-            "Your Sociobot subscription is not active. Check the licence or choose a subscription.",
         ));
     }
-    let verdict: LicenceVerdict = response.json().await.map_err(|_| ApiError(
-        StatusCode::SERVICE_UNAVAILABLE,
-        "The Sociobot licence service gave an unreadable response. Try again before creating a live link.",
-    ))?;
-    if verdict.valid {
-        Ok(())
-    } else {
-        Err(ApiError(
-            StatusCode::PAYMENT_REQUIRED,
-            "Your Sociobot subscription is not active. Check the licence or choose a subscription.",
-        ))
-    }
+    Err(ApiError(
+        StatusCode::PAYMENT_REQUIRED,
+        "Your Sociobot subscription is not active. Check the licence or choose a subscription.",
+    ))
 }
 
 fn hmrc_compatible_payload(document: &Value, review_confirmed: bool) -> Result<Value, ApiError> {
@@ -755,7 +771,127 @@ fn validate_document(value: &Value) -> Result<(), ApiError> {
             "A workspace can hold up to 10,000 transactions.",
         ));
     }
+    let mut ids = std::collections::HashSet::with_capacity(transactions.len());
+    for transaction in transactions {
+        validate_transaction(transaction, &mut ids)?;
+    }
     Ok(())
+}
+
+fn invalid_transaction(message: &'static str) -> ApiError {
+    ApiError(StatusCode::UNPROCESSABLE_ENTITY, message)
+}
+
+fn validate_transaction(
+    transaction: &Value,
+    ids: &mut std::collections::HashSet<String>,
+) -> Result<(), ApiError> {
+    let object = transaction
+        .as_object()
+        .ok_or_else(|| invalid_transaction("Every transaction must be an object."))?;
+    let id = object
+        .get("id")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && value.len() <= 128)
+        .ok_or_else(|| invalid_transaction("Every transaction needs an ID."))?;
+    if !ids.insert(id.to_owned()) {
+        return Err(invalid_transaction("Transaction IDs must be unique."));
+    }
+    object
+        .get("date")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| is_calendar_date(value))
+        .ok_or_else(|| invalid_transaction("Every transaction needs a valid date."))?;
+    object
+        .get("description")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && value.chars().count() <= 120)
+        .ok_or_else(|| {
+            invalid_transaction("Every transaction needs a description of 120 characters or fewer.")
+        })?;
+    object
+        .get("amountPence")
+        .and_then(Value::as_i64)
+        .filter(|value| (1..=100_000_000).contains(value))
+        .ok_or_else(|| {
+            invalid_transaction("Every transaction needs an amount between £0.01 and £1,000,000.")
+        })?;
+    match object.get("kind").and_then(Value::as_str) {
+        Some("income" | "expense") => {}
+        _ => {
+            return Err(invalid_transaction(
+                "Every transaction needs an income or expense type.",
+            ))
+        }
+    }
+    match object.get("category").and_then(Value::as_str) {
+        Some("") => {}
+        Some(value) if CATEGORIES.contains(&value) => {}
+        _ => {
+            return Err(invalid_transaction(
+                "Every transaction needs a recognised category or an empty category for review.",
+            ))
+        }
+    }
+    let receipt_name = match object.get("receiptName") {
+        None => None,
+        Some(Value::String(value)) if !value.trim().is_empty() && value.chars().count() <= 255 => {
+            Some(value)
+        }
+        _ => {
+            return Err(invalid_transaction(
+                "A receipt name must be 255 characters or fewer.",
+            ))
+        }
+    };
+    if let Some(data) = object.get("receiptData") {
+        let data = data
+            .as_str()
+            .filter(|value| {
+                value.starts_with("data:image/jpeg;base64,")
+                    || value.starts_with("data:image/png;base64,")
+                    || value.starts_with("data:application/pdf;base64,")
+            })
+            .filter(|value| value.len() <= 2_000_000)
+            .ok_or_else(|| {
+                invalid_transaction("Receipt data must be a JPEG, PNG, or PDF under 1.5 MB.")
+            })?;
+        let _ = data;
+        if receipt_name.is_none() {
+            return Err(invalid_transaction("Receipt data needs a receipt name."));
+        }
+    }
+    if let Some(note) = object.get("note") {
+        if note
+            .as_str()
+            .is_none_or(|value| value.chars().count() > 1_000)
+        {
+            return Err(invalid_transaction(
+                "A transaction note must be text of 1,000 characters or fewer.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn is_calendar_date(value: &str) -> bool {
+    if !is_iso_date(value) {
+        return false;
+    }
+    let year = value[0..4].parse::<u32>().unwrap_or_default();
+    let month = value[5..7].parse::<u32>().unwrap_or_default();
+    let day = value[8..10].parse::<u32>().unwrap_or_default();
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day)
 }
 
 fn encrypt_json(key: &[u8; 32], value: &Value) -> Result<Vec<u8>, ApiError> {
@@ -995,6 +1131,25 @@ mod tests {
     }
 
     #[test]
+    fn rejects_each_malformed_transaction_field() {
+        let valid = json!({
+            "id": "record-1", "date": "2026-04-09", "description": "Maths lesson",
+            "amountPence": 4500, "kind": "income", "category": "Sales"
+        });
+        for invalid in [
+            json!({"date": "2026-04-09", "description": "Maths lesson", "amountPence": 4500, "kind": "income", "category": "Sales"}),
+            json!({"id": "record-1", "date": "2026-02-30", "description": "Maths lesson", "amountPence": 4500, "kind": "income", "category": "Sales"}),
+            json!({"id": "record-1", "date": "2026-04-09", "description": "", "amountPence": 4500, "kind": "income", "category": "Sales"}),
+            json!({"id": "record-1", "date": "2026-04-09", "description": "Maths lesson", "amountPence": 0, "kind": "income", "category": "Sales"}),
+            json!({"id": "record-1", "date": "2026-04-09", "description": "Maths lesson", "amountPence": 4500, "kind": "transfer", "category": "Sales"}),
+            json!({"id": "record-1", "date": "2026-04-09", "description": "Maths lesson", "amountPence": 4500, "kind": "income", "category": "Unknown"}),
+        ] {
+            assert!(validate_document(&json!({"transactions": [invalid]})).is_err());
+        }
+        assert!(validate_document(&json!({"transactions": [valid.clone(), valid]})).is_err());
+    }
+
+    #[test]
     fn startup_migration_retries_transient_sqlite_locks() {
         assert!(is_database_locked_message("database is locked"));
         assert!(is_database_locked_message("SQLITE_BUSY: database is busy"));
@@ -1103,6 +1258,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn subscription_verification_accepts_the_annual_entitlement() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for valid in [false, true] {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = vec![0; 2048];
+                let read = stream.read(&mut bytes).await.unwrap();
+                let request = String::from_utf8_lossy(&bytes[..read]);
+                let body = format!(r#"{{"valid":{valid}}}"#);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(), body
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+                if valid {
+                    assert!(request.starts_with(
+                        "GET /products/mtd-quarterly-ready-annual/verify?license=annual-token"
+                    ));
+                } else {
+                    assert!(request.starts_with(
+                        "GET /products/mtd-quarterly-ready/verify?license=annual-token"
+                    ));
+                }
+            }
+        });
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        let state = AppState {
+            db,
+            key: [3u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
+            persistence: Arc::new(Mutex::new(())),
+            limits: Arc::new(Mutex::new(HashMap::new())),
+            client: reqwest::Client::new(),
+            billing_base_url: format!("http://{address}"),
+            hmrc_integration: None,
+        };
+        verify_licence_token(&state, "annual-token").await.unwrap();
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn claim_hmrc_submission_uses_an_approved_integration_after_human_review() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         use tokio::sync::mpsc;
@@ -1152,7 +1356,7 @@ mod tests {
         let document = json!({
             "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",
             "figuresReviewed": true, "markedReady": true,
-            "transactions": [{ "amountPence": 26000, "kind": "income", "category": "Sales" }]
+            "transactions": [{ "id": "income-1", "date": "2026-04-09", "description": "Lesson income", "amountPence": 26000, "kind": "income", "category": "Sales" }]
         });
         let request = Request::builder()
             .header("x-workspace-id", "15aa583d-84cf-43f1-8438-354ddbfd6358")

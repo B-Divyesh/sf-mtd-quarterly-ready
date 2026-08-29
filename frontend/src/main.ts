@@ -6,6 +6,7 @@ import type { Category, QuarterDocument, Transaction } from './types';
 const PRODUCT = 'Quarterly Ready';
 const SLUG = 'mtd-quarterly-ready';
 const BILLING = `https://api.sociobot.in/api/v1/products/${SLUG}`;
+const ANNUAL_BILLING = 'https://api.sociobot.in/api/v1/products/mtd-quarterly-ready-annual';
 const CATEGORIES: Category[] = ['Sales', 'Rent and rates', 'Travel', 'Office costs', 'Professional fees', 'Repairs', 'Other', ''];
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let currentDocument: QuarterDocument | null = null;
@@ -55,7 +56,7 @@ function previewPanel(): string {
 }
 
 function pricingSection(): string {
-  return `<section class="pricing-section" aria-labelledby="price-title"><div><p class="eyebrow">LIVE SERVICE</p><h2 id="price-title">Submit and share from £12 a month</h2><p>A subscription adds verified accountant links and approved-integration submissions.</p><p>The free version keeps your quarter and every download.</p></div><div class="price-control"><strong><span>£</span>12</strong><span>per month · or £99 per year</span><a class="primary-button" href="${BILLING}/checkout?plan=monthly">Choose monthly</a><a class="text-button" href="${BILLING}/checkout?plan=annual">Choose annual · £99</a><button class="text-button" id="show-license">Have a subscription? Paste it</button><form id="license-form" class="license-form" hidden><label for="license-token">Subscription token</label><div><input id="license-token" name="license" autocomplete="off" required><button type="submit">Verify subscription</button></div></form><p id="license-result" class="form-message" aria-live="polite"></p><small>Sociobot is the merchant of record. Refunds are handled there.</small></div></section>`;
+  return `<section class="pricing-section" aria-labelledby="price-title"><div><p class="eyebrow">LIVE SERVICE</p><h2 id="price-title">Submit and share from £12 a month</h2><p>A subscription adds verified accountant links and approved-integration submissions.</p><p>The free version keeps your quarter and every download.</p></div><div class="price-control"><strong><span>£</span>12</strong><span>per month · or £99 per year</span><button class="primary-button" type="button" data-checkout="monthly">Choose monthly</button><button class="text-button" type="button" data-checkout="annual">Choose annual · £99</button><p id="checkout-result" class="form-message" aria-live="polite"></p><button class="text-button" id="show-license">Have a subscription? Paste it</button><form id="license-form" class="license-form" hidden><label for="license-token">Subscription token</label><div><input id="license-token" name="license" autocomplete="off" required><button type="submit">Verify subscription</button></div></form><p id="license-result" class="form-message" aria-live="polite"></p><small>Sociobot is the merchant of record. Refunds are handled there.</small></div></section>`;
 }
 
 function recordsPage(demo: boolean): string {
@@ -146,12 +147,31 @@ function bindLinks(): void {
 }
 
 function bindHome(): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-checkout]').forEach(button => button.addEventListener('click', () => void startCheckout(button.dataset.checkout === 'annual' ? 'annual' : 'monthly')));
   document.querySelector('#show-license')?.addEventListener('click', () => { const form = document.querySelector<HTMLFormElement>('#license-form')!; form.hidden = false; form.querySelector('input')?.focus(); });
   document.querySelector('#license-form')?.addEventListener('submit', async event => {
     event.preventDefault(); const form = event.currentTarget as HTMLFormElement; const token = new FormData(form).get('license')?.toString().trim(); if (token) await storeAndVerifyLicense(token);
   });
   if (!sessionStorage.getItem('quarterly-ready:viewed')) {
     sessionStorage.setItem('quarterly-ready:viewed', '1'); void fetch('/api/page-view', { method: 'POST' }).catch(() => undefined);
+  }
+}
+
+async function startCheckout(plan: 'monthly' | 'annual'): Promise<void> {
+  const output = document.querySelector<HTMLParagraphElement>('#checkout-result');
+  const button = document.querySelector<HTMLButtonElement>(`[data-checkout="${plan}"]`);
+  if (button) button.disabled = true;
+  if (output) output.textContent = 'Opening secure checkout…';
+  try {
+    const endpoint = plan === 'annual' ? ANNUAL_BILLING : BILLING;
+    const response = await fetch(`${endpoint}/checkout`, { method: 'POST', headers: { Accept: 'application/json' } });
+    const result = await response.json().catch(() => ({})) as { checkout_url?: string };
+    const checkout = new URL(result.checkout_url || '');
+    if (!response.ok || checkout.protocol !== 'https:') throw new Error('No secure checkout URL was returned.');
+    location.assign(checkout.href);
+  } catch {
+    if (output) output.textContent = 'Checkout could not open. Check your connection and try again.';
+    if (button) button.disabled = false;
   }
 }
 
@@ -288,7 +308,16 @@ function isLicensed(): boolean { try { const result = JSON.parse(localStorage.ge
 async function storeAndVerifyLicense(token: string): Promise<void> {
   localStorage.setItem(LICENSE_KEY, token); const output = document.querySelector<HTMLParagraphElement>('#license-result');
   if (output) output.textContent = 'Checking the licence…';
-  try { const response = await fetch(`${BILLING}/verify?license=${encodeURIComponent(token)}`); const result = await response.json() as { valid: boolean; reason: string; expires_at?: string }; localStorage.setItem(VERDICT_KEY, JSON.stringify({ ...result, checkedAt: Date.now() })); if (output) output.textContent = result.valid ? 'Subscription active on this browser.' : 'This subscription is not active. Check the token or choose a plan.'; }
+  try {
+    let result: { valid: boolean; reason: string; expires_at?: string } = { valid: false, reason: 'invalid' };
+    for (const endpoint of [BILLING, ANNUAL_BILLING]) {
+      const response = await fetch(`${endpoint}/verify?license=${encodeURIComponent(token)}`);
+      const verdict = await response.json().catch(() => ({ valid: false, reason: 'invalid' })) as { valid: boolean; reason: string; expires_at?: string };
+      if (response.ok && verdict.valid) { result = verdict; break; }
+    }
+    localStorage.setItem(VERDICT_KEY, JSON.stringify({ ...result, checkedAt: Date.now() }));
+    if (output) output.textContent = result.valid ? 'Subscription active on this browser.' : 'This subscription is not active. Check the token or choose a plan.';
+  }
   catch { if (output) output.textContent = 'The subscription service could not be reached. Check your connection and try again.'; }
 }
 

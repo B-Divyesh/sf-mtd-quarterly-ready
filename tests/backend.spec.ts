@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+const validDocument = {
+  schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
+  quarterStart: '2026-04-06', quarterEnd: '2026-07-05', figuresReviewed: false, packDownloaded: false,
+  markedReady: false, updatedAt: '2026-06-28T10:30:00.000Z',
+  transactions: [{ id: 'test-lesson', date: '2026-04-09', description: 'Test lesson', amountPence: 4500, kind: 'income', category: 'Sales' }],
+};
+
 test('health reports the build identity', async ({ request }) => {
   const response = await request.get('/health');
   expect(response.status()).toBe(200);
@@ -9,9 +16,27 @@ test('health reports the build identity', async ({ request }) => {
 test('workspace endpoints save and return an encrypted document', async ({ request }) => {
   const id = '9735ee38-13fe-4a21-985b-96a32a720cef';
   const headers = { 'x-workspace-id': id, 'x-forwarded-for': '203.0.113.20' };
-  expect((await request.put('/api/workspace', { headers, data: { document: { transactions: [{ description: 'Test lesson' }] } } })).status()).toBe(200);
+  expect((await request.put('/api/workspace', { headers, data: { document: validDocument } })).status()).toBe(200);
   const result = await (await request.get('/api/workspace', { headers })).json();
   expect(result.document.transactions[0].description).toBe('Test lesson');
+});
+
+test('@regression:workspace-rejects-malformed-transaction-objects before persistence', async ({ request }) => {
+  const headers = { 'x-workspace-id': 'd735ee38-13fe-4a21-985b-96a32a720cef', 'x-forwarded-for': '203.0.113.22' };
+  const malformed = [
+    { ...validDocument.transactions[0], date: '2026-02-30' },
+    { ...validDocument.transactions[0], description: '' },
+    { ...validDocument.transactions[0], amountPence: 0 },
+    { ...validDocument.transactions[0], kind: 'transfer' },
+    { ...validDocument.transactions[0], category: 'Uncategorised' },
+    { ...validDocument.transactions[0], receiptData: 'data:text/plain;base64,SGVsbG8=' },
+  ];
+  for (const transaction of malformed) {
+    const response = await request.put('/api/workspace', { headers, data: { document: { ...validDocument, transactions: [transaction] } } });
+    expect(response.status()).toBe(422);
+  }
+  expect((await request.get('/api/workspace', { headers })).status()).toBe(200);
+  expect(await (await request.get('/api/workspace', { headers: { ...headers, 'x-forwarded-for': '203.0.113.23' } })).json()).toEqual({ document: null });
 });
 
 test('@regression:empty-workspace returns a successful empty document', async ({ request }) => {
