@@ -25,6 +25,21 @@ HMRC_URL_SECRET="mtd-quarterly-ready-hmrc-integration-url"
 HMRC_TOKEN_SECRET="mtd-quarterly-ready-hmrc-integration-token"
 APP_URL="https://management.azure.com${RESOURCE_ID}/providers/Microsoft.App/containerApps/${APP}?api-version=2024-03-01"
 
+# A release is not allowed to silently become the weaker handoff-only service.
+# Query only secret metadata: the worker never reads, logs, or embeds a value.
+HMRC_SECRET_CONFIG="[]"
+HMRC_ENV_CONFIG=""
+if az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
+  && az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
+  HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-integration-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-integration-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
+  HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}'
+  echo "approved HMRC integration secret references found; binding them without reading values"
+else
+  echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
+  echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
+  exit 1
+fi
+
 echo "== ACR build ${IMAGE_TAG}"
 az acr build --registry "${REGISTRY}" --image "${IMAGE_TAG}" --file Dockerfile \
   --build-arg "BUILD_SHA=${SOURCE_SHA}" \
@@ -42,21 +57,6 @@ az containerapp env storage set --resource-group "${RESOURCE_GROUP}" --name "${E
   --azure-file-account-key "${STORAGE_KEY}" --only-show-errors -o none
 unset STORAGE_KEY
 
-# Bind an approved integration only when both controller-provisioned Key Vault
-# secrets exist. This command checks secret metadata and never reads a value.
-HMRC_SECRET_CONFIG="[]"
-HMRC_ENV_CONFIG=""
-if az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
-  && az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
-  HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-integration-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-integration-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
-  HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}'
-  echo "approved HMRC integration secret references found; binding them without reading values"
-else
-  echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
-  echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
-  exit 1
-fi
-
 echo "== container app (one replica, mounted /data)"
 # SQLite uses an advisory file lock. In single-revision mode Azure otherwise
 # keeps the old replica alive until the new one is ready, which deadlocks a
@@ -66,7 +66,7 @@ READY_REVISION="$(az containerapp show --resource-group "${RESOURCE_GROUP}" --na
 if [[ -n "${READY_REVISION}" ]]; then
   az containerapp revision deactivate --resource-group "${RESOURCE_GROUP}" --name "${APP}" --revision "${READY_REVISION}" --only-show-errors -o none || true
 fi
-az rest --method patch --url "${APP_URL}" --body "$(cat <<JSON
+az rest --method patch --url "${APP_URL}" --headers "Content-Type=application/json" --body "$(cat <<JSON
 {
   "properties": {
     "configuration": {

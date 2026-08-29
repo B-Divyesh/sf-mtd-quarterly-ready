@@ -11,6 +11,7 @@ const required = [
   '"minReplicas": 1, "maxReplicas": 1',
   '"activeRevisionsMode": "Single"',
   '"bindingType": "SniEnabled"',
+  '--headers "Content-Type=application/json"',
   'BUILD_SHA=${SOURCE_SHA}',
   'az containerapp revision deactivate',
   '"name": "SAFE_QA_FIXTURES", "value": "1"',
@@ -34,6 +35,9 @@ for (const text of required) {
 
 if (!/^ENV .*SAFE_QA_FIXTURES=1/m.test(dockerfile)) {
   throw new Error('Container runtime defaults must include SAFE_QA_FIXTURES=1');
+}
+if (deployment.indexOf('missing approved HMRC integration secret references; refusing a release deployment') > deployment.indexOf('echo "== ACR build')) {
+  throw new Error('Deployment must check approved HMRC secret references before building or changing the Container App.');
 }
 if (packageJson.scripts['verify:release'] !== 'VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs') {
   throw new Error('Release verification must require both the live Azure topology and approved HMRC capability.');
