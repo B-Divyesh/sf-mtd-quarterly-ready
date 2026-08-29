@@ -23,6 +23,6 @@ WORKDIR /app
 COPY --from=server /build/target/release/quarterly-ready /app/quarterly-ready
 COPY --from=web /build/dist /app/dist
 USER app
-ENV PORT=8080 DATA_DIR=/data FRONTEND_DIR=/app/dist
+ENV PORT=8080 DATA_DIR=/data DATABASE_DIR=/tmp/quarterly-ready FRONTEND_DIR=/app/dist
 EXPOSE 8080
 CMD ["/app/quarterly-ready"]

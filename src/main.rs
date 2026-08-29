@@ -45,6 +45,9 @@ const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
 struct AppState {
     db: SqlitePool,
     key: [u8; 32],
+    database_path: PathBuf,
+    snapshot_path: PathBuf,
+    persistence: Arc<Mutex<()>>,
     limits: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
     client: reqwest::Client,
     billing_base_url: String,
@@ -112,17 +115,25 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
     let data_dir = PathBuf::from(env::var("DATA_DIR").unwrap_or_else(|_| "./data".into()));
+    let database_dir = PathBuf::from(
+        env::var("DATABASE_DIR").unwrap_or_else(|_| data_dir.to_string_lossy().into_owned()),
+    );
     let frontend_dir = PathBuf::from(env::var("FRONTEND_DIR").unwrap_or_else(|_| "./dist".into()));
     fs::create_dir_all(&data_dir)
         .await
         .expect("create data directory");
+    fs::create_dir_all(&database_dir)
+        .await
+        .expect("create database directory");
+    let snapshot_path = data_dir.join("quarterly-ready.snapshot.sqlite3");
+    let database_path = database_dir.join("quarterly-ready.sqlite3");
+    restore_database_snapshot(&snapshot_path, &database_path)
+        .await
+        .expect("restore database snapshot");
     let (key, generated) = load_or_create_key(&data_dir.join("quarterly-ready.key"))
         .await
         .expect("load encryption key");
-    let database_url = format!(
-        "sqlite://{}?mode=rwc",
-        data_dir.join("quarterly-ready.sqlite3").display()
-    );
+    let database_url = format!("sqlite://{}?mode=rwc", database_path.display());
     let db = SqlitePoolOptions::new()
         // The deployed database is a single SQLite file on the mounted Azure
         // Files share. One connection avoids self-contention and makes a
@@ -135,6 +146,10 @@ async fn main() {
         .execute(&db)
         .await
         .expect("configure database busy timeout");
+    sqlx::query("PRAGMA journal_mode = DELETE")
+        .execute(&db)
+        .await
+        .expect("configure database journal");
     migrate_with_retry(&db)
         .await
         .expect("run database migrations");
@@ -159,6 +174,9 @@ async fn main() {
     let state = AppState {
         db,
         key,
+        database_path,
+        snapshot_path,
+        persistence: Arc::new(Mutex::new(())),
         limits: Arc::new(Mutex::new(HashMap::new())),
         client,
         billing_base_url: env::var("SOCIOBOT_BILLING_URL")
@@ -246,6 +264,7 @@ async fn put_workspace(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<Json<Value>, ApiError> {
+    let _persistence = state.persistence.lock().await;
     let id = workspace_id(&request)?;
     let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
         .await
@@ -267,6 +286,9 @@ async fn put_workspace(
     sqlx::query("INSERT INTO workspaces(id, payload, updated_at) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at")
         .bind(&id).bind(encrypted).bind(now as i64).execute(&state.db).await.map_err(internal)?;
     write_audit(&state, &id, "records_saved", &bytes).await?;
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)?;
     Ok(Json(json!({ "saved": true, "updated_at": now })))
 }
 
@@ -274,6 +296,7 @@ async fn create_share(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<(StatusCode, Json<ShareResult>), ApiError> {
+    let _persistence = state.persistence.lock().await;
     let id = workspace_id(&request)?;
     let licence = licence_token(&request)?;
     verify_licence_token(&state, &licence).await?;
@@ -304,6 +327,9 @@ async fn create_share(
         .await
         .map_err(internal)?;
     write_audit(&state, &id, "accountant_link_created", token.as_bytes()).await?;
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)?;
     Ok((StatusCode::CREATED, Json(ShareResult { token, expires_at })))
 }
 
@@ -311,6 +337,7 @@ async fn submit_to_hmrc(
     State(state): State<AppState>,
     request: Request<Body>,
 ) -> Result<Json<SubmissionResult>, ApiError> {
+    let _persistence = state.persistence.lock().await;
     let id = workspace_id(&request)?;
     let licence = request
         .headers()
@@ -387,6 +414,9 @@ async fn submit_to_hmrc(
         submission_id.as_bytes(),
     )
     .await?;
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)?;
     Ok(Json(SubmissionResult {
         submission_id,
         status: "accepted",
@@ -825,6 +855,28 @@ async fn load_or_create_key(path: &FsPath) -> Result<([u8; 32], bool), std::io::
     Ok((key, true))
 }
 
+async fn restore_database_snapshot(
+    snapshot: &FsPath,
+    database: &FsPath,
+) -> Result<(), std::io::Error> {
+    if fs::metadata(snapshot).await.is_ok() && fs::metadata(database).await.is_err() {
+        fs::copy(snapshot, database).await?;
+    }
+    Ok(())
+}
+
+async fn persist_database_snapshot(
+    database: &FsPath,
+    snapshot: &FsPath,
+) -> Result<(), std::io::Error> {
+    if fs::metadata(database).await.is_err() {
+        return Ok(());
+    }
+    let temporary = snapshot.with_extension("sqlite3.next");
+    fs::copy(database, &temporary).await?;
+    fs::rename(temporary, snapshot).await
+}
+
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS shares(token TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, payload BLOB NOT NULL, expires_at INTEGER NOT NULL)").execute(db).await?;
@@ -934,6 +986,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn workspace_snapshot_is_restored_after_a_restart() {
+        let root =
+            std::env::temp_dir().join(format!("quarterly-ready-snapshot-{}", Uuid::new_v4()));
+        let durable = root.join("durable");
+        let local = root.join("local");
+        fs::create_dir_all(&durable).await.unwrap();
+        fs::create_dir_all(&local).await.unwrap();
+        let database = local.join("quarterly-ready.sqlite3");
+        let snapshot = durable.join("quarterly-ready.snapshot.sqlite3");
+        fs::write(&database, b"encrypted workspace snapshot")
+            .await
+            .unwrap();
+        persist_database_snapshot(&database, &snapshot)
+            .await
+            .unwrap();
+        fs::remove_file(&database).await.unwrap();
+        restore_database_snapshot(&snapshot, &database)
+            .await
+            .unwrap();
+        assert_eq!(
+            fs::read(&database).await.unwrap(),
+            b"encrypted workspace snapshot"
+        );
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn claim_anonymous_page_count() {
         let db = SqlitePoolOptions::new()
             .max_connections(1)
@@ -960,6 +1039,9 @@ mod tests {
         let state = AppState {
             db,
             key: [9u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
+            persistence: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
@@ -1040,6 +1122,9 @@ mod tests {
         let state = AppState {
             db,
             key: [4u8; 32],
+            database_path: PathBuf::from("/tmp/quarterly-ready-test.sqlite3"),
+            snapshot_path: PathBuf::from("/tmp/quarterly-ready-test.snapshot.sqlite3"),
+            persistence: Arc::new(Mutex::new(())),
             limits: Arc::new(Mutex::new(HashMap::new())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),

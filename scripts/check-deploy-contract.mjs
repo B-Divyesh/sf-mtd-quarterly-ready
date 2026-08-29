@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 
 const deployment = await readFile(new URL('./deploy-container.sh', import.meta.url), 'utf8');
 const required = [
-  'FILE_SHARE="sf-mtd-quarterly-ready-data-v2"',
-  'ENV_STORAGE="mtd-quarterly-ready-data-v2"',
+  'FILE_SHARE="sf-mtd-quarterly-ready-data-v3"',
+  'ENV_STORAGE="mtd-quarterly-ready-data-v3"',
   '"mountPath": "/data"',
   '"storageType": "AzureFile"',
   '"minReplicas": 1, "maxReplicas": 1',
