@@ -96,7 +96,7 @@ az containerapp env storage set --resource-group "${RESOURCE_GROUP}" --name "${E
 unset STORAGE_KEY
 
 echo "== container app (one replica, mounted /data)"
-# SQLite and the built-in limiter are serial process resources. A one-replica
+# SQLite and the in-process Governor quotas are serial process resources. A one-replica
 # hand-off prevents divergent records or multiplied per-client allowances.
 stop_revision_for_snapshot_handoff() {
   local revision="$1"

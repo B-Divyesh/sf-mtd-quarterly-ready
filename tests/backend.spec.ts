@@ -201,6 +201,21 @@ test('@regression:OAuth callback shares the stricter write quota', async ({ requ
   expect(Number.parseInt(callback.headers()['retry-after'], 10)).toBeGreaterThan(0);
 });
 
+test('@claim:api-rate-limit enforces both paced burst allowances on a stable client connection', async () => {
+  const result = JSON.parse(execFileSync(process.execPath, ['scripts/verify-rate-limit.mjs'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: { ...process.env, VERIFY_ORIGIN: process.env.VERIFY_ORIGIN || 'http://127.0.0.1:4173' },
+  }).trim());
+  expect(result).toMatchObject({
+    status: 'ok',
+    read: { allowance: 40, first_limited_request: 41, paced_beyond_previous_one_second_window: true },
+    write: { allowance: 12, first_limited_request: 13, paced_beyond_previous_one_second_window: true },
+  });
+  expect(Number.parseInt(result.read.retry_after, 10)).toBeGreaterThan(0);
+  expect(Number.parseInt(result.write.retry_after, 10)).toBeGreaterThan(0);
+});
+
 test('@regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit', async ({ request }) => {
   test.skip(Boolean(process.env.VERIFY_ORIGIN), 'The public ingress supplies X-Forwarded-For, so the direct-origin fallback header is intentionally not used.');
   const firstBrowser = '0d0bde02-f4f3-46db-9b6d-08f10f1b48c1';
