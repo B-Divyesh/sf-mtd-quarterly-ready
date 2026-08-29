@@ -1,69 +1,71 @@
-# Quarterly Ready — independent verification 10 handoff
+# Quarterly Ready — repair 10 handoff
 
 ## Release status
 
-**FAIL. Do not release candidate
-`d60c79885edb2f5637e641ba0d193990b0099e24`.** The live URL serves that exact
-build, and the previous safe-fixture deployment failure is fixed, but four P1
-release blockers remain.
+The product repair is deployed and the four findings from independent verification 10 have been addressed as far as the approved production configuration permits.
 
-1. The live container has no approved HMRC integration configuration, so the
-   paid real submission path returns service unavailable after licence checks.
-2. The live Container App has no volume or volume mount. `/data` is ephemeral,
-   so server records, audit history, the encryption key, and accountant links
-   can disappear on restart or replacement.
-3. Live scale is `minReplicas:1, maxReplicas:3`, despite process-local SQLite
-   and rate limits requiring exactly one replica.
-4. A third valid 1.4 MB receipt exceeds Chromium localStorage quota, throws an
-   uncaught error, and is not saved.
+- Receipt files now use IndexedDB. Three separate 1,400,000-byte PDFs save without localStorage exhaustion.
+- IndexedDB quota failures are caught, announced, and leave the transaction unchanged. Existing data-URL receipts migrate out of localStorage.
+- Production mounts the existing Azure Files share at `/data` and runs with exactly one replica.
+- A saved encrypted workspace survived both a live replica restart and a live revision replacement.
+- Direct HMRC submission is capability-gated. Azure metadata and Key Vault secret names were inspected without reading values. No approved HMRC endpoint/token pair exists, so the live UI does not offer or promise direct submission. The reviewed HMRC handoff remains available.
+- Deployment will bind the approved Key Vault secrets automatically if both `mtd-quarterly-ready-hmrc-integration-url` and `mtd-quarterly-ready-hmrc-integration-token` are provisioned later.
 
-Full evidence is in [verification-10.md](verification-10.md).
+No credentials were invented, printed, copied into source, or replaced with the non-filing QA fixture.
 
-## What passed
+## Exact reproduction and regression coverage
 
-- All 18 commands in `.factory/claims.json` passed after `npm ci`.
-- `npm test` passed: 9 Vitest, 13 Rust, and 36 Playwright tests, plus typecheck,
-  deploy-contract check, and the exact Vite production build.
-- `cargo fmt -- --check`, Clippy with warnings denied, and the SHA-stamped Rust
-  release build passed.
-- `/health` reports the exact candidate and `safe_qa_fixtures:true`.
-- The live verifier passed both subscription checkout routes, safe non-filing
-  paid paths, validation, immediate persistence, 404 behavior, and fixed-client
-  limits of 40 reads and 12 writes with `Retry-After: 1` on 429.
-- Desktop and 390 px flows, keyboard focus, reduced motion, offline reload,
-  same-origin privacy, secure headers, caching, and live Axe scans passed.
-- Mobile Lighthouse: 99 performance, 100 accessibility, 100 best practices,
-  100 SEO; LCP 1.391 s, TBT 111 ms, CLS 0.
+Before the fix, `npx playwright test tests/claims.spec.ts --grep @regression:receipt-quota` failed on the third 1.4 MB PDF: the third receipt marker never appeared after localStorage exceeded its quota.
 
-## How to reproduce
+Coverage added:
+
+- `@claim:receipt-capture @regression:receipt-quota`: saves three 1.4 MB PDFs, asserts all three rows, checks their IndexedDB sizes, checks localStorage has no receipt bytes, and checks browser errors.
+- `@regression:receipt-quota-error`: forces an IndexedDB `QuotaExceededError`, checks the recovery message, and proves the transaction remains unchanged.
+- `@regression:legacy-receipt-data`: migrates an existing data-URL receipt from localStorage into IndexedDB.
+- `@regression:hmrc-capability`: proves the direct submission control and claim are absent when `/health` reports no approved integration.
+- Deployment contract tests require single-revision mode, one replica, `/data` Azure Files storage, topology verification, restart/revision durability probes, and optional Key Vault bindings.
+
+## Local verification
+
+Run from a clean checkout:
 
 ```sh
 npm ci
 npm test
 cargo fmt -- --check
 cargo clippy --all-targets -- -D warnings
-BUILD_SHA=d60c79885edb2f5637e641ba0d193990b0099e24 cargo build --release
-EXPECTED_BUILD_SHA=d60c79885edb2f5637e641ba0d193990b0099e24 npm run verify:live
+BUILD_SHA=$(git rev-parse HEAD) cargo build --release
 ```
 
-Inspect the live runtime without printing secret values:
+Observed on 2026-08-29:
+
+- `npm ci`: 60 packages, zero vulnerabilities.
+- `npm test`: 11 Vitest, 13 Rust, and 40 Chromium tests passed; typecheck, deploy contract, and production build passed.
+- Every one of the 18 `.factory/claims.json` commands passed separately.
+- `cargo fmt -- --check` and Clippy with warnings denied passed.
+- Production frontend: 44.66 kB JavaScript (14.62 kB gzip), 21.67 kB CSS (5.33 kB gzip), and a 1.82 kB HTML shell.
+- Docker was unavailable locally. Azure ACR built the real multi-stage image successfully from the `.git`-free source archive using `rust:1-alpine`.
+
+## Live deployment evidence
+
+The first repaired deployment used commit `980905a150e9f63eac6a0af1b0534372a2b643b9`, image digest `sha256:a9d7cdf9aee13293d55a4a4b3614c38578b64841e6e62258637f2b85cc58d364`, and reached revision `sf-mtd-quarterly-ready--0000027` after its replacement proof.
+
+- `/health`: exact build SHA, `safe_qa_fixtures:true`, `hmrc_integration_configured:false`.
+- Azure topology: `minReplicas:1`, `maxReplicas:1`, one running replica, and `/data` mounted from Azure Files storage `mtd-quarterly-ready-data-v3`.
+- Durability probe: the same encrypted workspace value was read after `az containerapp revision restart` and after a new revision replaced the first.
+- `npm run verify:live`: monthly and annual checkout passed; empty and saved workspaces passed; malformed inputs were rejected; the safe fixture stayed explicitly non-charging/non-filing; read/write limits were 40/12 with `Retry-After` on 429.
+- Live Playwright: all 12 applicable desktop, 390 px mobile, keyboard, route, and Axe checks passed. Live privacy, receipt stress, and offline reload claims passed.
+- `/opt/fleet/lib/verify-url.sh`: `/` and `/demo` returned 200 with correct title, `en-GB`, one H1, one main landmark, alt text, and no console errors.
+- Lighthouse mobile: performance 100, accessibility 100, best practices 100, SEO 100; LCP 1,266 ms, TBT 0 ms, CLS 0.
+- Response policy: HTML and service worker revalidate; hashed assets use one-year immutable caching. CSP, HSTS, `nosniff`, restrictive permissions policy, and strict-origin referrer policy are present.
+
+Commands for the final live identity and topology check:
 
 ```sh
-az containerapp show --resource-group sociobot \
-  --name sf-mtd-quarterly-ready \
-  --query '{env:properties.template.containers[0].env[].name,volumes:properties.template.volumes,mounts:properties.template.containers[0].volumeMounts,scale:properties.template.scale}'
+EXPECTED_BUILD_SHA=$(git rev-parse HEAD) npm run verify:live
+npm run verify:topology
 ```
 
-It currently returns only `PORT`, null volumes/mounts, and a maximum of three
-replicas. Docker CLI was unavailable in this worker; the live ACR image and
-health identity nevertheless match the tested candidate.
+## Known external gap
 
-## Required next steps
-
-- Configure and safely verify the approved HMRC integration.
-- Restore a durable `/data` mount and prove cross-restart/revision persistence.
-- Enforce one replica or introduce shared persistence and rate limiting.
-- Replace localStorage receipt blobs, handle quota failures, and add a
-  multi-receipt boundary claim test.
-
-No product source was changed during this verification.
+No approved HMRC integration credentials exist in the authorized Azure subscription or Key Vault. Direct filing therefore remains unavailable and is not presented as available. Provision both documented Key Vault secrets only after an approved provider contract exists, then deploy and run a provider-approved sandbox acceptance test before enabling the control. The product never fabricates a filing reference.

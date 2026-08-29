@@ -11,7 +11,7 @@ test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps 
   const keys = await page.evaluate(() => Object.keys(localStorage));
   expect(keys).toContain('demo:quarterly-ready:document');
   expect(keys).not.toContain('quarterly-ready:document');
-  expect(outgoing.every(url => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  expect(outgoing.every(url => new URL(url).origin === new URL(page.url()).origin)).toBe(true);
   expect(await context.cookies()).toEqual([]);
 });
 

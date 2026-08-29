@@ -73,7 +73,7 @@ function recordsPage(demo: boolean): string {
   return layout(`<main id="main" class="app-main">
     <div class="app-heading"><div><p class="eyebrow">${escapeHtml(period.shortLabel)}</p><h1 tabindex="-1">Check this quarter</h1><p>${escapeHtml(doc.quarterLabel)} · ${escapeHtml(doc.businessName || 'Business name not entered')}</p></div><div class="connection" role="status"><span class="lamp ${navigator.onLine ? 'teal' : 'orange'}"></span>${navigator.onLine ? (demo ? 'Demo ready' : 'Saved in this browser') : 'Offline — browser copy active'}</div></div>
     ${quarterControls}
-    <details class="business-settings"><summary>Business details</summary><form id="business-form"><label for="business-name">Business name</label><div><input id="business-name" name="businessName" maxlength="100" value="${escapeHtml(doc.businessName)}" required><button type="submit">Save business name</button></div></form></details>
+    <details class="business-settings"><summary>Business details</summary><form id="business-form"><label for="business-name">Business name</label><div><input id="business-name" name="businessName" maxlength="100" value="${escapeHtml(doc.businessName)}" required><button type="submit" aria-label="Save business name">Save business name</button></div></form></details>
     ${notice ? `<div class="notice" role="status">${escapeHtml(notice)}</div>` : ''}
     <section class="control-panel" aria-labelledby="summary-title">
       <div class="dial-block"><div class="quarter-dial dial-${completion}" aria-label="${completion} of 4 checks complete"><span class="dial-hand"></span><span class="dial-centre"></span><i>1</i><i>2</i><i>3</i><i>4</i></div><div><span class="control-label">READINESS</span><strong>${completion} / 4 checks</strong></div></div>
