@@ -93,28 +93,15 @@ const fixtureSubmissionBody = await fixtureSubmission.json();
 assert(['fixture_only_no_filing', 'sandbox_accepted_no_filing'].includes(fixtureSubmissionBody.status), 'safe fixture submission was not explicitly non-filing');
 assert(fixtureSubmissionBody.files_with_hmrc === false, 'safe submission did not prove that it files nothing with HMRC');
 
-const runKey = crypto.randomUUID().replaceAll('-', '').slice(0, 4);
-
-async function assertLimit(kind, allowance, clientIp) {
-  const requests = Array.from({ length: allowance + 8 }, (_, index) => {
-    const headers = { 'x-forwarded-for': clientIp };
-    return kind === 'read'
-      ? response(index % 2 ? '/api/share/not-a-token' : '/api/workspace', { headers })
-      : response('/api/page-view', { method: 'POST', headers });
-  });
-  const results = await Promise.all(requests);
-  const accepted = results.filter(item => item.status !== 429);
-  const limited = results.filter(item => item.status === 429);
-  assert(accepted.length === allowance, `${kind} limit accepted ${accepted.length}, expected ${allowance}`);
-  assert(limited.length === 8, `${kind} limit returned ${limited.length} limited responses, expected 8`);
-  assert(limited.every(item => item.headers.has('retry-after')), `${kind} 429 response omitted Retry-After`);
-}
-
-await assertLimit('read', 40, `2001:db8:${runKey}::42`);
-await assertLimit('write', 12, `2001:db8:${runKey}::43`);
+const rateLimitEvidence = JSON.parse(execFileSync(process.execPath, ['scripts/verify-rate-limit.mjs'], {
+  cwd: new URL('..', import.meta.url),
+  encoding: 'utf8',
+  env: { ...process.env, VERIFY_ORIGIN: origin },
+}).trim());
+assert(rateLimitEvidence.status === 'ok', 'stable-connection rate-limit verification failed');
 
 if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
   execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
 }
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, safe_paid_fixture: 'non-charging/non-filing', read_limit: rateLimitEvidence.read.allowance, write_limit: rateLimitEvidence.write.allowance, stable_rate_limit_connection: true, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));

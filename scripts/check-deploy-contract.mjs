@@ -6,6 +6,7 @@ const topologyVerifier = await readFile(new URL('./verify-azure-topology.sh', im
 const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const verifyUrlScript = new URL('./verify-url.sh', import.meta.url);
+const verifyRateLimitScript = new URL('./verify-rate-limit.mjs', import.meta.url);
 const required = [
   'FILE_SHARE="sf-mtd-quarterly-ready-data-v3"',
   'ENV_STORAGE="mtd-quarterly-ready-data-v3"',
@@ -67,6 +68,10 @@ if (packageJson.scripts['verify:release'] !== 'VERIFY_AZURE_TOPOLOGY=1 REQUIRE_A
 if (packageJson.scripts['verify:url'] !== 'bash scripts/verify-url.sh') {
   throw new Error('Package scripts must expose the repeatable URL accessibility check.');
 }
+if (packageJson.scripts['verify:rate-limit'] !== 'node scripts/verify-rate-limit.mjs') {
+  throw new Error('Package scripts must expose the stable-connection rate-limit check.');
+}
 await access(verifyUrlScript, constants.X_OK);
+await access(verifyRateLimitScript, constants.R_OK);
 
 console.log('Deployment contract: durable /data, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider, explicit handoff-only fallback, non-charging QA fixture, and repeatable URL accessibility check are configured.');

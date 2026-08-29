@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 
 const validDocument = {
   schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
@@ -118,6 +119,15 @@ test('@regression:safe-paid-fixture proves share and submission paths without ch
 });
 
 test('@regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After', async ({ request }) => {
+  if (process.env.VERIFY_ORIGIN) {
+    const result = JSON.parse(execFileSync(process.execPath, ['scripts/verify-rate-limit.mjs', '--kind', 'read'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: process.env,
+    }).trim());
+    expect(result).toMatchObject({ status: 'ok', read: { allowance: 40, first_limited_request: 41, retry_after: '1', stable_keep_alive_connection: true } });
+    return;
+  }
   const headers = { 'x-forwarded-for': '203.0.113.99' };
   const responses = [];
   for (let index = 0; index < 41; index += 1) {
@@ -136,6 +146,15 @@ test('static files never consume the API rate allowance', async ({ request }) =>
 });
 
 test('@regression:shared-write-limit allows 12 writes then returns 429 with Retry-After', async ({ request }) => {
+  if (process.env.VERIFY_ORIGIN) {
+    const result = JSON.parse(execFileSync(process.execPath, ['scripts/verify-rate-limit.mjs', '--kind', 'write'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: process.env,
+    }).trim());
+    expect(result).toMatchObject({ status: 'ok', write: { allowance: 12, first_limited_request: 13, retry_after: '1', stable_keep_alive_connection: true } });
+    return;
+  }
   const headers = { 'x-forwarded-for': '203.0.113.98' };
   const responses = [];
   for (let index = 0; index < 13; index += 1) responses.push(await request.post('/api/page-view', { headers }));

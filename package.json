@@ -13,6 +13,7 @@
     "test:rust": "cargo test",
     "test:deploy-contract": "node scripts/check-deploy-contract.mjs",
     "verify:url": "bash scripts/verify-url.sh",
+    "verify:rate-limit": "node scripts/verify-rate-limit.mjs",
     "verify:live": "node scripts/verify-live.mjs",
     "verify:release": "VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs",
     "verify:topology": "bash scripts/verify-azure-topology.sh",
