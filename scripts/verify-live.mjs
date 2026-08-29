@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { execFileSync } from 'node:child_process';
 
 const origin = process.env.VERIFY_ORIGIN || 'https://mtd-quarterly-ready.sociobot.in';
 const billing = 'https://api.sociobot.in/api/v1/products';
@@ -17,6 +18,9 @@ const health = await healthResponse.json();
 assert(health.status === 'ok', '/health did not report ok');
 assert(health.safe_qa_fixtures === true, '/health reports SAFE_QA_FIXTURES is not enabled');
 assert(typeof health.hmrc_integration_configured === 'boolean', '/health omitted the HMRC integration capability');
+if (process.env.REQUIRE_APPROVED_HMRC === '1') {
+  assert(health.hmrc_integration_configured === true, 'production has no approved HMRC integration configured');
+}
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }
@@ -104,4 +108,8 @@ async function assertLimit(kind, allowance, clientIp) {
 await assertLimit('read', 40, '203.0.113.242');
 await assertLimit('write', 12, '203.0.113.243');
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, status: 'ok' }));
+if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
+  execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
+}
+
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));

@@ -59,7 +59,7 @@ test('@regression:csv-invalid-rows-are-atomic rejects impossible, out-of-quarter
   }
 });
 
-test('@claim:free-quarter-persistence @regression:current-and-future-quarters remain separate across reloads', async ({ page }) => {
+test('@claim:free-quarter-persistence @claim:quarter-record-separation @regression:current-and-future-quarters remain separate across reloads', async ({ page, request }) => {
   await page.goto('/records');
   const selector = page.getByLabel('Working quarter');
   const currentStart = await selector.inputValue();
@@ -69,13 +69,34 @@ test('@claim:free-quarter-persistence @regression:current-and-future-quarters re
   await page.locator('#add-form input[name="description"]').fill('Current-quarter lesson');
   await page.locator('#add-form input[name="amount"]').fill('75.00');
   await page.locator('#add-form select[name="category"]').selectOption('Sales');
+  const currentSave = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace' && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Save transaction' }).click();
+  const currentWorkspaceId = await (await currentSave).request().headerValue('x-workspace-id');
   await page.reload();
   await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Create next quarter' }).click();
   const nextStart = await page.getByLabel('Working quarter').inputValue();
   expect(nextStart).not.toBe(currentStart);
   await expect(page.getByRole('heading', { level: 3, name: 'No transactions in this quarter' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add the first transaction' }).click();
+  const nextDate = await page.locator('#add-form input[name="date"]').getAttribute('min');
+  await page.locator('#add-form input[name="date"]').fill(nextDate!);
+  await page.locator('#add-form input[name="description"]').fill('Next-quarter lesson');
+  await page.locator('#add-form input[name="amount"]').fill('85.00');
+  await page.locator('#add-form select[name="category"]').selectOption('Sales');
+  const nextSave = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace' && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Save transaction' }).click();
+  const nextWorkspaceId = await (await nextSave).request().headerValue('x-workspace-id');
+  expect(currentWorkspaceId).toBeTruthy();
+  expect(nextWorkspaceId).toBeTruthy();
+  expect(nextWorkspaceId).not.toBe(currentWorkspaceId);
+  const headers = (workspaceId: string) => ({ 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.77' });
+  const [currentRemote, nextRemote] = await Promise.all([
+    request.get('/api/workspace', { headers: headers(currentWorkspaceId!) }),
+    request.get('/api/workspace', { headers: headers(nextWorkspaceId!) }),
+  ]);
+  expect((await currentRemote.json()).document.transactions.map((transaction: { description: string }) => transaction.description)).toContain('Current-quarter lesson');
+  expect((await nextRemote.json()).document.transactions.map((transaction: { description: string }) => transaction.description)).toContain('Next-quarter lesson');
   await page.getByLabel('Working quarter').selectOption(currentStart);
   await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
   const keys = await page.evaluate(() => Object.keys(localStorage));
@@ -141,6 +162,47 @@ test('@claim:receipt-capture @regression:receipt-quota stores three valid near-l
   }));
   expect(receiptSizes).toEqual([1_400_000, 1_400_000, 1_400_000]);
   expect(browserErrors).toEqual([]);
+});
+
+test('@claim:receipt-locality keeps receipt contents in browser IndexedDB and out of the server document', async ({ page }) => {
+  const workspaceBodies: string[] = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/api/workspace' && request.method() === 'PUT') workspaceBodies.push(request.postData() || '');
+  });
+  await page.goto('/records');
+  const row = page.locator('tr', { hasText: 'Next receipt stays local' });
+  await page.getByRole('button', { name: 'Add a transaction' }).click();
+  const date = await page.locator('#add-form input[name="date"]').getAttribute('min');
+  await page.locator('#add-form input[name="date"]').fill(date!);
+  await page.locator('#add-form input[name="description"]').fill('Next receipt stays local');
+  await page.locator('#add-form input[name="amount"]').fill('12.34');
+  await page.locator('#add-form select[name="kind"]').selectOption('expense');
+  await page.locator('#add-form select[name="category"]').selectOption('Office costs');
+  const privateReceipt = 'private-receipt-body-must-not-leave-browser';
+  const save = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace' && response.request().method() === 'PUT');
+  await page.locator('#add-form input[name="receipt"]').setInputFiles({
+    name: 'private-proof.pdf', mimeType: 'application/pdf', buffer: Buffer.from(privateReceipt),
+  });
+  await page.getByRole('button', { name: 'Save transaction' }).click();
+  await save;
+  await expect(row.getByText('Receipt · private-proof.pdf')).toBeVisible();
+  expect(workspaceBodies).not.toEqual([]);
+  expect(workspaceBodies.join('\n')).not.toContain(privateReceipt);
+  expect(workspaceBodies.join('\n')).not.toContain('data:application/pdf;base64');
+  const storage = await page.evaluate(async () => new Promise<{ local: string; stored: boolean }>((resolve, reject) => {
+    const local = localStorage.getItem('quarterly-ready:document:' + localStorage.getItem('quarterly-ready:active-quarter')) || '';
+    const open = indexedDB.open('quarterly-ready-receipts-v1');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const store = open.result.transaction('receipts').objectStore('receipts');
+      const records = store.getAll();
+      records.onerror = () => reject(records.error);
+      records.onsuccess = () => resolve({ local, stored: records.result.some(record => record.name === 'private-proof.pdf' && record.blob instanceof Blob) });
+    };
+  }));
+  expect(storage.local).not.toContain(privateReceipt);
+  expect(storage.local).not.toContain('data:application/pdf;base64');
+  expect(storage.stored).toBe(true);
 });
 
 test('@regression:receipt-quota-error keeps the transaction unchanged and announces recovery', async ({ page }) => {

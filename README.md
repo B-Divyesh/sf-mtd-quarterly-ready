@@ -62,6 +62,8 @@ This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright 
 
 Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity, HMRC capability disclosure, checkout, 404, empty-workspace, and rate-limit policies. Run `npm run verify:topology` with Azure access to assert one running replica and an Azure Files mount at `/data`.
 
+For a release decision, run `EXPECTED_BUILD_SHA=<commit> npm run verify:release`. It requires the live approved HMRC integration as well as the one-replica Azure Files topology; it fails rather than approving an honest-handoff-only deployment as the researched submission product.
+
 ## Container
 
 ```sh

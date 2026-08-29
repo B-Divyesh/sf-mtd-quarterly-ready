@@ -52,7 +52,9 @@ if az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET
   HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}'
   echo "approved HMRC integration secret references found; binding them without reading values"
 else
-  echo "approved HMRC integration secret references not found; direct submission remains unavailable"
+  echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
+  echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
+  exit 1
 fi
 
 echo "== container app (one replica, mounted /data)"
@@ -146,3 +148,6 @@ for _ in $(seq 1 36); do
 done
 DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 bash scripts/verify-azure-topology.sh
+
+echo "== release verification (identity, paid safe fixture, one replica, durable mount, and HMRC capability)"
+EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs

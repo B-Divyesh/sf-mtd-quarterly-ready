@@ -97,6 +97,21 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
   await expect(dialog).toBeHidden();
 });
 
+test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration', async ({ page, browser }) => {
+  await page.goto('/records');
+  await expect(page.getByRole('button', { name: 'Review and submit to HMRC' })).toBeVisible();
+  const unavailableContext = await browser.newContext();
+  const unavailable = await unavailableContext.newPage();
+  await unavailable.route('**/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
+  }));
+  await unavailable.goto('/records');
+  await expect(unavailable.getByRole('button', { name: 'Review and submit to HMRC' })).toHaveCount(0);
+  await expect(unavailable.getByText('No approved direct-submission integration is configured.')).toBeVisible();
+  await unavailableContext.close();
+});
+
 test('@regression:hmrc-capability hides direct submission when no approved integration is configured', async ({ page }) => {
   await page.route('**/health', route => route.fulfill({
     contentType: 'application/json',
