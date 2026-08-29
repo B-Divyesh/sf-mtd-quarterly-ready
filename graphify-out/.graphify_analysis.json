@@ -23,6 +23,7 @@
       "frontend_src_main_layout",
       "frontend_src_main_notfoundpage",
       "frontend_src_main_opensubmissionreview",
+      "frontend_src_main_pageviewclient",
       "frontend_src_main_previewpanel",
       "frontend_src_main_pricingsection",
       "frontend_src_main_privacypage",
@@ -57,7 +58,7 @@
       "frontend_src_records_pounds",
       "frontend_src_records_summarise",
       "frontend_src_storage_leavedemo",
-      "frontend_src_storage_resetdemo"
+      "frontend_src_storage_savedocument"
     ],
     "1": [
       "frontend_src_quarters",
@@ -89,7 +90,7 @@
       "frontend_src_storage_loadremote",
       "frontend_src_storage_loadshare",
       "frontend_src_storage_migratelegacydocument",
-      "frontend_src_storage_savedocument",
+      "frontend_src_storage_resetdemo",
       "frontend_src_storage_saveremote",
       "frontend_src_storage_selectquarter",
       "frontend_src_storage_storagekeys",
@@ -117,7 +118,6 @@
       "package_scripts",
       "package_scripts_build",
       "package_scripts_dev",
-      "package_scripts_provision_hmrc_sandbox",
       "package_scripts_serve",
       "package_scripts_test",
       "package_scripts_test_deploy_contract",
@@ -138,7 +138,74 @@
       "vitest"
     ],
     "3": [
+      "e",
+      "hashset",
+      "src_main",
+      "src_main_claim_accountant_link_expiry_is_thirty_days",
+      "src_main_default_log_filter_keeps_startup_information_visible",
+      "src_main_health",
+      "src_main_hmrc_compatible_payload",
+      "src_main_hmrc_payload_requires_explicit_human_review",
+      "src_main_integrationmode",
+      "src_main_integrationmode_as_str",
+      "src_main_internal",
+      "src_main_invalid_transaction",
+      "src_main_is_calendar_date",
+      "src_main_is_iso_date",
+      "src_main_is_standard_uk_quarter",
+      "src_main_licenceverdict",
+      "src_main_rejects_each_malformed_transaction_field",
+      "src_main_rejects_transactions_outside_the_selected_quarter",
+      "src_main_startup_migration_retries_transient_sqlite_locks",
+      "src_main_validate_document",
+      "src_main_validate_transaction",
+      "src_main_validates_transaction_document"
+    ],
+    "4": [
+      "arc",
+      "client",
       "envfilter",
+      "hashmap",
+      "instant",
+      "mutex",
+      "option",
+      "src_main_approved_integration_from_env",
+      "src_main_approved_integration_from_values",
+      "src_main_approvedintegration",
+      "src_main_appstate",
+      "src_main_claim_hmrc_sandbox_is_non_filing_and_sends_no_records_or_secret",
+      "src_main_default_log_filter",
+      "src_main_log_filter",
+      "src_main_sandbox_configuration_requires_the_official_non_filing_hmrc_endpoint",
+      "src_main_send_to_approved_integration",
+      "src_main_shareresult",
+      "src_main_submissionresult",
+      "string",
+      "vecdeque"
+    ],
+    "5": [
+      "body",
+      "intoresponse",
+      "request",
+      "result",
+      "src_main_apierror",
+      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
+      "src_main_create_share",
+      "src_main_decrypt_json",
+      "src_main_get_workspace",
+      "src_main_licence_token",
+      "src_main_page_view",
+      "src_main_put_workspace",
+      "src_main_submit_to_hmrc",
+      "src_main_subscription_verification_accepts_the_annual_entitlement",
+      "src_main_unix_now",
+      "src_main_verify_licence_token",
+      "src_main_workspace_id",
+      "src_main_write_audit",
+      "state",
+      "statuscode"
+    ],
+    "6": [
       "error",
       "fspath",
       "pathbuf",
@@ -148,11 +215,9 @@
       "src_main_claim_anonymous_page_count",
       "src_main_claim_hash_chained_audit_log",
       "src_main_cleanup_expired_shares",
-      "src_main_default_log_filter",
       "src_main_durable_snapshot_restores_key_records_links_audit_and_page_count",
       "src_main_is_database_locked_message",
       "src_main_load_or_create_key",
-      "src_main_log_filter",
       "src_main_main",
       "src_main_migrate",
       "src_main_migrate_with_retry",
@@ -162,31 +227,7 @@
       "src_main_shutdown_signal",
       "src_main_workspace_snapshot_is_restored_after_a_restart"
     ],
-    "4": [
-      "hashset",
-      "src_main",
-      "src_main_claim_accountant_link_expiry_is_thirty_days",
-      "src_main_default_log_filter_keeps_startup_information_visible",
-      "src_main_hmrc_compatible_payload",
-      "src_main_hmrc_payload_requires_explicit_human_review",
-      "src_main_invalid_transaction",
-      "src_main_is_calendar_date",
-      "src_main_is_iso_date",
-      "src_main_is_standard_uk_quarter",
-      "src_main_licenceverdict",
-      "src_main_rejects_each_malformed_transaction_field",
-      "src_main_rejects_transactions_outside_the_selected_quarter",
-      "src_main_safe_fixture_authorized",
-      "src_main_safe_fixture_document",
-      "src_main_startup_migration_retries_transient_sqlite_locks",
-      "src_main_submissionrequest",
-      "src_main_validate_document",
-      "src_main_validate_transaction",
-      "src_main_validates_transaction_document",
-      "src_main_workspacedocument",
-      "value"
-    ],
-    "5": [
+    "7": [
       "ref_dom",
       "ref_dom_iterable",
       "ref_es2022",
@@ -208,59 +249,28 @@
       "tsconfig_compileroptions_usedefineforclassfields",
       "tsconfig_include"
     ],
-    "6": [
-      "body",
-      "intoresponse",
-      "request",
-      "result",
-      "src_main_apierror",
+    "8": [
       "src_main_claim_encrypted_storage",
-      "src_main_create_share",
-      "src_main_decrypt_json",
       "src_main_encrypt_json",
-      "src_main_get_workspace",
-      "src_main_licence_token",
-      "src_main_page_view",
-      "src_main_put_workspace",
-      "src_main_unix_now",
-      "src_main_workspace_id",
-      "src_main_write_audit",
-      "statuscode",
+      "src_main_safe_fixture_authorized",
+      "src_main_safe_fixture_document",
+      "src_main_safe_qa_entitlement",
+      "src_main_submissionrequest",
+      "src_main_workspacedocument",
+      "value",
       "vec"
     ],
-    "7": [
-      "arc",
-      "client",
-      "hashmap",
-      "instant",
-      "mutex",
-      "option",
-      "path",
-      "src_main_approved_integration_from_env",
-      "src_main_approved_integration_from_values",
-      "src_main_approvedintegration",
-      "src_main_appstate",
-      "src_main_get_share",
-      "src_main_sandbox_configuration_requires_the_official_non_filing_hmrc_endpoint",
-      "src_main_shareresult",
-      "string",
-      "vecdeque"
-    ],
-    "8": [
+    "9": [
       "json",
       "next",
+      "path",
       "response",
       "src_main_apierror_into_response",
-      "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
-      "src_main_health",
-      "src_main_integrationmode",
-      "src_main_integrationmode_as_str",
+      "src_main_get_share",
       "src_main_rate_limit",
-      "src_main_safe_qa_entitlement",
-      "src_main_security_headers",
-      "state"
+      "src_main_security_headers"
     ],
-    "9": [
+    "10": [
       "scripts_verify_live",
       "scripts_verify_live_assert",
       "scripts_verify_live_assertlimit",
@@ -270,88 +280,75 @@
       "scripts_verify_live_runkey",
       "scripts_verify_live_workspaceid"
     ],
-    "10": [
-      "src_main_claim_hmrc_sandbox_is_non_filing_and_sends_no_records_or_secret",
-      "src_main_send_to_approved_integration",
-      "src_main_submissionresult",
-      "src_main_submit_to_hmrc",
-      "src_main_subscription_verification_accepts_the_annual_entitlement",
-      "src_main_verify_licence_token"
-    ],
     "11": [
+      "scripts_check_deploy_contract",
+      "scripts_check_deploy_contract_packagejson",
+      "scripts_check_deploy_contract_protectedreplacement",
+      "scripts_check_deploy_contract_replacementupdate",
+      "scripts_check_deploy_contract_required",
+      "scripts_check_deploy_contract_revisionreplacement"
+    ],
+    "12": [
       "scripts_verify_durability",
       "scripts_verify_durability_document",
       "scripts_verify_durability_headers",
       "scripts_verify_durability_state"
     ],
-    "12": [
-      "scripts_check_deploy_contract",
-      "scripts_check_deploy_contract_packagejson",
-      "scripts_check_deploy_contract_required"
-    ],
     "13": [
-      "scripts_provision_hmrc_sandbox",
-      "scripts_provision_hmrc_sandbox_put_secret",
-      "scripts_provision_hmrc_sandbox_sh__entry"
+      "scripts_deploy_container",
+      "scripts_deploy_container_sh__entry",
+      "scripts_deploy_container_stop_revision_for_snapshot_handoff"
     ],
     "14": [
-      "e",
-      "src_main_internal"
-    ],
-    "15": [
       "frontend_public_sw",
       "frontend_public_sw_shell"
     ],
-    "16": [
+    "15": [
       "playwright_config",
       "playwright_config_repositoryroot"
     ],
-    "17": [
-      "scripts_deploy_container",
-      "scripts_deploy_container_sh__entry"
-    ],
-    "18": [
+    "16": [
       "scripts_verify_azure_topology",
       "scripts_verify_azure_topology_sh__entry"
     ],
-    "19": [
+    "17": [
       "tests_accessibility_spec",
-      "tests_accessibility_spec_livesandbox"
+      "tests_accessibility_spec_submissionlabels"
     ],
-    "20": [
+    "18": [
       "tests_backend_spec",
       "tests_backend_spec_validdocument"
     ],
-    "21": [
+    "19": [
       "frontend_vite_config"
     ],
-    "22": [
+    "20": [
       "frontend_vitest_config"
     ],
-    "23": [
+    "21": [
       "pkg_quarterly_ready"
     ],
-    "24": [
+    "22": [
       "tests_claims_spec"
     ],
-    "25": [
+    "23": [
       "tests_claims_spec_idbobjectstore_put"
     ]
   },
   "cohesion": {
-    "0": 0.09210526315789473,
-    "1": 0.13205128205128205,
-    "2": 0.058823529411764705,
-    "3": 0.1383399209486166,
-    "4": 0.1645021645021645,
-    "5": 0.1,
-    "6": 0.30718954248366015,
-    "7": 0.175,
-    "8": 0.24242424242424243,
-    "9": 0.32142857142857145,
-    "10": 0.4,
-    "11": 0.5,
-    "12": 0.6666666666666666,
+    "0": 0.09074410163339383,
+    "1": 0.13076923076923078,
+    "2": 0.06060606060606061,
+    "3": 0.14285714285714285,
+    "4": 0.14736842105263157,
+    "5": 0.3105263157894737,
+    "6": 0.1631578947368421,
+    "7": 0.1,
+    "8": 0.25,
+    "9": 0.35714285714285715,
+    "10": 0.32142857142857145,
+    "11": 0.3333333333333333,
+    "12": 0.5,
     "13": 1.0,
     "14": 1.0,
     "15": 1.0,
@@ -362,9 +359,7 @@
     "20": 1.0,
     "21": 1.0,
     "22": 1.0,
-    "23": 1.0,
-    "24": 1.0,
-    "25": 1.0
+    "23": 1.0
   },
   "gods": [
     {
@@ -408,34 +403,45 @@
       "degree": 14
     },
     {
-      "id": "package_scripts",
-      "label": "scripts",
-      "degree": 14
-    },
-    {
       "id": "frontend_src_main_route",
       "label": "route()",
+      "degree": 13
+    },
+    {
+      "id": "package_scripts",
+      "label": "scripts",
       "degree": 13
     }
   ],
   "surprises": [
     {
-      "source": "addTransaction()",
-      "target": "validateTransaction()",
+      "source": "resetDemo()",
+      "target": "clearDemoReceipts()",
       "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
+        "frontend/src/storage.ts",
+        "frontend/src/receipts.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities"
     },
     {
-      "source": "addTransaction()",
-      "target": "saveDocument()",
+      "source": "bindLinks()",
+      "target": "resetDemo()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
+      "target": "availableQuarters()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/quarters.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -453,22 +459,11 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "bindRecords()",
-      "target": "saveDocument()",
+      "source": "recordsPage()",
+      "target": "quarterFromStart()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/storage.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "bindRecords()",
-      "target": "selectQuarter()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/storage.ts"
+        "frontend/src/quarters.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
