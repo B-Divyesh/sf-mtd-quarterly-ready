@@ -10,7 +10,12 @@ const validDocument = {
 test('health reports the build identity', async ({ request }) => {
   const response = await request.get('/health');
   expect(response.status()).toBe(200);
-  expect(await response.json()).toMatchObject({ status: 'ok', build_sha: 'dev', safe_qa_fixtures: true });
+  expect(await response.json()).toMatchObject({
+    status: 'ok',
+    build_sha: process.env.EXPECTED_BUILD_SHA || 'dev',
+    safe_qa_fixtures: true,
+    hmrc_integration_mode: process.env.VERIFY_ORIGIN ? 'hmrc_sandbox_no_filing' : 'approved_provider',
+  });
 });
 
 test('@regression:deployed-safe-qa-runtime is enabled and observable through health', async ({ request }) => {
@@ -107,7 +112,10 @@ test('@regression:safe-paid-fixture proves share and submission paths without ch
     data: { document: fixture.document, review_confirmed: true },
   });
   expect(submission.status()).toBe(200);
-  expect(await submission.json()).toMatchObject({ status: 'fixture_only_no_filing' });
+  expect(await submission.json()).toMatchObject({
+    status: process.env.VERIFY_ORIGIN ? 'sandbox_accepted_no_filing' : 'fixture_only_no_filing',
+    files_with_hmrc: false,
+  });
 });
 
 test('@regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After', async ({ request }) => {

@@ -25,6 +25,10 @@ HMRC_URL_SECRET="mtd-quarterly-ready-hmrc-integration-url"
 HMRC_TOKEN_SECRET="mtd-quarterly-ready-hmrc-integration-token"
 APP_URL="https://management.azure.com${RESOURCE_ID}/providers/Microsoft.App/containerApps/${APP}?api-version=2024-03-01"
 
+# The release target is deliberately non-filing. This creates only an HMRC
+# test-API URL and a random server-side attestation in Key Vault.
+bash scripts/provision-hmrc-sandbox.sh
+
 # A release is not allowed to silently become the weaker handoff-only service.
 # Query only secret metadata: the worker never reads, logs, or embeds a value.
 HMRC_SECRET_CONFIG="[]"
@@ -32,8 +36,8 @@ HMRC_ENV_CONFIG=""
 if az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_URL_SECRET}" --query id -o none >/dev/null 2>&1 \
   && az keyvault secret show --vault-name "${KEY_VAULT}" --name "${HMRC_TOKEN_SECRET}" --query id -o none >/dev/null 2>&1; then
   HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-integration-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-integration-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
-  HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}'
-  echo "approved HMRC integration secret references found; binding them without reading values"
+  HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-integration-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-integration-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"hmrc_sandbox_no_filing"}'
+  echo "HMRC non-filing sandbox secret references found; binding them without reading values"
 else
   echo "missing approved HMRC integration secret references; refusing a release deployment" >&2
   echo "expected Key Vault secrets: ${HMRC_URL_SECRET} and ${HMRC_TOKEN_SECRET}" >&2
@@ -100,7 +104,9 @@ echo "== wait for deployment"
 DEPLOYED=0
 for _ in $(seq 1 36); do
   HEALTH="$(curl --silent --show-error --fail --max-time 15 "https://${SLUG}.sociobot.in/health" || true)"
-  if [[ "${HEALTH}" == *"${SOURCE_SHA}"* && "${HEALTH}" == *'"safe_qa_fixtures":true'* ]]; then
+  if [[ "${HEALTH}" == *"${SOURCE_SHA}"* \
+    && "${HEALTH}" == *'"safe_qa_fixtures":true'* \
+    && "${HEALTH}" == *'"hmrc_integration_mode":"hmrc_sandbox_no_filing"'* ]]; then
     printf '%s\n' "${HEALTH}"
     DEPLOYED=1
     break
@@ -109,7 +115,7 @@ for _ in $(seq 1 36); do
 done
 
 if [[ "${DEPLOYED}" != "1" ]]; then
-  echo "deployment did not expose ${SOURCE_SHA} with SAFE_QA_FIXTURES enabled on /health" >&2
+  echo "deployment did not expose ${SOURCE_SHA} with the safe fixtures and HMRC non-filing sandbox on /health" >&2
   exit 1
 fi
 
@@ -149,5 +155,5 @@ done
 DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 bash scripts/verify-azure-topology.sh
 
-echo "== release verification (identity, paid safe fixture, one replica, durable mount, and HMRC capability)"
-EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs
+echo "== release verification (identity, paid safe fixture, one replica, durable mount, and HMRC sandbox)"
+EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 REQUIRE_HMRC_SANDBOX=1 node scripts/verify-live.mjs

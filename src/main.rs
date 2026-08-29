@@ -76,6 +76,22 @@ struct AppState {
 struct ApprovedIntegration {
     url: String,
     token: String,
+    mode: IntegrationMode,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum IntegrationMode {
+    ApprovedProvider,
+    HmrcSandboxNoFiling,
+}
+
+impl IntegrationMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ApprovedProvider => "approved_provider",
+            Self::HmrcSandboxNoFiling => "hmrc_sandbox_no_filing",
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -84,6 +100,7 @@ struct Health<'a> {
     build_sha: &'a str,
     safe_qa_fixtures: bool,
     hmrc_integration_configured: bool,
+    hmrc_integration_mode: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -112,6 +129,7 @@ struct LicenceVerdict {
 struct SubmissionResult {
     submission_id: String,
     status: &'static str,
+    files_with_hmrc: bool,
 }
 
 #[derive(Debug)]
@@ -206,6 +224,11 @@ async fn main() {
         safe_qa_fixtures,
     };
     let integration_configured = state.hmrc_integration.is_some();
+    let integration_mode = state
+        .hmrc_integration
+        .as_ref()
+        .map(|integration| integration.mode.as_str())
+        .unwrap_or("not_configured");
     let app = build_router(state, frontend_dir);
 
     info!(
@@ -213,7 +236,7 @@ async fn main() {
         build_sha = BUILD_SHA,
         encryption_key = if generated { "generated" } else { "persisted" },
         hmrc_integration = if integration_configured {
-            "configured"
+            integration_mode
         } else {
             "not_configured"
         },
@@ -260,11 +283,17 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
 }
 
 async fn health(State(state): State<AppState>) -> Json<Health<'static>> {
+    let integration_mode = state
+        .hmrc_integration
+        .as_ref()
+        .map(|integration| integration.mode.as_str())
+        .unwrap_or("not_configured");
     Json(Health {
         status: "ok",
         build_sha: BUILD_SHA,
         safe_qa_fixtures: state.safe_qa_fixtures,
         hmrc_integration_configured: state.hmrc_integration.is_some(),
+        hmrc_integration_mode: integration_mode,
     })
 }
 
@@ -399,7 +428,13 @@ async fn submit_to_hmrc(
         StatusCode::PAYMENT_REQUIRED,
         "An active Sociobot subscription is required for live accountant links and HMRC submissions.",
     ))?;
-    if safe_fixture_authorized(state.safe_qa_fixtures, &licence, &input.document) {
+    let safe_fixture = safe_fixture_authorized(state.safe_qa_fixtures, &licence, &input.document);
+    if safe_fixture
+        && state
+            .hmrc_integration
+            .as_ref()
+            .is_none_or(|integration| integration.mode != IntegrationMode::HmrcSandboxNoFiling)
+    {
         let submission_id = format!("safe-fixture-no-filing-{}", unix_now());
         write_audit(
             &state,
@@ -414,22 +449,89 @@ async fn submit_to_hmrc(
         return Ok(Json(SubmissionResult {
             submission_id,
             status: "fixture_only_no_filing",
+            files_with_hmrc: false,
         }));
     }
-    verify_licence_token(&state, &licence).await?;
+    if !safe_fixture {
+        verify_licence_token(&state, &licence).await?;
+    }
     let integration = state.hmrc_integration.as_ref().ok_or(ApiError(
         StatusCode::SERVICE_UNAVAILABLE,
         "An approved HMRC integration is not configured for this service. Download the accountant pack or try again later.",
     ))?;
-    let response = state
-        .client
+    let result = send_to_approved_integration(&state.client, integration, &payload).await?;
+    write_audit(
+        &state,
+        &id,
+        if result.files_with_hmrc {
+            "hmrc_submission_requested"
+        } else {
+            "hmrc_sandbox_validation_completed"
+        },
+        result.submission_id.as_bytes(),
+    )
+    .await?;
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)?;
+    Ok(Json(result))
+}
+
+async fn send_to_approved_integration(
+    client: &reqwest::Client,
+    integration: &ApprovedIntegration,
+    payload: &Value,
+) -> Result<SubmissionResult, ApiError> {
+    if integration.mode == IntegrationMode::HmrcSandboxNoFiling {
+        let response = client
+            .get(&integration.url)
+            .header("accept", "application/vnd.hmrc.1.0+json")
+            .send()
+            .await
+            .map_err(|_| {
+                ApiError(
+                    StatusCode::BAD_GATEWAY,
+                    "The HMRC test API could not be reached. No submission was made.",
+                )
+            })?;
+        if !response.status().is_success() {
+            return Err(ApiError(
+                StatusCode::BAD_GATEWAY,
+                "The HMRC test API rejected the sandbox check. No submission was made.",
+            ));
+        }
+        let response: Value = response.json().await.map_err(|_| {
+            ApiError(
+                StatusCode::BAD_GATEWAY,
+                "The HMRC test API returned an unreadable sandbox response. No submission was made.",
+            )
+        })?;
+        if response.get("message").and_then(Value::as_str) != Some("Hello World") {
+            return Err(ApiError(
+                StatusCode::BAD_GATEWAY,
+                "The HMRC test API did not confirm the sandbox check. No submission was made.",
+            ));
+        }
+        let mut proof = Sha256::new();
+        proof.update(integration.token.as_bytes());
+        proof.update(serde_json::to_vec(payload).map_err(internal)?);
+        proof.update(unix_now().to_be_bytes());
+        let proof = format!("{:x}", proof.finalize());
+        return Ok(SubmissionResult {
+            submission_id: format!("hmrc-sandbox-no-filing-{}", &proof[..16]),
+            status: "sandbox_accepted_no_filing",
+            files_with_hmrc: false,
+        });
+    }
+
+    let response = client
         .post(&integration.url)
         .bearer_auth(&integration.token)
         .header(
             "x-quarterly-ready-submission",
             "mtd-itsa-periodic-update-v1",
         )
-        .json(&payload)
+        .json(payload)
         .send()
         .await
         .map_err(|_| {
@@ -444,10 +546,12 @@ async fn submit_to_hmrc(
             "The approved HMRC integration rejected the submission. No submission was made.",
         ));
     }
-    let response: Value = response.json().await.map_err(|_| ApiError(
-        StatusCode::BAD_GATEWAY,
-        "The approved HMRC integration did not return a submission reference. No submission was made.",
-    ))?;
+    let response: Value = response.json().await.map_err(|_| {
+        ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The approved HMRC integration did not return a submission reference. No submission was made.",
+        )
+    })?;
     let submission_id = response
         .get("submission_id")
         .or_else(|| response.get("correlation_id"))
@@ -458,20 +562,11 @@ async fn submit_to_hmrc(
             "The approved HMRC integration did not return a submission reference. No submission was made.",
         ))?
         .to_owned();
-    write_audit(
-        &state,
-        &id,
-        "hmrc_submission_requested",
-        submission_id.as_bytes(),
-    )
-    .await?;
-    persist_database_snapshot(&state.database_path, &state.snapshot_path)
-        .await
-        .map_err(internal)?;
-    Ok(Json(SubmissionResult {
+    Ok(SubmissionResult {
         submission_id,
         status: "accepted",
-    }))
+        files_with_hmrc: true,
+    })
 }
 
 async fn safe_qa_entitlement(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
@@ -698,13 +793,33 @@ fn is_iso_date(value: &str) -> bool {
 }
 
 fn approved_integration_from_env() -> Option<ApprovedIntegration> {
-    let url = env::var("HMRC_INTEGRATION_URL").ok()?;
-    let token = env::var("HMRC_INTEGRATION_TOKEN").ok()?;
-    if url.starts_with("https://") && !token.trim().is_empty() {
-        Some(ApprovedIntegration { url, token })
-    } else {
-        None
+    approved_integration_from_values(
+        env::var("HMRC_INTEGRATION_URL").ok(),
+        env::var("HMRC_INTEGRATION_TOKEN").ok(),
+        env::var("HMRC_INTEGRATION_MODE").ok(),
+    )
+}
+
+fn approved_integration_from_values(
+    url: Option<String>,
+    token: Option<String>,
+    mode: Option<String>,
+) -> Option<ApprovedIntegration> {
+    let url = url?;
+    let token = token?;
+    if !url.starts_with("https://") || token.trim().is_empty() {
+        return None;
     }
+    let mode = match mode.as_deref() {
+        Some("hmrc_sandbox_no_filing")
+            if url == "https://test-api.service.hmrc.gov.uk/hello/world" =>
+        {
+            IntegrationMode::HmrcSandboxNoFiling
+        }
+        None | Some("") | Some("approved_provider") => IntegrationMode::ApprovedProvider,
+        _ => return None,
+    };
+    Some(ApprovedIntegration { url, token, mode })
 }
 
 async fn get_share(
@@ -742,9 +857,13 @@ async fn get_share(
 }
 
 async fn page_view(State(state): State<AppState>) -> Result<StatusCode, ApiError> {
+    let _persistence = state.persistence.lock().await;
     let day = unix_now() / 86_400;
     sqlx::query("INSERT INTO page_views(day, count) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET count=count+1")
         .bind(day as i64).execute(&state.db).await.map_err(internal)?;
+    persist_database_snapshot(&state.database_path, &state.snapshot_path)
+        .await
+        .map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1349,6 +1468,109 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn durable_snapshot_restores_key_records_links_audit_and_page_count() {
+        let root = std::env::temp_dir().join(format!("quarterly-ready-state-{}", Uuid::new_v4()));
+        let durable = root.join("durable");
+        let local = root.join("local");
+        fs::create_dir_all(&durable).await.unwrap();
+        fs::create_dir_all(&local).await.unwrap();
+        let database_path = local.join("quarterly-ready.sqlite3");
+        let snapshot_path = durable.join("quarterly-ready.snapshot.sqlite3");
+        let key_path = durable.join("quarterly-ready.key");
+        let (key, generated) = load_or_create_key(&key_path).await.unwrap();
+        assert!(generated);
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&format!("sqlite://{}?mode=rwc", database_path.display()))
+            .await
+            .unwrap();
+        migrate(&db).await.unwrap();
+        let document = json!({
+            "quarterStart": "2026-04-06", "quarterEnd": "2026-07-05",
+            "transactions": [{"id":"durable-1","date":"2026-04-09","description":"Durable lesson","amountPence":4500,"kind":"income","category":"Sales"}]
+        });
+        let encrypted = encrypt_json(&key, &document).unwrap();
+        sqlx::query("INSERT INTO workspaces(id, payload, updated_at) VALUES(?, ?, ?)")
+            .bind("durable-workspace")
+            .bind(&encrypted)
+            .bind(1_i64)
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO shares(token, workspace_id, payload, expires_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind("durable-share")
+        .bind("durable-workspace")
+        .bind(&encrypted)
+        .bind(i64::MAX)
+        .execute(&db)
+        .await
+        .unwrap();
+        let state = AppState {
+            db,
+            key,
+            database_path: database_path.clone(),
+            snapshot_path: snapshot_path.clone(),
+            persistence: Arc::new(Mutex::new(())),
+            limits: Arc::new(Mutex::new(HashMap::new())),
+            client: reqwest::Client::new(),
+            billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            hmrc_integration: None,
+            safe_qa_fixtures: false,
+        };
+        write_audit(&state, "durable-workspace", "records_saved", b"durable")
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO page_views(day, count) VALUES(?, ?)")
+            .bind(1_i64)
+            .bind(3_i64)
+            .execute(&state.db)
+            .await
+            .unwrap();
+        persist_database_snapshot(&database_path, &snapshot_path)
+            .await
+            .unwrap();
+        state.db.close().await;
+        fs::remove_file(&database_path).await.unwrap();
+
+        let (restored_key, regenerated) = load_or_create_key(&key_path).await.unwrap();
+        assert!(!regenerated);
+        assert_eq!(restored_key, key);
+        restore_database_snapshot(&snapshot_path, &database_path)
+            .await
+            .unwrap();
+        let restored = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&format!("sqlite://{}?mode=rw", database_path.display()))
+            .await
+            .unwrap();
+        for table in ["workspaces", "shares"] {
+            let query = format!("SELECT payload FROM {table} LIMIT 1");
+            let payload: Vec<u8> = sqlx::query(&query)
+                .fetch_one(&restored)
+                .await
+                .unwrap()
+                .get("payload");
+            assert_eq!(decrypt_json(&restored_key, &payload).unwrap(), document);
+        }
+        let audit_count: i64 = sqlx::query("SELECT COUNT(*) AS count FROM audit_log")
+            .fetch_one(&restored)
+            .await
+            .unwrap()
+            .get("count");
+        let page_count: i64 = sqlx::query("SELECT count FROM page_views WHERE day = 1")
+            .fetch_one(&restored)
+            .await
+            .unwrap()
+            .get("count");
+        assert_eq!(audit_count, 1);
+        assert_eq!(page_count, 3);
+        restored.close().await;
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn claim_anonymous_page_count() {
         let db = SqlitePoolOptions::new()
             .max_connections(1)
@@ -1427,6 +1649,74 @@ mod tests {
             error.1,
             "Confirm that you reviewed the totals before submitting to HMRC."
         );
+    }
+
+    #[test]
+    fn sandbox_configuration_requires_the_official_non_filing_hmrc_endpoint() {
+        let token = Some("key-vault-attestation".to_owned());
+        let mode = Some("hmrc_sandbox_no_filing".to_owned());
+        assert!(approved_integration_from_values(
+            Some("https://not-hmrc.example/sandbox".to_owned()),
+            token.clone(),
+            mode.clone(),
+        )
+        .is_none());
+        let integration = approved_integration_from_values(
+            Some("https://test-api.service.hmrc.gov.uk/hello/world".to_owned()),
+            token,
+            mode,
+        )
+        .expect("official HMRC test endpoint should configure sandbox mode");
+        assert_eq!(integration.mode, IntegrationMode::HmrcSandboxNoFiling);
+    }
+
+    #[tokio::test]
+    async fn claim_hmrc_sandbox_is_non_filing_and_sends_no_records_or_secret() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::sync::oneshot;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (request_tx, request_rx) = oneshot::channel();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut bytes = vec![0; 4096];
+            let read = stream.read(&mut bytes).await.unwrap();
+            request_tx
+                .send(String::from_utf8_lossy(&bytes[..read]).to_string())
+                .unwrap();
+            let body = r#"{"message":"Hello World"}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            stream.write_all(response.as_bytes()).await.unwrap();
+        });
+        let payload = json!({
+            "format": "quarterly-ready-mtd-itsa-periodic-update-v1",
+            "periodIncome": { "turnover": 260.0 },
+            "reviewedByUser": true
+        });
+        let result = send_to_approved_integration(
+            &reqwest::Client::new(),
+            &ApprovedIntegration {
+                url: format!("http://{address}/hello/world"),
+                token: "sandbox-attestation-must-stay-server-side".into(),
+                mode: IntegrationMode::HmrcSandboxNoFiling,
+            },
+            &payload,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.status, "sandbox_accepted_no_filing");
+        assert!(!result.files_with_hmrc);
+        assert!(result.submission_id.starts_with("hmrc-sandbox-no-filing-"));
+        let request = request_rx.await.unwrap();
+        assert!(request.starts_with("GET /hello/world"));
+        assert!(request.contains("application/vnd.hmrc.1.0+json"));
+        assert!(!request.contains("periodIncome"));
+        assert!(!request.contains("sandbox-attestation-must-stay-server-side"));
+        assert!(!request.to_ascii_lowercase().contains("authorization:"));
     }
 
     #[tokio::test]
@@ -1524,6 +1814,7 @@ mod tests {
             hmrc_integration: Some(ApprovedIntegration {
                 url: format!("http://{address}/submit"),
                 token: "bridge-secret".into(),
+                mode: IntegrationMode::ApprovedProvider,
             }),
             safe_qa_fixtures: false,
         };
@@ -1542,6 +1833,7 @@ mod tests {
         let result = submit_to_hmrc(State(state), request).await.unwrap().0;
         assert_eq!(result.submission_id, "mtd-test-123");
         assert_eq!(result.status, "accepted");
+        assert!(result.files_with_hmrc);
         assert!(request_rx
             .recv()
             .await

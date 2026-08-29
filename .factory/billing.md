@@ -36,7 +36,8 @@ credentials.
 The release deployment sets `SAFE_QA_FIXTURES=1` and checks
 `GET /api/qa/entitlement` before it reports success. The endpoint returns a
 public QA token and one exact synthetic document. The token authorises only that
-unchanged document. It cannot authorise user records. Its submission result is
-labelled `fixture_only_no_filing` and does not call Sociobot, Dodo, HMRC, or the
-configured integration. `npm run verify:live` uses this path to prove the paid
-share and submission policy without a purchase or tax filing.
+unchanged document. It cannot authorise user records. Without an integration,
+its result is `fixture_only_no_filing`. With the release sandbox configured, it
+validates the payload and calls only HMRC's public test greeting. It sends no
+record data and files no return. `npm run verify:live` uses this path without a
+purchase or tax filing.

@@ -18,8 +18,12 @@ const health = await healthResponse.json();
 assert(health.status === 'ok', '/health did not report ok');
 assert(health.safe_qa_fixtures === true, '/health reports SAFE_QA_FIXTURES is not enabled');
 assert(typeof health.hmrc_integration_configured === 'boolean', '/health omitted the HMRC integration capability');
+assert(typeof health.hmrc_integration_mode === 'string', '/health omitted the HMRC integration mode');
 if (process.env.REQUIRE_APPROVED_HMRC === '1') {
   assert(health.hmrc_integration_configured === true, 'production has no approved HMRC integration configured');
+}
+if (process.env.REQUIRE_HMRC_SANDBOX === '1') {
+  assert(health.hmrc_integration_mode === 'hmrc_sandbox_no_filing', `production HMRC mode is ${health.hmrc_integration_mode}, expected hmrc_sandbox_no_filing`);
 }
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
@@ -88,7 +92,14 @@ assert(fixtureShare.status === 201, `safe fixture accountant link returned ${fix
 const fixtureSubmission = await response('/api/hmrc/submit', { method: 'POST', headers: { ...fixtureHeaders, 'x-forwarded-for': '203.0.113.232' }, body: JSON.stringify({ document: safe.document, review_confirmed: true }) });
 assert(fixtureSubmission.status === 200, `safe fixture submission returned ${fixtureSubmission.status}`);
 const fixtureSubmissionBody = await fixtureSubmission.json();
-assert(fixtureSubmissionBody.status === 'fixture_only_no_filing' && fixtureSubmissionBody.submission_id.startsWith('safe-fixture-no-filing-'), 'safe fixture submission was not explicitly non-filing');
+if (process.env.REQUIRE_HMRC_SANDBOX === '1') {
+  assert(fixtureSubmissionBody.status === 'sandbox_accepted_no_filing' && fixtureSubmissionBody.submission_id.startsWith('hmrc-sandbox-no-filing-'), 'HMRC sandbox did not accept the reviewed synthetic payload');
+} else {
+  assert(['fixture_only_no_filing', 'sandbox_accepted_no_filing'].includes(fixtureSubmissionBody.status), 'safe fixture submission was not explicitly non-filing');
+}
+assert(fixtureSubmissionBody.files_with_hmrc === false, 'safe submission did not prove that it files nothing with HMRC');
+
+const runKey = crypto.randomUUID().replaceAll('-', '').slice(0, 4);
 
 async function assertLimit(kind, allowance, clientIp) {
   const requests = Array.from({ length: allowance + 8 }, (_, index) => {
@@ -105,11 +116,11 @@ async function assertLimit(kind, allowance, clientIp) {
   assert(limited.every(item => item.headers.has('retry-after')), `${kind} 429 response omitted Retry-After`);
 }
 
-await assertLimit('read', 40, '203.0.113.242');
-await assertLimit('write', 12, '203.0.113.243');
+await assertLimit('read', 40, `2001:db8:${runKey}::42`);
+await assertLimit('write', 12, `2001:db8:${runKey}::43`);
 
 if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
   execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
 }
 
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, safe_paid_fixture: 'non-charging/non-filing', read_limit: 40, write_limit: 12, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));

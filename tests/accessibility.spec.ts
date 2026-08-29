@@ -1,6 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+const liveSandbox = Boolean(process.env.VERIFY_ORIGIN);
+const reviewAction = liveSandbox ? 'Review in HMRC sandbox' : 'Review and submit to HMRC';
+const reviewConfirmation = liveSandbox
+  ? 'I reviewed these totals and want to run the sandbox check.'
+  : 'I reviewed these totals and want to submit this quarter.';
+const confirmAction = liveSandbox ? 'Run HMRC sandbox check' : 'Submit through approved integration';
+
 for (const path of ['/', '/demo', '/privacy', '/terms']) {
   test(`accessibility baseline ${path}`, async ({ page }) => {
     await page.goto(path);
@@ -85,12 +92,12 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
     transactions: [{ id: 'income-1', date: '2026-04-09', description: 'Lesson', amountPence: 4500, kind: 'income', category: 'Sales' }]
   })));
   await page.reload();
-  await page.getByRole('button', { name: 'Review and submit to HMRC' }).click();
+  await page.getByRole('button', { name: reviewAction }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  await expect(page.getByLabel('I reviewed these totals and want to submit this quarter.')).toBeFocused();
+  await expect(page.getByLabel(reviewConfirmation)).toBeFocused();
   await page.keyboard.press('Space');
-  await expect(page.getByRole('button', { name: 'Submit through approved integration' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: confirmAction })).toBeEnabled();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact || ''))).toEqual([]);
   await page.keyboard.press('Escape');
@@ -99,7 +106,7 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
 
 test('@claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration', async ({ page, browser }) => {
   await page.goto('/records');
-  await expect(page.getByRole('button', { name: 'Review and submit to HMRC' })).toBeVisible();
+  await expect(page.getByRole('button', { name: reviewAction })).toBeVisible();
   const unavailableContext = await browser.newContext();
   const unavailable = await unavailableContext.newPage();
   await unavailable.route('**/health', route => route.fulfill({
@@ -107,7 +114,7 @@ test('@claim:conditional-submission @regression:hmrc-capability shows direct sub
     body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
   }));
   await unavailable.goto('/records');
-  await expect(unavailable.getByRole('button', { name: 'Review and submit to HMRC' })).toHaveCount(0);
+  await expect(unavailable.getByRole('button', { name: reviewAction })).toHaveCount(0);
   await expect(unavailable.getByText('No approved direct-submission integration is configured.')).toBeVisible();
   await unavailableContext.close();
 });
@@ -118,6 +125,22 @@ test('@regression:hmrc-capability hides direct submission when no approved integ
     body: JSON.stringify({ status: 'ok', build_sha: 'test', safe_qa_fixtures: true, hmrc_integration_configured: false }),
   }));
   await page.goto('/records');
-  await expect(page.getByRole('button', { name: 'Review and submit to HMRC' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: reviewAction })).toHaveCount(0);
   await expect(page.getByText('No approved direct-submission integration is configured.')).toBeVisible();
+});
+
+test('@regression:hmrc-sandbox-copy makes the non-filing boundary explicit before confirmation', async ({ page }) => {
+  await page.route('**/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'ok', build_sha: 'test', safe_qa_fixtures: true,
+      hmrc_integration_configured: true, hmrc_integration_mode: 'hmrc_sandbox_no_filing',
+    }),
+  }));
+  await page.goto('/records');
+  await expect(page.getByText('HMRC non-filing sandbox')).toBeVisible();
+  await expect(page.getByText('It files no return and sends HMRC no records.')).toBeVisible();
+  const button = page.getByRole('button', { name: 'Review in HMRC sandbox' });
+  await expect(button).toBeVisible();
+  await expect(button).toBeDisabled();
 });

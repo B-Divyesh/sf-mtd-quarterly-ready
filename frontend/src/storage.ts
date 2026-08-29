@@ -129,16 +129,16 @@ export async function createShare(document: QuarterDocument): Promise<string> {
   return `${location.origin}/share/${result.token}`;
 }
 
-export async function submitToHmrc(document: QuarterDocument): Promise<string> {
+export async function submitToHmrc(document: QuarterDocument): Promise<{ reference: string; status: string; filesWithHmrc: boolean }> {
   const submittedDocument = clone(document);
   for (const transaction of submittedDocument.transactions) delete transaction.receiptData;
   const response = await fetch('/api/hmrc/submit', {
     method: 'POST', headers: liveHeaders(document),
     body: JSON.stringify({ document: submittedDocument, review_confirmed: true })
   });
-  const result = await response.json().catch(() => ({})) as { submission_id?: string; error?: string };
+  const result = await response.json().catch(() => ({})) as { submission_id?: string; status?: string; files_with_hmrc?: boolean; error?: string };
   if (!response.ok || !result.submission_id) throw new Error(result.error || 'The HMRC submission could not be completed. No submission was made.');
-  return result.submission_id;
+  return { reference: result.submission_id, status: result.status || 'accepted', filesWithHmrc: result.files_with_hmrc === true };
 }
 
 export async function loadShare(token: string): Promise<QuarterDocument> {

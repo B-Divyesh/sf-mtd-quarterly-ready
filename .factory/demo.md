@@ -16,7 +16,7 @@ One bank transfer needs a category. One expense needs a receipt. These gaps make
 
 Demo transaction metadata uses the localStorage key `demo:quarterly-ready:document`. Receipt files use the `quarterly-ready-receipts-v1` IndexedDB database with `demo:` keys. Real browser data uses `quarterly-ready:document:<quarter-start>`, `real:` receipt keys, and a separate workspace ID for each quarter.
 
-Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. A direct submission control appears only when the server confirms an approved integration is configured, and it remains disabled in demo mode.
+Demo actions never call the workspace, share, billing, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. The HMRC sandbox control appears when configured and remains disabled in demo mode.
 
 Choose **Reset demo** in the persistent banner to restore the sample and clear its receipt files. Choose **Start for real** to discard all demo storage and open an empty real quarter.
 
