@@ -872,9 +872,10 @@ async fn persist_database_snapshot(
     if fs::metadata(database).await.is_err() {
         return Ok(());
     }
-    let temporary = snapshot.with_extension("sqlite3.next");
-    fs::copy(database, &temporary).await?;
-    fs::rename(temporary, snapshot).await
+    // Azure Files supports overwrite copies but not the POSIX rename used for
+    // an atomic replace. All real mutations are serialized by `persistence`,
+    // so a direct overwrite is a consistent snapshot for this one replica.
+    fs::copy(database, snapshot).await.map(|_| ())
 }
 
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
