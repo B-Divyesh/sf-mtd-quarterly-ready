@@ -147,23 +147,6 @@
       "frontend_src_storage_loadremote"
     ],
     "5": [
-      "frontend_src_sample",
-      "frontend_src_sample_emptydocument",
-      "frontend_src_sample_sample_document",
-      "frontend_src_storage",
-      "frontend_src_storage_clone",
-      "frontend_src_storage_liveheaders",
-      "frontend_src_storage_loaddocument",
-      "frontend_src_storage_loadshare",
-      "frontend_src_storage_resetdemo",
-      "frontend_src_storage_savedocument",
-      "frontend_src_storage_saveremote",
-      "frontend_src_storage_storagekeys",
-      "frontend_src_storage_submittohmrc",
-      "frontend_src_storage_workspaceid",
-      "frontend_src_types_quarterdocument"
-    ],
-    "6": [
       "error",
       "fspath",
       "sqlitepool",
@@ -178,6 +161,22 @@
       "src_main_restore_database_snapshot",
       "src_main_shutdown_signal",
       "src_main_workspace_snapshot_is_restored_after_a_restart"
+    ],
+    "6": [
+      "frontend_src_sample",
+      "frontend_src_sample_emptydocument",
+      "frontend_src_sample_sample_document",
+      "frontend_src_storage",
+      "frontend_src_storage_clone",
+      "frontend_src_storage_liveheaders",
+      "frontend_src_storage_loaddocument",
+      "frontend_src_storage_loadshare",
+      "frontend_src_storage_resetdemo",
+      "frontend_src_storage_savedocument",
+      "frontend_src_storage_saveremote",
+      "frontend_src_storage_storagekeys",
+      "frontend_src_storage_workspaceid",
+      "frontend_src_types_quarterdocument"
     ],
     "7": [
       "frontend_src_records",
@@ -220,7 +219,8 @@
       "frontend_src_main_sharepack",
       "frontend_src_main_submithmrc",
       "frontend_src_storage_createshare",
-      "frontend_src_storage_leavedemo"
+      "frontend_src_storage_leavedemo",
+      "frontend_src_storage_submittohmrc"
     ],
     "11": [
       "scripts_verify_live",
@@ -271,12 +271,12 @@
     "2": 0.1,
     "3": 0.13450292397660818,
     "4": 0.2222222222222222,
-    "5": 0.23809523809523808,
-    "6": 0.21978021978021978,
+    "5": 0.21978021978021978,
+    "6": 0.25274725274725274,
     "7": 0.32727272727272727,
     "8": 0.35555555555555557,
     "9": 0.4642857142857143,
-    "10": 0.3333333333333333,
+    "10": 0.2857142857142857,
     "11": 0.4666666666666667,
     "12": 1.0,
     "13": 1.0,
@@ -331,64 +331,64 @@
       "degree": 12
     },
     {
-      "id": "package_scripts",
-      "label": "scripts",
+      "id": "src_main_get_workspace",
+      "label": "get_workspace()",
       "degree": 11
     },
     {
-      "id": "src_main_get_workspace",
-      "label": "get_workspace()",
+      "id": "package_scripts",
+      "label": "scripts",
       "degree": 11
     }
   ],
   "surprises": [
     {
+      "source": "recordsPage()",
+      "target": "loadDocument()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "renderShare()",
+      "target": "loadShare()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "bindRecords()",
+      "target": "resetDemo()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "saveAndRender()",
+      "target": "saveDocument()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
       "source": "downloadPack()",
       "target": "accountantCsv()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "downloadHmrc()",
-      "target": "hmrcHandoff()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "importCsv()",
-      "target": "parseCsv()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "checklist()",
-      "target": "summarise()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "summarise()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
