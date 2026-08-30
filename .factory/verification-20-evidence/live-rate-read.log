@@ -1,0 +1,11 @@
+file:///work/repo/scripts/verify-rate-limit.mjs:21
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: read request 41 returned 400, expected 429
+    at assert (file:///work/repo/scripts/verify-rate-limit.mjs:21:25)
+    at verify (file:///work/repo/scripts/verify-rate-limit.mjs:73:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///work/repo/scripts/verify-rate-limit.mjs:89:72
+
+Node.js v22.23.2

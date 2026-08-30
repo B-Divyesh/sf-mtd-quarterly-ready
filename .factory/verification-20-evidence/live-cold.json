@@ -1,0 +1,118 @@
+{
+  "status": 200,
+  "url": "https://mtd-quarterly-ready.sociobot.in/",
+  "title": "Quarterly Ready — Check your MTD quarter",
+  "h1": [
+    "Turn records into a checked quarterly update"
+  ],
+  "main": 1,
+  "body": "Skip to main content\nQUARTERLY\nREADY\nRecords\nDemo\nPrivacy\n\nMTD QUARTER CONTROL · UK TAX YEARS\n\nTurn records into a checked quarterly update\n\nFor UK sole traders, tutors and landlords who need MTD records without a full accounting suite.\n\nTry it with sample data\nOpens a private sample quarter. No account needed.\nDemo changes never enter your records.\nAccountant pack downloads as a CSV.\nRead-only links from £12 a month.\nOne quarter. Four checks. A clear handoff.\nLIVE READOUT\nSee what still needs attention\nINCOME\n£260.00\nCOSTS\n£155.83\nNET\n£104.17\n1 transaction needs a category\nOpen sample quarter\nOPERATING SEQUENCE\nHow it works\n1\nAdd records\n\nEnter a payment, attach a receipt, or import a bank CSV.\n\n2\nReview the quarter\n\nResolve each check and confirm the figures yourself.\n\n3\nPrepare the handoff\n\nDownload a reviewed HMRC handoff or share a CSV.\n\nCLEAR LIMITS\n\nRecords and checks, not tax advice\n\nQuarterly Ready does not run payroll or decide what you can claim.\n\nYou review every figure before exporting a compatible quarterly handoff.\n\nDATA POSITION\n\nReal records use encrypted server storage. Receipt files stay in this browser.\n\nRead the privacy notice\n\nLIVE SERVICE\n\nShare with an accountant from £12 a month\n\nA subscription adds verified, read-only accountant links.\n\nThe free version keeps your quarter and every download.\n\n£12\nper month · or £99 per year\nChoose monthly\nChoose annual · £99\n\nHave a subscription? Paste it\n\nSociobot is the merchant of record. Refunds are handled there.\n\nChecked quarters for UK sole traders.\n\nPrivacy\nTerms\nBuilt by Param Factory\n(external)\n\nVersion 1.0 · Original generated imagery\n\nTurn records into a checked quarterly update",
+  "buttons": [
+    {
+      "text": "Skip to main content",
+      "href": "https://mtd-quarterly-ready.sociobot.in/#main"
+    },
+    {
+      "text": "QUARTERLY\nREADY",
+      "href": "https://mtd-quarterly-ready.sociobot.in/"
+    },
+    {
+      "text": "Records",
+      "href": "https://mtd-quarterly-ready.sociobot.in/records"
+    },
+    {
+      "text": "Demo",
+      "href": "https://mtd-quarterly-ready.sociobot.in/demo"
+    },
+    {
+      "text": "Privacy",
+      "href": "https://mtd-quarterly-ready.sociobot.in/privacy"
+    },
+    {
+      "text": "Try it with sample data",
+      "href": "https://mtd-quarterly-ready.sociobot.in/demo"
+    },
+    {
+      "text": "Open sample quarter",
+      "href": "https://mtd-quarterly-ready.sociobot.in/demo"
+    },
+    {
+      "text": "Read the privacy notice",
+      "href": "https://mtd-quarterly-ready.sociobot.in/privacy"
+    },
+    {
+      "text": "Choose monthly",
+      "href": null
+    },
+    {
+      "text": "Choose annual · £99",
+      "href": null
+    },
+    {
+      "text": "Have a subscription? Paste it",
+      "href": null
+    },
+    {
+      "text": "Verify subscription",
+      "href": null
+    },
+    {
+      "text": "Privacy",
+      "href": "https://mtd-quarterly-ready.sociobot.in/privacy"
+    },
+    {
+      "text": "Terms",
+      "href": "https://mtd-quarterly-ready.sociobot.in/terms"
+    },
+    {
+      "text": "Built by Param Factory\n(external)",
+      "href": "https://hello-factory.sociobot.in/"
+    }
+  ],
+  "requests": [
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/",
+      "method": "GET",
+      "resource": "document"
+    },
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/assets/index-BO1H_bsB.js",
+      "method": "GET",
+      "resource": "script"
+    },
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/assets/index-BFlCDFpb.css",
+      "method": "GET",
+      "resource": "stylesheet"
+    },
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/api/page-view",
+      "method": "POST",
+      "resource": "fetch"
+    },
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/health",
+      "method": "GET",
+      "resource": "fetch"
+    },
+    {
+      "url": "https://mtd-quarterly-ready.sociobot.in/assets/instrument-panel.webp",
+      "method": "GET",
+      "resource": "image"
+    }
+  ],
+  "console_errors": [],
+  "headers": {
+    "accept-ranges": "bytes",
+    "cache-control": "no-cache",
+    "content-length": "1822",
+    "content-security-policy": "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self' https://api.sociobot.in; object-src 'none'; base-uri 'self'; form-action 'self' https://api.sociobot.in; frame-ancestors 'none'",
+    "content-type": "text/html",
+    "date": "Sun, 30 Aug 2026 02:42:17 GMT",
+    "last-modified": "Sun, 30 Aug 2026 01:38:19 GMT",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+    "x-content-type-options": "nosniff"
+  }
+}

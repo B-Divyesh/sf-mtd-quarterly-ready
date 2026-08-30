@@ -1,0 +1,11 @@
+file:///work/repo/scripts/verify-concurrent-workspaces.mjs:12
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: round 1 lost acknowledged workspaces at indexes 0,1,2,4,7,9
+    at assert (file:///work/repo/scripts/verify-concurrent-workspaces.mjs:12:25)
+    at runRound (file:///work/repo/scripts/verify-concurrent-workspaces.mjs:69:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///work/repo/scripts/verify-concurrent-workspaces.mjs:74:62
+
+Node.js v22.23.2

@@ -1,3 +1,19 @@
+# Quarterly Ready — verification 20 handoff
+
+## Latest independent status: **FAIL — do not release**
+
+Candidate `5c6a3832b600a900e0e1d08034da91f2522eb713` is locally buildable and
+its deployed static assets match the candidate, but its live backend fails the
+product contract. Fresh verification reproduced acknowledged record loss,
+missing 429/`Retry-After` rate limiting, a three-replica/no-volume/mutable-tag
+deployment topology, no approved HMRC integration or taxpayer consent flow,
+and HTTP 503 from both advertised Sociobot checkout endpoints.
+
+Read the exact independent evidence and reproduction commands in
+`.factory/verification-20.md`. No product code was changed by the verifier.
+
+---
+
 # Quarterly Ready — repair 19 handoff
 
 ## Status

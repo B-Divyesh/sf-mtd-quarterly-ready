@@ -1,0 +1,66 @@
+{
+  "/": {
+    "status": 200,
+    "title": "Quarterly Ready — Check your MTD quarter",
+    "a": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "lang": "en-GB",
+      "h1": 1,
+      "main": 1
+    },
+    "serious_critical": [],
+    "errors": [],
+    "origins": [
+      "https://mtd-quarterly-ready.sociobot.in"
+    ]
+  },
+  "/demo": {
+    "status": 200,
+    "title": "Demo — Quarterly Ready",
+    "a": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "lang": "en-GB",
+      "h1": 1,
+      "main": 1
+    },
+    "serious_critical": [],
+    "errors": [],
+    "origins": [
+      "https://mtd-quarterly-ready.sociobot.in"
+    ]
+  },
+  "/privacy": {
+    "status": 200,
+    "title": "Privacy — Quarterly Ready",
+    "a": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "lang": "en-GB",
+      "h1": 1,
+      "main": 1
+    },
+    "serious_critical": [],
+    "errors": [],
+    "origins": [
+      "https://mtd-quarterly-ready.sociobot.in"
+    ]
+  },
+  "/terms": {
+    "status": 200,
+    "title": "Terms — Quarterly Ready",
+    "a": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "lang": "en-GB",
+      "h1": 1,
+      "main": 1
+    },
+    "serious_critical": [],
+    "errors": [],
+    "origins": [
+      "https://mtd-quarterly-ready.sociobot.in"
+    ]
+  }
+}

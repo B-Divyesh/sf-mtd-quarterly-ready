@@ -1,0 +1,14 @@
+
+> mtd-quarterly-ready@1.0.0 verify:live
+> node scripts/verify-live.mjs
+
+file:///work/repo/scripts/verify-live.mjs:8
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: monthly checkout returned 503, expected a checkout URL
+    at assert (file:///work/repo/scripts/verify-live.mjs:8:25)
+    at file:///work/repo/scripts/verify-live.mjs:39:3
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v22.23.2

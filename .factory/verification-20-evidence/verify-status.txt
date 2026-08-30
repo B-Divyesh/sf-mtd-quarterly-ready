@@ -1,0 +1,2 @@
+verify:live=1
+verify:release=1

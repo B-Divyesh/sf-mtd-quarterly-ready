@@ -1,0 +1,12 @@
+{
+  "sw": {
+    "active": true,
+    "controlled": true,
+    "script": "https://mtd-quarterly-ready.sociobot.in/sw.js"
+  },
+  "offline": {
+    "banner": true,
+    "sample": true,
+    "errors": []
+  }
+}

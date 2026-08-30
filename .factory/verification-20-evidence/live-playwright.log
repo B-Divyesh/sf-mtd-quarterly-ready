@@ -1,0 +1,374 @@
+
+Running 53 tests using 1 worker
+
+(node:14706) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14706) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/accessibility.spec.ts:20:3 › accessibility baseline / (4.1s)
+  ✓   2 [chromium] › tests/accessibility.spec.ts:20:3 › accessibility baseline /demo (4.9s)
+  ✓   3 [chromium] › tests/accessibility.spec.ts:20:3 › accessibility baseline /privacy (2.7s)
+  ✓   4 [chromium] › tests/accessibility.spec.ts:20:3 › accessibility baseline /terms (2.7s)
+(node:15083) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › tests/accessibility.spec.ts:30:1 › @regression:verify-url-helper checks title, language, landmark, image text, and browser errors (4.1s)
+  ✓   6 [chromium] › tests/accessibility.spec.ts:46:1 › mobile layout does not overflow at 390px (821ms)
+  ✓   7 [chromium] › tests/accessibility.spec.ts:53:1 › @regression:mobile-navigation-and-footer-targets are at least 44 by 44 CSS pixels (2.3s)
+  ✓   8 [chromium] › tests/accessibility.spec.ts:66:1 › @regression:mobile-review-control is at least 44 CSS pixels high (1.2s)
+  ✓   9 [chromium] › tests/accessibility.spec.ts:73:1 › @regression:two-hundred-percent-text keeps the mobile first action usable without horizontal overflow (1.2s)
+  ✓  10 [chromium] › tests/accessibility.spec.ts:82:1 › @regression:reduced-motion makes the quarter dial transition effectively instant (1.3s)
+  ✓  11 [chromium] › tests/accessibility.spec.ts:89:1 › @regression:route-metadata follows SPA navigation (1.2s)
+  ✓  12 [chromium] › tests/accessibility.spec.ts:96:1 › @regression:cold-records-load has no console or failed-response errors (1.2s)
+  ✓  13 [chromium] › tests/accessibility.spec.ts:108:1 › all internal links return successful pages (1.5s)
+  ✓  14 [chromium] › tests/accessibility.spec.ts:114:1 › keyboard path opens the demo without console errors (1.7s)
+  ✓  15 [chromium] › tests/accessibility.spec.ts:126:1 › submission review dialog is keyboard-operable and has no serious Axe findings when an integration is available (1.2s)
+  ✓  16 [chromium] › tests/accessibility.spec.ts:160:1 › @claim:conditional-submission @regression:hmrc-capability shows direct submission only when the server confirms an approved integration and taxpayer consent (2.4s)
+  ✓  17 [chromium] › tests/accessibility.spec.ts:181:1 › @claim:hmrc-consent-no-records @regression:approved-provider-consent is explicit, sends no records, and opens only on user action (1.9s)
+  ✓  18 [chromium] › tests/accessibility.spec.ts:210:1 › @regression:hmrc-capability hides direct submission when no approved integration is configured (1.3s)
+  ✓  19 [chromium] › tests/accessibility.spec.ts:220:1 › @regression:hmrc-sandbox-copy makes the non-filing boundary explicit before confirmation (1.4s)
+  ✓  20 [chromium] › tests/accessibility.spec.ts:236:1 › @regression:hmrc-copy does not claim a deployed sandbox when direct submission is unavailable (1.1s)
+  ✘  21 [chromium] › tests/backend.spec.ts:11:1 › health reports the build identity (88ms)
+(node:15666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  22 [chromium] › tests/backend.spec.ts:21:1 › @regression:deployed-safe-qa-runtime is enabled and observable through health (125ms)
+  ✘  23 [chromium] › tests/backend.spec.ts:31:1 › workspace endpoints save and return an encrypted document (115ms)
+(node:15751) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15751) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15826) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+file:///work/repo/scripts/verify-concurrent-workspaces.mjs:12
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: round 1 lost acknowledged workspaces at indexes 2,3,7,9
+    at assert [90m(file:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:12:25[90m)[39m
+    at runRound [90m(file:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:69:3[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async [90mfile:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:74:62
+
+Node.js v22.23.2
+  ✘  24 [chromium] › tests/backend.spec.ts:39:1 › @regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted (2.0s)
+(node:15888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [chromium] › tests/backend.spec.ts:58:1 › @regression:workspace-rejects-malformed-transaction-objects before persistence (295ms)
+  ✓  26 [chromium] › tests/backend.spec.ts:77:1 › @regression:workspace-rejects-invalid-quarter-boundaries atomically (104ms)
+  ✓  27 [chromium] › tests/backend.spec.ts:88:1 › @regression:empty-workspace returns a successful empty document (15ms)
+  ✓  28 [chromium] › tests/backend.spec.ts:99:1 › @claim:server-licence-gate @regression:unauthenticated-share cannot create a live accountant link without a server-verified Sociobot subscription (77ms)
+  ✓  29 [chromium] › tests/backend.spec.ts:108:1 › @regression:submission-needs-human-review refuses an unreviewed submission before contacting any integration (81ms)
+  ✓  30 [chromium] › tests/backend.spec.ts:117:1 › @regression:safe-paid-fixture proves share and submission paths without charging or filing (104ms)
+(node:15905) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+file:///work/repo/scripts/verify-rate-limit.mjs:21
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: read request 41 returned 400, expected 429
+    at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+    at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+
+Node.js v22.23.2
+  ✘  31 [chromium] › tests/backend.spec.ts:140:1 › @regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After (1.7s)
+(node:15936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  32 [chromium] › tests/backend.spec.ts:164:1 › static files never consume the API rate allowance (800ms)
+(node:15954) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+file:///work/repo/scripts/verify-rate-limit.mjs:21
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: write request 13 returned 204, expected 429
+    at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+    at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:90:74
+
+Node.js v22.23.2
+  ✘  33 [chromium] › tests/backend.spec.ts:169:1 › @regression:shared-write-limit allows 12 writes then returns 429 with Retry-After (1.9s)
+(node:15986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  34 [chromium] › tests/backend.spec.ts:191:1 › @regression:OAuth callback shares the stricter write quota (585ms)
+(node:16026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+file:///work/repo/scripts/verify-rate-limit.mjs:21
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: read request 41 returned 400, expected 429
+    at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+    at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+
+Node.js v22.23.2
+  ✘  35 [chromium] › tests/backend.spec.ts:201:1 › @claim:api-rate-limit enforces both paced burst allowances on a stable client connection (1.6s)
+(node:16067) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16067) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -  36 [chromium] › tests/backend.spec.ts:216:1 › @regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit
+  ✓  37 [chromium] › tests/backend.spec.ts:227:1 › @regression:unknown-route returns the designed page with a genuine 404 (113ms)
+  ✓  38 [chromium] › tests/backend.spec.ts:233:1 › @regression:response-policy protects HTML and service-worker responses (33ms)
+  ✓  39 [chromium] › tests/claims.spec.ts:4:1 › @claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps sample changes separate from real records (1.8s)
+  ✓  40 [chromium] › tests/claims.spec.ts:18:1 › @claim:accountant-csv exports every sample transaction (1.6s)
+  ✓  41 [chromium] › tests/claims.spec.ts:28:1 › @claim:quarter-review shows totals and resolves the outstanding category (1.5s)
+  ✓  42 [chromium] › tests/claims.spec.ts:37:1 › @claim:csv-import imports a bank CSV into the quarter (1.4s)
+  ✓  43 [chromium] › tests/claims.spec.ts:44:1 › @regression:csv-invalid-rows-are-atomic rejects impossible, out-of-quarter, zero, and unknown-category rows without changing totals (2.3s)
+  ✘  44 [chromium] › tests/claims.spec.ts:62:1 › @claim:free-quarter-persistence @claim:quarter-record-separation @regression:current-and-future-quarters remain separate across reloads (6.3s)
+(node:16288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  45 [chromium] › tests/claims.spec.ts:107:1 › @regression:receipt-small attaches a receipt to an existing expense (1.8s)
+  ✓  46 [chromium] › tests/claims.spec.ts:127:1 › @claim:receipt-capture @regression:receipt-quota stores three valid near-limit receipts outside localStorage (3.5s)
+  ✓  47 [chromium] › tests/claims.spec.ts:167:1 › @claim:receipt-locality keeps receipt contents in browser IndexedDB and out of the server document (2.7s)
+  ✓  48 [chromium] › tests/claims.spec.ts:208:1 › @regression:receipt-quota-error keeps the transaction unchanged and announces recovery (1.5s)
+  ✓  49 [chromium] › tests/claims.spec.ts:229:1 › @regression:legacy-receipt-data migrates from localStorage to IndexedDB (1.5s)
+  ✓  50 [chromium] › tests/claims.spec.ts:252:1 › @claim:hmrc-handoff creates reviewed period totals for recognised software (4.3s)
+  ✓  51 [chromium] › tests/claims.spec.ts:263:1 › @claim:accountant-link opens a read-only sample pack (2.0s)
+  ✓  52 [chromium] › tests/claims.spec.ts:277:1 › @claim:offline-browser-copy reloads the demo after the network is disabled (1.7s)
+  ✓  53 [chromium] › tests/claims.spec.ts:291:1 › @claim:paid-tier @regression:paid-tier-checkout-navigation uses Sociobot subscription checkout and keeps CSV free (4.4s)
+
+
+  1) [chromium] › tests/backend.spec.ts:11:1 › health reports the build identity ───────────────────
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoMatchObject[2m([22m[32mexpected[39m[2m)[22m
+
+    [32m- Expected  - 1[39m
+    [31m+ Received  + 1[39m
+
+    [2m  Object {[22m
+    [32m-   "build_sha": "dev",[39m
+    [31m+   "build_sha": "5c6a3832b600a900e0e1d08034da91f2522eb713",[39m
+    [2m    "safe_qa_fixtures": true,[22m
+    [2m    "status": "ok",[22m
+    [2m  }[22m
+
+      12 |   const response = await request.get('/health');
+      13 |   expect(response.status()).toBe(200);
+    > 14 |   expect(await response.json()).toMatchObject({
+         |                                 ^
+      15 |     status: 'ok',
+      16 |     build_sha: process.env.EXPECTED_BUILD_SHA || 'dev',
+      17 |     safe_qa_fixtures: true,
+        at /work/repo/tests/backend.spec.ts:14:33
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-health-reports-the-build-identity-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-health-reports-the-build-identity-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/backend.spec.ts:31:1 › workspace endpoints save and return an encrypted document 
+
+    TypeError: Cannot read properties of null (reading 'transactions')
+
+      34 |   expect((await request.put('/api/workspace', { headers, data: { document: validDocument } })).status()).toBe(200);
+      35 |   const result = await (await request.get('/api/workspace', { headers })).json();
+    > 36 |   expect(result.document.transactions[0].description).toBe('Test lesson');
+         |                          ^
+      37 | });
+      38 |
+      39 | test('@regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted', async ({ request }) => {
+        at /work/repo/tests/backend.spec.ts:36:26
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend-workspace-endpoint-b1ad1-eturn-an-encrypted-document-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend-workspace-endpoint-b1ad1-eturn-an-encrypted-document-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/backend.spec.ts:39:1 › @regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted 
+
+    Error: Command failed: /usr/bin/node scripts/verify-concurrent-workspaces.mjs
+    (node:15826) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    file:///work/repo/scripts/verify-concurrent-workspaces.mjs:12
+      if (!condition) throw new Error(message);
+                            ^
+
+    Error: round 1 lost acknowledged workspaces at indexes 2,3,7,9
+        at assert [90m(file:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:12:25[90m)[39m
+        at runRound [90m(file:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:69:3[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async [90mfile:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:74:62
+
+    Node.js v22.23.2
+
+        at async [90mfile:///work/repo/[39mscripts/verify-concurrent-workspaces.mjs:74:62
+        at /work/repo/tests/backend.spec.ts:40:31
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend--regression-concur-0c2ba-success-response-is-trusted-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend--regression-concur-0c2ba-success-response-is-trusted-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/backend.spec.ts:140:1 › @regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After 
+
+    Error: Command failed: /usr/bin/node scripts/verify-rate-limit.mjs --kind read
+    (node:15905) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    file:///work/repo/scripts/verify-rate-limit.mjs:21
+      if (!condition) throw new Error(message);
+                            ^
+
+    Error: read request 41 returned 400, expected 429
+        at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+        at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+
+    Node.js v22.23.2
+
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+        at /work/repo/tests/backend.spec.ts:142:31
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend--regression-shared-15eea-eturns-429-with-Retry-After-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend--regression-shared-15eea-eturns-429-with-Retry-After-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/backend.spec.ts:169:1 › @regression:shared-write-limit allows 12 writes then returns 429 with Retry-After 
+
+    Error: Command failed: /usr/bin/node scripts/verify-rate-limit.mjs --kind write
+    (node:15954) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    file:///work/repo/scripts/verify-rate-limit.mjs:21
+      if (!condition) throw new Error(message);
+                            ^
+
+    Error: write request 13 returned 204, expected 429
+        at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+        at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:90:74
+
+    Node.js v22.23.2
+
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:90:74
+        at /work/repo/tests/backend.spec.ts:171:31
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend--regression-shared-babb6-eturns-429-with-Retry-After-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend--regression-shared-babb6-eturns-429-with-Retry-After-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/backend.spec.ts:191:1 › @regression:OAuth callback shares the stricter write quota 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m429[39m
+    Received: [31m400[39m
+
+      195 |   }
+      196 |   const callback = await request.get('/api/hmrc/consent/callback?state=missing', { headers });
+    > 197 |   expect(callback.status()).toBe(429);
+          |                             ^
+      198 |   expect(Number.parseInt(callback.headers()['retry-after'], 10)).toBeGreaterThan(0);
+      199 | });
+      200 |
+        at /work/repo/tests/backend.spec.ts:197:29
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend--regression-OAuth--21c19-es-the-stricter-write-quota-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend--regression-OAuth--21c19-es-the-stricter-write-quota-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › tests/backend.spec.ts:201:1 › @claim:api-rate-limit enforces both paced burst allowances on a stable client connection 
+
+    Error: Command failed: /usr/bin/node scripts/verify-rate-limit.mjs
+    (node:16049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+    (Use `node --trace-warnings ...` to show where the warning was created)
+    file:///work/repo/scripts/verify-rate-limit.mjs:21
+      if (!condition) throw new Error(message);
+                            ^
+
+    Error: read request 41 returned 400, expected 429
+        at assert [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:21:25[90m)[39m
+        at verify [90m(file:///work/repo/[39mscripts/verify-rate-limit.mjs:73:3[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+
+    Node.js v22.23.2
+
+        at async [90mfile:///work/repo/[39mscripts/verify-rate-limit.mjs:89:72
+        at /work/repo/tests/backend.spec.ts:202:29
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/backend--claim-api-rate-li-6dcc3--a-stable-client-connection-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/backend--claim-api-rate-li-6dcc3--a-stable-client-connection-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › tests/claims.spec.ts:62:1 › @claim:free-quarter-persistence @claim:quarter-record-separation @regression:current-and-future-quarters remain separate across reloads 
+
+    TypeError: Cannot read properties of null (reading 'transactions')
+
+       96 |     request.get('/api/workspace', { headers: headers(nextWorkspaceId!) }),
+       97 |   ]);
+    >  98 |   expect((await currentRemote.json()).document.transactions.map((transaction: { description: string }) => transaction.description)).toContain('Current-quarter lesson');
+          |                                                ^
+       99 |   expect((await nextRemote.json()).document.transactions.map((transaction: { description: string }) => transaction.description)).toContain('Next-quarter lesson');
+      100 |   await page.getByLabel('Working quarter').selectOption(currentStart);
+      101 |   await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
+        at /work/repo/tests/claims.spec.ts:98:48
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/claims--claim-free-quarter-d9ccd-ain-separate-across-reloads-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/claims--claim-free-quarter-d9ccd-ain-separate-across-reloads-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/claims--claim-free-quarter-d9ccd-ain-separate-across-reloads-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/claims--claim-free-quarter-d9ccd-ain-separate-across-reloads-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8 failed
+    [chromium] › tests/backend.spec.ts:11:1 › health reports the build identity ────────────────────
+    [chromium] › tests/backend.spec.ts:31:1 › workspace endpoints save and return an encrypted document 
+    [chromium] › tests/backend.spec.ts:39:1 › @regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted 
+    [chromium] › tests/backend.spec.ts:140:1 › @regression:shared-read-limit allows 40 reads across routes then returns 429 with Retry-After 
+    [chromium] › tests/backend.spec.ts:169:1 › @regression:shared-write-limit allows 12 writes then returns 429 with Retry-After 
+    [chromium] › tests/backend.spec.ts:191:1 › @regression:OAuth callback shares the stricter write quota 
+    [chromium] › tests/backend.spec.ts:201:1 › @claim:api-rate-limit enforces both paced burst allowances on a stable client connection 
+    [chromium] › tests/claims.spec.ts:62:1 › @claim:free-quarter-persistence @claim:quarter-record-separation @regression:current-and-future-quarters remain separate across reloads 
+  1 skipped
+  44 passed (2.0m)

@@ -1,0 +1,25 @@
+
+> mtd-quarterly-ready@1.0.0 verify:release
+> VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs
+
+topology check failed: expected minReplicas=1 and maxReplicas=1
+node:internal/errors:983
+  const err = new Error(message);
+              ^
+
+Error: Command failed: bash scripts/verify-azure-topology.sh
+    at genericNodeError (node:internal/errors:983:15)
+    at wrappedFn (node:internal/errors:537:14)
+    at checkExecSyncError (node:child_process:916:11)
+    at execFileSync (node:child_process:952:15)
+    at file:///work/repo/scripts/verify-live.mjs:26:3
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 12553,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v22.23.2

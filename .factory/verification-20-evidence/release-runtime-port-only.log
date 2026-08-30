@@ -1,0 +1,2 @@
+{"timestamp":"2026-08-30T02:56:06.492014Z","level":"INFO","fields":{"message":"quarterly_ready_started","port":4190,"build_sha":"5c6a3832b600a900e0e1d08034da91f2522eb713","encryption_key":"generated","hmrc_integration":"not_configured","safe_qa_fixtures":false},"target":"quarterly_ready"}
+{"timestamp":"2026-08-30T02:56:06.502440Z","level":"INFO","fields":{"message":"quarterly_ready_stopping"},"target":"quarterly_ready"}

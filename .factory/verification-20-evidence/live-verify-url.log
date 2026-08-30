@@ -1,0 +1,5 @@
+
+> mtd-quarterly-ready@1.0.0 verify:url
+> bash scripts/verify-url.sh https://mtd-quarterly-ready.sociobot.in/demo
+
+{"url":"https://mtd-quarterly-ready.sociobot.in/demo","title":"Demo — Quarterly Ready","language":"en-GB","mainCount":1,"headingCount":1,"missingAlt":[],"console_errors":0,"status":"ok"}
