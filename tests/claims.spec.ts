@@ -329,3 +329,23 @@ test('@claim:paid-tier @regression:paid-tier-checkout-navigation uses Sociobot s
   await annualPage.close();
   await recordsPage.close();
 });
+
+test('@regression:checkout-transient-503 retries the selected Sociobot checkout before showing an error', async ({ page }) => {
+  let attempts = 0;
+  await page.route('https://api.sociobot.in/api/v1/products/mtd-quarterly-ready/checkout', async route => {
+    attempts += 1;
+    if (attempts < 3) {
+      await route.fulfill({ status: 503, contentType: 'text/html', body: 'Temporarily unavailable' });
+      return;
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ checkout_url: 'https://checkout.dodopayments.com/session/recovered-session' }) });
+  });
+  await page.route('https://checkout.dodopayments.com/**', route => route.fulfill({ contentType: 'text/html', body: '<title>Recovered checkout</title>' }));
+
+  await page.goto('/');
+  await Promise.all([
+    page.waitForURL('https://checkout.dodopayments.com/session/recovered-session'),
+    page.getByRole('button', { name: 'Choose monthly' }).click(),
+  ]);
+  expect(attempts).toBe(3);
+});

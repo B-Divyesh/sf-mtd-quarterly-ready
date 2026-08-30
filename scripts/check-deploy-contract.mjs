@@ -115,4 +115,13 @@ await access(verifyUrlScript, constants.X_OK);
 await access(verifyRateLimitScript, constants.R_OK);
 await access(verifyConcurrencyScript, constants.R_OK);
 
+const rateLimitVerifier = await readFile(verifyRateLimitScript, 'utf8');
+for (const text of [
+  "'/api/hmrc/consent/callback?state=missing'",
+  'OAuth callback after ${allowance} writes returned',
+  'OAuth callback 429 omitted a positive Retry-After value',
+]) {
+  if (!rateLimitVerifier.includes(text)) throw new Error(`Live rate-limit regression check is missing ${text}`);
+}
+
 console.log('Deployment contract: synced durable /data SQLite snapshot, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider with taxpayer OAuth consent, explicit handoff-only fallback, concurrent persistence verification, non-charging QA fixture, and repeatable URL accessibility check are configured.');

@@ -69,7 +69,7 @@ This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright 
 
 `verify:url` is the repeatable browser smoke check used by release QA. It checks the title, language, one main landmark, one H1, image alt attributes, and browser console/page errors for the URL supplied.
 
-`verify:rate-limit` sends paced requests through one keep-alive connection. This keeps the ingress client identity stable while it proves the 40-read and 12-write burst allowances and the positive `Retry-After` response.
+`verify:rate-limit` sends paced requests through one keep-alive connection. This keeps the ingress client identity stable while it proves the 40-read and 12-write burst allowances, the OAuth callback's shared write quota, and positive `Retry-After` responses.
 
 `verify:concurrency` runs two independent batches of ten simultaneous saves, waits 1.5 seconds, and confirms every acknowledged document remains readable.
 

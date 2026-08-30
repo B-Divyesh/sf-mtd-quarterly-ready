@@ -175,6 +175,8 @@ test('@regression:shared-write-limit allows 12 writes then returns 429 with Retr
     }).trim());
     expect(result).toMatchObject({ status: 'ok', write: { allowance: 12, first_limited_request: 13, stable_keep_alive_connection: true, paced_beyond_previous_one_second_window: true } });
     expect(Number.parseInt(result.write.retry_after, 10)).toBeGreaterThan(0);
+    expect(result).toMatchObject({ oauth_callback: { shared_write_allowance: 12, first_limited_request: 13, status: 429 } });
+    expect(Number.parseInt(result.oauth_callback.retry_after, 10)).toBeGreaterThan(0);
     return;
   }
   const headers = { 'x-forwarded-for': '203.0.113.98' };
@@ -208,9 +210,11 @@ test('@claim:api-rate-limit enforces both paced burst allowances on a stable cli
     status: 'ok',
     read: { allowance: 40, first_limited_request: 41, paced_beyond_previous_one_second_window: true },
     write: { allowance: 12, first_limited_request: 13, paced_beyond_previous_one_second_window: true },
+    oauth_callback: { shared_write_allowance: 12, first_limited_request: 13, status: 429 },
   });
   expect(Number.parseInt(result.read.retry_after, 10)).toBeGreaterThan(0);
   expect(Number.parseInt(result.write.retry_after, 10)).toBeGreaterThan(0);
+  expect(Number.parseInt(result.oauth_callback.retry_after, 10)).toBeGreaterThan(0);
 });
 
 test('@regression:anonymous-page-view-fallback separates browser sessions while retaining each session limit', async ({ request }) => {

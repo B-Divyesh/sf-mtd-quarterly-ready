@@ -84,10 +84,40 @@ async function verify(kind, allowance) {
   };
 }
 
+async function verifyOauthCallbackWriteLimit() {
+  const clientIp = `2001:db8:${randomUUID().replaceAll('-', '').slice(0, 4)}::43`;
+  const allowance = 12;
+  const admitted = [];
+  for (let index = 0; index < allowance; index += 1) {
+    if (index > 0) await new Promise(resolve => setTimeout(resolve, pacedDelayMs.write));
+    admitted.push(await send('/api/page-view', 'POST', clientIp));
+  }
+  assert(
+    admitted.every(response => response.status === 204),
+    `OAuth callback quota setup did not admit all ${allowance} writes`,
+  );
+
+  await new Promise(resolve => setTimeout(resolve, pacedDelayMs.write));
+  const callback = await send('/api/hmrc/consent/callback?state=missing', 'GET', clientIp);
+  assert(callback.status === 429, `OAuth callback after ${allowance} writes returned ${callback.status}, expected 429`);
+  const retryAfter = Number.parseInt(callback.retryAfter || '', 10);
+  assert(Number.isInteger(retryAfter) && retryAfter > 0, 'OAuth callback 429 omitted a positive Retry-After value');
+
+  return {
+    shared_write_allowance: allowance,
+    first_limited_request: allowance + 1,
+    status: callback.status,
+    retry_after: callback.retryAfter,
+  };
+}
+
 try {
   const result = {};
   if (selectedKind === 'all' || selectedKind === 'read') result.read = await verify('read', 40);
-  if (selectedKind === 'all' || selectedKind === 'write') result.write = await verify('write', 12);
+  if (selectedKind === 'all' || selectedKind === 'write') {
+    result.write = await verify('write', 12);
+    result.oauth_callback = await verifyOauthCallbackWriteLimit();
+  }
   console.log(JSON.stringify({ origin: origin.origin, ...result, status: 'ok' }));
 } finally {
   agent.destroy();

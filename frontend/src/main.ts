@@ -193,13 +193,28 @@ async function startCheckout(plan: 'monthly' | 'annual'): Promise<void> {
   if (output) output.textContent = 'Opening secure checkout…';
   try {
     const endpoint = plan === 'annual' ? ANNUAL_BILLING : BILLING;
-    const response = await fetch(`${endpoint}/checkout`, { method: 'POST', headers: { Accept: 'application/json' } });
-    const result = await response.json().catch(() => ({})) as { checkout_url?: string };
-    const checkout = new URL(result.checkout_url || '');
-    if (!response.ok || checkout.protocol !== 'https:') throw new Error('No secure checkout URL was returned.');
-    location.assign(checkout.href);
-  } catch {
-    if (output) output.textContent = 'Checkout could not open. Check your connection and try again.';
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(`${endpoint}/checkout`, { method: 'POST', headers: { Accept: 'application/json' } });
+        const result = await response.json().catch(() => ({})) as { checkout_url?: string };
+        if (response.ok) {
+          const checkout = new URL(result.checkout_url || '');
+          if (checkout.protocol !== 'https:' || checkout.hostname !== 'checkout.dodopayments.com') {
+            throw new Error('No secure checkout URL was returned.');
+          }
+          location.assign(checkout.href);
+          return;
+        }
+        if (response.status < 500 || attempt === 2) {
+          throw new Error('The checkout service is unavailable. Try again in a moment.');
+        }
+      } catch (error) {
+        if (attempt === 2 || (error instanceof Error && error.message.startsWith('No secure checkout'))) throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  } catch (error) {
+    if (output) output.textContent = error instanceof Error ? error.message : 'Checkout could not open. Check your connection and try again.';
     if (button) button.disabled = false;
   }
 }
