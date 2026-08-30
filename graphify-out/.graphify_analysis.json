@@ -1,67 +1,10 @@
 {
   "communities": {
     "0": [
-      "client",
-      "e",
-      "envfilter",
-      "error",
-      "fspath",
-      "option",
-      "sqlitepool",
-      "src_main",
-      "src_main_approved_integration_from_env",
-      "src_main_approved_integration_from_values",
-      "src_main_approved_provider_configuration_requires_taxpayer_consent_and_an_approval_reference",
-      "src_main_approvedintegration",
-      "src_main_claim_accountant_link_expiry_is_thirty_days",
-      "src_main_claim_anonymous_page_count",
-      "src_main_claim_encrypted_storage",
-      "src_main_claim_hash_chained_audit_log",
-      "src_main_claim_hmrc_sandbox_is_non_filing_and_sends_no_records_or_secret",
-      "src_main_cleanup_expired_shares",
-      "src_main_consentcallback",
-      "src_main_consentstart",
-      "src_main_consentstatus",
-      "src_main_default_log_filter",
-      "src_main_default_log_filter_keeps_startup_information_visible",
-      "src_main_durable_database_restores_key_records_links_audit_and_page_count_after_restart",
-      "src_main_health",
-      "src_main_hmrc_payload_requires_explicit_human_review",
-      "src_main_integrationmode",
-      "src_main_integrationmode_as_str",
-      "src_main_internal",
-      "src_main_is_database_locked_message",
-      "src_main_licenceverdict",
-      "src_main_load_or_create_key",
-      "src_main_log_filter",
-      "src_main_main",
-      "src_main_migrate",
-      "src_main_migrate_with_retry",
-      "src_main_mounted_snapshot_is_imported_to_local_sqlite_without_copying_permissions",
-      "src_main_persist_database_snapshot",
-      "src_main_providertokenresponse",
-      "src_main_rejects_each_malformed_transaction_field",
-      "src_main_rejects_transactions_outside_the_selected_quarter",
-      "src_main_restore_database_snapshot",
-      "src_main_safe_fixtures_enabled",
-      "src_main_sandbox_configuration_requires_the_official_non_filing_hmrc_endpoint",
-      "src_main_send_to_approved_integration",
-      "src_main_shareresult",
-      "src_main_shutdown_signal",
-      "src_main_startup_migration_retries_transient_sqlite_locks",
-      "src_main_submissionrequest",
-      "src_main_submissionresult",
-      "src_main_subscription_verification_accepts_the_annual_entitlement",
-      "src_main_taxpayer_consent_from_env",
-      "src_main_taxpayer_consent_from_values",
-      "src_main_taxpayerconsent",
-      "src_main_validates_transaction_document",
-      "src_main_workspacedocument",
-      "string"
-    ],
-    "1": [
       "arc",
       "body",
+      "client",
+      "e",
       "hashset",
       "intoresponse",
       "json",
@@ -74,40 +17,61 @@
       "response",
       "result",
       "sqlite",
+      "src_main",
       "src_main_apierror",
       "src_main_apierror_into_response",
       "src_main_appstate",
+      "src_main_claim_accountant_link_expiry_is_thirty_days",
+      "src_main_claim_encrypted_storage",
+      "src_main_claim_hmrc_sandbox_is_non_filing_and_sends_no_records_or_secret",
       "src_main_claim_hmrc_submission_uses_an_approved_integration_after_human_review",
       "src_main_create_share",
       "src_main_decrypt_json",
+      "src_main_default_log_filter_keeps_startup_information_visible",
+      "src_main_durable_database_restores_key_records_links_audit_and_page_count_after_restart",
       "src_main_encrypt_json",
       "src_main_get_share",
       "src_main_get_workspace",
+      "src_main_health",
       "src_main_hmrc_compatible_payload",
       "src_main_hmrc_consent_callback",
       "src_main_hmrc_consent_status",
+      "src_main_hmrc_payload_requires_explicit_human_review",
+      "src_main_integrationmode",
+      "src_main_integrationmode_as_str",
+      "src_main_internal",
       "src_main_invalid_transaction",
       "src_main_is_calendar_date",
       "src_main_is_iso_date",
       "src_main_is_standard_uk_quarter",
       "src_main_licence_token",
+      "src_main_licenceverdict",
       "src_main_load_taxpayer_consent_token",
       "src_main_page_view",
       "src_main_persist_state",
       "src_main_put_workspace",
       "src_main_rate_limit_error",
+      "src_main_rejects_each_malformed_transaction_field",
+      "src_main_rejects_transactions_outside_the_selected_quarter",
       "src_main_safe_fixture_authorized",
       "src_main_safe_fixture_document",
       "src_main_safe_qa_entitlement",
       "src_main_security_headers",
+      "src_main_send_to_approved_integration",
       "src_main_start_hmrc_consent",
+      "src_main_startup_migration_retries_transient_sqlite_locks",
+      "src_main_submissionrequest",
+      "src_main_submissionresult",
       "src_main_submit_to_hmrc",
+      "src_main_subscription_verification_accepts_the_annual_entitlement",
       "src_main_taxpayer_consent_uses_oauth_state_encrypts_the_token_and_marks_the_workspace_ready",
       "src_main_unix_now",
       "src_main_validate_document",
       "src_main_validate_transaction",
+      "src_main_validates_transaction_document",
       "src_main_verify_licence_token",
       "src_main_workspace_id",
+      "src_main_workspacedocument",
       "src_main_write_audit",
       "src_main_write_audit_transaction",
       "state",
@@ -116,7 +80,7 @@
       "value",
       "vec"
     ],
-    "2": [
+    "1": [
       "axe_core_playwright",
       "package",
       "package_devdependencies",
@@ -154,7 +118,7 @@
       "vite",
       "vitest"
     ],
-    "3": [
+    "2": [
       "frontend_src_main",
       "frontend_src_main_attemptedreceiptmigrations",
       "frontend_src_main_bindhome",
@@ -181,7 +145,7 @@
       "frontend_src_storage_leavedemo",
       "frontend_src_storage_resetdemo"
     ],
-    "4": [
+    "3": [
       "ref_dom",
       "ref_dom_iterable",
       "ref_es2022",
@@ -203,7 +167,45 @@
       "tsconfig_compileroptions_usedefineforclassfields",
       "tsconfig_include"
     ],
+    "4": [
+      "envfilter",
+      "option",
+      "src_main_approved_integration_from_env",
+      "src_main_approved_integration_from_values",
+      "src_main_approved_provider_configuration_requires_taxpayer_consent_and_an_approval_reference",
+      "src_main_approvedintegration",
+      "src_main_consentcallback",
+      "src_main_consentstart",
+      "src_main_consentstatus",
+      "src_main_default_log_filter",
+      "src_main_log_filter",
+      "src_main_providertokenresponse",
+      "src_main_sandbox_configuration_requires_the_official_non_filing_hmrc_endpoint",
+      "src_main_shareresult",
+      "src_main_taxpayer_consent_from_env",
+      "src_main_taxpayer_consent_from_values",
+      "src_main_taxpayerconsent",
+      "string"
+    ],
     "5": [
+      "error",
+      "fspath",
+      "sqlitepool",
+      "src_main_claim_anonymous_page_count",
+      "src_main_claim_hash_chained_audit_log",
+      "src_main_cleanup_expired_shares",
+      "src_main_is_database_locked_message",
+      "src_main_load_or_create_key",
+      "src_main_main",
+      "src_main_migrate",
+      "src_main_migrate_with_retry",
+      "src_main_mounted_snapshot_is_imported_to_local_sqlite_without_copying_permissions",
+      "src_main_persist_database_snapshot",
+      "src_main_restore_database_snapshot",
+      "src_main_safe_fixtures_enabled",
+      "src_main_shutdown_signal"
+    ],
+    "6": [
       "frontend_src_quarters",
       "frontend_src_quarters_availablequarters",
       "frontend_src_quarters_currentukquarter",
@@ -221,7 +223,7 @@
       "frontend_src_storage_migratelegacydocument",
       "frontend_src_storage_selectquarter"
     ],
-    "6": [
+    "7": [
       "frontend_src_quarters_isrealcalendardate",
       "frontend_src_records",
       "frontend_src_records_accountantcsv",
@@ -238,7 +240,7 @@
       "frontend_src_types_summary",
       "frontend_src_types_transaction"
     ],
-    "7": [
+    "8": [
       "frontend_src_main_addtransaction",
       "frontend_src_main_bindrecords",
       "frontend_src_main_connecthmrc",
@@ -253,7 +255,7 @@
       "frontend_src_main_saveandrender",
       "frontend_src_storage_savedocument"
     ],
-    "8": [
+    "9": [
       "frontend_src_receipts",
       "frontend_src_receipts_cleardemoreceipts",
       "frontend_src_receipts_database",
@@ -268,7 +270,7 @@
       "frontend_src_receipts_test",
       "frontend_src_receipts_transactiondone"
     ],
-    "9": [
+    "10": [
       "frontend_src_storage",
       "frontend_src_storage_clone",
       "frontend_src_storage_createshare",
@@ -282,7 +284,7 @@
       "frontend_src_storage_submittohmrc",
       "frontend_src_storage_workspaceid"
     ],
-    "10": [
+    "11": [
       "governorerror",
       "governorlayer",
       "key",
@@ -296,7 +298,7 @@
       "stateinformationmiddleware",
       "t"
     ],
-    "11": [
+    "12": [
       "scripts_check_deploy_contract",
       "scripts_check_deploy_contract_packagejson",
       "scripts_check_deploy_contract_protectedreplacement",
@@ -307,7 +309,7 @@
       "scripts_check_deploy_contract_verifyratelimitscript",
       "scripts_check_deploy_contract_verifyurlscript"
     ],
-    "12": [
+    "13": [
       "frontend_src_main_categoryoptions",
       "frontend_src_main_checklist",
       "frontend_src_main_escapehtml",
@@ -317,7 +319,7 @@
       "frontend_src_main_transactiontable",
       "frontend_src_records_pounds"
     ],
-    "13": [
+    "14": [
       "scripts_verify_live",
       "scripts_verify_live_assert",
       "scripts_verify_live_concurrencyevidence",
@@ -327,16 +329,17 @@
       "scripts_verify_live_response",
       "scripts_verify_live_workspaceid"
     ],
-    "14": [
+    "15": [
       "scripts_verify_rate_limit",
       "scripts_verify_rate_limit_agent",
       "scripts_verify_rate_limit_assert",
       "scripts_verify_rate_limit_origin",
       "scripts_verify_rate_limit_paceddelayms",
       "scripts_verify_rate_limit_send",
-      "scripts_verify_rate_limit_verify"
+      "scripts_verify_rate_limit_verify",
+      "scripts_verify_rate_limit_verifyoauthcallbackwritelimit"
     ],
-    "15": [
+    "16": [
       "scripts_verify_concurrent_workspaces",
       "scripts_verify_concurrent_workspaces_assert",
       "scripts_verify_concurrent_workspaces_origin",
@@ -344,93 +347,95 @@
       "scripts_verify_concurrent_workspaces_rounds",
       "scripts_verify_concurrent_workspaces_runround"
     ],
-    "16": [
+    "17": [
       "scripts_verify_durability",
       "scripts_verify_durability_documentfor",
       "scripts_verify_durability_readworkspace",
       "scripts_verify_durability_state"
     ],
-    "17": [
+    "18": [
       "scripts_deploy_container",
       "scripts_deploy_container_sh__entry",
       "scripts_deploy_container_stop_revision_for_snapshot_handoff"
     ],
-    "18": [
+    "19": [
       "scripts_verify_url_errors",
       "scripts_verify_url_mjs_scripts_verify_url",
       "scripts_verify_url_url"
     ],
-    "19": [
+    "20": [
+      "tests_accessibility_spec",
+      "tests_accessibility_spec_freshclientip",
+      "tests_accessibility_spec_submissionlabels"
+    ],
+    "21": [
       "frontend_public_sw",
       "frontend_public_sw_shell"
     ],
-    "20": [
+    "22": [
       "playwright_config",
       "playwright_config_repositoryroot"
     ],
-    "21": [
+    "23": [
       "scripts_verify_azure_topology",
       "scripts_verify_azure_topology_sh__entry"
     ],
-    "22": [
+    "24": [
       "scripts_verify_url_sh__entry",
       "scripts_verify_url_sh_scripts_verify_url"
     ],
-    "23": [
-      "tests_accessibility_spec",
-      "tests_accessibility_spec_submissionlabels"
-    ],
-    "24": [
+    "25": [
       "tests_backend_spec",
       "tests_backend_spec_validdocument"
     ],
-    "25": [
-      "frontend_vite_config"
-    ],
     "26": [
-      "frontend_vitest_config"
+      "tests_claims_spec",
+      "tests_claims_spec_freshclientip"
     ],
     "27": [
-      "hashmap"
+      "frontend_vite_config"
     ],
     "28": [
-      "instant"
+      "frontend_vitest_config"
     ],
     "29": [
-      "pkg_quarterly_ready"
+      "hashmap"
     ],
     "30": [
-      "tests_claims_spec"
+      "instant"
     ],
     "31": [
-      "tests_claims_spec_idbobjectstore_put"
+      "pkg_quarterly_ready"
     ],
     "32": [
+      "tests_claims_spec_idbobjectstore_put"
+    ],
+    "33": [
       "vecdeque"
     ]
   },
   "cohesion": {
-    "0": 0.07644110275689223,
-    "1": 0.1265993265993266,
-    "2": 0.05555555555555555,
-    "3": 0.16666666666666666,
-    "4": 0.1,
-    "5": 0.275,
-    "6": 0.23809523809523808,
-    "7": 0.2692307692307692,
-    "8": 0.3076923076923077,
-    "9": 0.3333333333333333,
-    "10": 0.16666666666666666,
-    "11": 0.2222222222222222,
-    "12": 0.4642857142857143,
-    "13": 0.25,
-    "14": 0.38095238095238093,
-    "15": 0.4666666666666667,
-    "16": 0.5,
-    "17": 1.0,
-    "18": 0.6666666666666666,
-    "19": 1.0,
-    "20": 1.0,
+    "0": 0.08957708957708958,
+    "1": 0.05555555555555555,
+    "2": 0.16666666666666666,
+    "3": 0.1,
+    "4": 0.21568627450980393,
+    "5": 0.2,
+    "6": 0.275,
+    "7": 0.23809523809523808,
+    "8": 0.2692307692307692,
+    "9": 0.3076923076923077,
+    "10": 0.3333333333333333,
+    "11": 0.16666666666666666,
+    "12": 0.2222222222222222,
+    "13": 0.4642857142857143,
+    "14": 0.25,
+    "15": 0.39285714285714285,
+    "16": 0.4666666666666667,
+    "17": 0.5,
+    "18": 1.0,
+    "19": 0.6666666666666666,
+    "20": 0.6666666666666666,
     "21": 1.0,
     "22": 1.0,
     "23": 1.0,
@@ -442,7 +447,8 @@
     "29": 1.0,
     "30": 1.0,
     "31": 1.0,
-    "32": 1.0
+    "32": 1.0,
+    "33": 1.0
   },
   "gods": [
     {
@@ -456,13 +462,13 @@
       "degree": 25
     },
     {
-      "id": "frontend_src_main_bindrecords",
-      "label": "bindRecords()",
+      "id": "src_main_create_share",
+      "label": "create_share()",
       "degree": 19
     },
     {
-      "id": "src_main_create_share",
-      "label": "create_share()",
+      "id": "frontend_src_main_bindrecords",
+      "label": "bindRecords()",
       "degree": 19
     },
     {
@@ -486,23 +492,34 @@
       "degree": 15
     },
     {
-      "id": "frontend_src_main_recordspage",
-      "label": "recordsPage()",
+      "id": "src_main_hmrc_consent_callback",
+      "label": "hmrc_consent_callback()",
       "degree": 14
     },
     {
-      "id": "src_main_hmrc_consent_callback",
-      "label": "hmrc_consent_callback()",
+      "id": "src_main_start_hmrc_consent",
+      "label": "start_hmrc_consent()",
       "degree": 14
     }
   ],
   "surprises": [
     {
-      "source": "checklist()",
-      "target": "summarise()",
+      "source": "leaveDemo()",
+      "target": "clearDemoReceipts()",
       "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
+        "frontend/src/storage.ts",
+        "frontend/src/receipts.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "resetDemo()",
+      "target": "clearDemoReceipts()",
+      "source_files": [
+        "frontend/src/storage.ts",
+        "frontend/src/receipts.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -520,8 +537,8 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "quarterFromStart()",
+      "source": "bindRecords()",
+      "target": "nextUkQuarter()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/quarters.ts"
@@ -532,21 +549,10 @@
     },
     {
       "source": "recordsPage()",
-      "target": "summarise()",
+      "target": "quarterFromStart()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "loadDocument()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/storage.ts"
+        "frontend/src/quarters.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
