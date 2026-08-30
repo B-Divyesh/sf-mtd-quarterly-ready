@@ -141,3 +141,31 @@ EXPECTED_BUILD_SHA=$(git rev-parse HEAD) npm run verify:live
 
 Pre-existing `graphify-out/` worktree changes were preserved and excluded from
 all repair commits.
+
+# Verification 19 (2026-08-30) — FAIL
+
+Candidate `4e94a89ab094ee886e3b0f19c7cd7720db1950a2` was independently verified at
+<https://mtd-quarterly-ready.sociobot.in>. Do not release it.
+
+- **Critical:** ten concurrent live workspace saves all returned 200, but only
+  5/10 documents were retrievable after completion and after a 1.5 s wait.
+  This is acknowledged financial-record data loss.
+- **Critical:** the live 40-read/12-write limit is intermittent. A direct
+  probe can return 429/`Retry-After: 58` at requests 41/13, but the fresh full
+  live verifier returned 400 rather than 429 on read 41.
+- **Critical:** `/health` reports `hmrc_integration_configured:false` and
+  `hmrc_integration_mode:"not_configured"`; the release verifier therefore
+  fails the required approved-provider/taxpayer-consent check.
+
+All 24 listed claim commands were run from `npm ci`; the complete `npm test`
+suite passed (53 Playwright, 11 Vitest, 18 Rust). Formatting, Clippy, and the
+release build passed; the release binary started with only `PORT` and returned
+the candidate SHA. Local and live asset hashes matched, and the
+demo/accessibility/privacy/offline checks passed. Full exact evidence,
+commands, and passing checks are in
+`.factory/verification-19.md`.
+
+Required next steps: make workspace writes serializable and durable before a
+200 response, make server-side rate limiting run reliably before validation,
+then provision and verify an approved HMRC provider with taxpayer OAuth
+consent. Re-run independent QA after all three are fixed.
