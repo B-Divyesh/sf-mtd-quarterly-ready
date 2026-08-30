@@ -58,6 +58,8 @@ npm test
 npm run typecheck
 npm run verify:live
 # with the server running locally or VERIFY_ORIGIN set to a deployed URL
+npm run verify:concurrency
+# with the server running locally or VERIFY_ORIGIN set to a deployed URL
 npm run verify:rate-limit
 # with the server running locally or a deployed URL
 npm run verify:url -- http://127.0.0.1:8080/demo
@@ -68,6 +70,8 @@ This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright 
 `verify:url` is the repeatable browser smoke check used by release QA. It checks the title, language, one main landmark, one H1, image alt attributes, and browser console/page errors for the URL supplied.
 
 `verify:rate-limit` sends paced requests through one keep-alive connection. This keeps the ingress client identity stable while it proves the 40-read and 12-write burst allowances and the positive `Retry-After` response.
+
+`verify:concurrency` runs two independent batches of ten simultaneous saves, waits 1.5 seconds, and confirms every acknowledged document remains readable.
 
 Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity, HMRC capability disclosure, checkout, 404, empty-workspace, and rate-limit policies. Run `npm run verify:topology` with Azure access to assert one running replica and an Azure Files mount at `/data`.
 

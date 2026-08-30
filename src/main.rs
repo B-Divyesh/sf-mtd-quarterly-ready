@@ -18,7 +18,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use sqlx::{sqlite::SqlitePoolOptions, Row, Sqlite, SqlitePool, Transaction};
 use std::{
     collections::HashMap,
     env,
@@ -493,9 +493,11 @@ async fn put_workspace(
     validate_document(&input.document)?;
     let encrypted = encrypt_json(&state.key, &input.document)?;
     let now = unix_now();
+    let mut transaction = state.db.begin().await.map_err(internal)?;
     sqlx::query("INSERT INTO workspaces(id, payload, updated_at) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at")
-        .bind(&id).bind(encrypted).bind(now as i64).execute(&state.db).await.map_err(internal)?;
-    write_audit(&state, &id, "records_saved", &bytes).await?;
+        .bind(&id).bind(encrypted).bind(now as i64).execute(&mut *transaction).await.map_err(internal)?;
+    write_audit_transaction(&mut transaction, &id, "records_saved", &bytes).await?;
+    transaction.commit().await.map_err(internal)?;
     persist_state(&state).await?;
     Ok(Json(json!({ "saved": true, "updated_at": now })))
 }
@@ -1653,6 +1655,36 @@ async fn write_audit(
     Ok(())
 }
 
+async fn write_audit_transaction(
+    transaction: &mut Transaction<'_, Sqlite>,
+    workspace: &str,
+    action: &str,
+    detail: &[u8],
+) -> Result<(), ApiError> {
+    let previous =
+        sqlx::query("SELECT hash FROM audit_log WHERE workspace_id = ? ORDER BY id DESC LIMIT 1")
+            .bind(workspace)
+            .fetch_optional(&mut **transaction)
+            .await
+            .map_err(internal)?
+            .map(|row| row.get::<String, _>("hash"))
+            .unwrap_or_default();
+    let mut hasher = Sha256::new();
+    hasher.update(previous.as_bytes());
+    hasher.update(action.as_bytes());
+    hasher.update(detail);
+    let hash = format!("{:x}", hasher.finalize());
+    sqlx::query("INSERT INTO audit_log(workspace_id, action, created_at, hash) VALUES(?, ?, ?, ?)")
+        .bind(workspace)
+        .bind(action)
+        .bind(unix_now() as i64)
+        .bind(hash)
+        .execute(&mut **transaction)
+        .await
+        .map_err(internal)?;
+    Ok(())
+}
+
 async fn persist_state(state: &AppState) -> Result<(), ApiError> {
     persist_database_snapshot(&state.database_path, &state.snapshot_path)
         .await
@@ -1706,21 +1738,34 @@ async fn persist_database_snapshot(
         return Ok(());
     }
 
-    // Azure Files accepts a normal overwrite but can reject metadata copying
-    // and does not give SQLite reliable byte-range locks. This stream copy
-    // runs while the process-wide mutation lock is held; sync_all completes
+    // Copy to a unique sibling first. A crash or failed Azure Files write
+    // therefore leaves the last complete snapshot intact instead of
+    // truncating the only durable copy. This runs while the process-wide
+    // mutation lock is held; sync_all and the atomic rename both complete
     // before the route returns success.
     let mut source = fs::File::open(database).await?;
-    let mut destination = fs::File::create(snapshot).await?;
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let bytes = source.read(&mut buffer).await?;
-        if bytes == 0 {
-            break;
+    let temporary = snapshot.with_extension(format!("sqlite3.tmp-{}", Uuid::new_v4().simple()));
+    let copy_result = async {
+        let mut destination = fs::File::create(&temporary).await?;
+        let mut buffer = [0_u8; 64 * 1024];
+        loop {
+            let bytes = source.read(&mut buffer).await?;
+            if bytes == 0 {
+                break;
+            }
+            destination.write_all(&buffer[..bytes]).await?;
         }
-        destination.write_all(&buffer[..bytes]).await?;
+        destination.sync_all().await
     }
-    destination.sync_all().await?;
+    .await;
+    if let Err(error) = copy_result {
+        let _ = fs::remove_file(&temporary).await;
+        return Err(error);
+    }
+    if let Err(error) = fs::rename(&temporary, snapshot).await {
+        let _ = fs::remove_file(&temporary).await;
+        return Err(error);
+    }
     Ok(())
 }
 

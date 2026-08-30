@@ -8,6 +8,8 @@ const server = await readFile(new URL('../src/main.rs', import.meta.url), 'utf8'
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const verifyUrlScript = new URL('./verify-url.sh', import.meta.url);
 const verifyRateLimitScript = new URL('./verify-rate-limit.mjs', import.meta.url);
+const verifyConcurrencyScript = new URL('./verify-concurrent-workspaces.mjs', import.meta.url);
+const liveVerifier = await readFile(new URL('./verify-live.mjs', import.meta.url), 'utf8');
 const required = [
   'FILE_SHARE="sf-mtd-quarterly-ready-data-v3"',
   'ENV_STORAGE="mtd-quarterly-ready-data-v3"',
@@ -63,8 +65,9 @@ for (const text of [
 if (!/^ENV .*DATA_DIR=\/data .*SAFE_QA_FIXTURES=1/m.test(dockerfile)
   || !server.includes('"/tmp/quarterly-ready"')
   || !server.includes('persist_database_snapshot')
-  || !server.includes('destination.sync_all().await?')) {
-  throw new Error('Container runtime must persist each local SQLite mutation to the mounted /data snapshot before success.');
+  || !server.includes('destination.sync_all().await')
+  || !server.includes('fs::rename(&temporary, snapshot).await')) {
+  throw new Error('Container runtime must atomically persist each local SQLite mutation to the mounted /data snapshot before success.');
 }
 for (const text of [
   'tower_governor',
@@ -101,7 +104,15 @@ if (packageJson.scripts['verify:url'] !== 'bash scripts/verify-url.sh') {
 if (packageJson.scripts['verify:rate-limit'] !== 'node scripts/verify-rate-limit.mjs') {
   throw new Error('Package scripts must expose the stable-connection rate-limit check.');
 }
+if (packageJson.scripts['verify:concurrency'] !== 'node scripts/verify-concurrent-workspaces.mjs') {
+  throw new Error('Package scripts must expose the concurrent acknowledged-save check.');
+}
+if (!liveVerifier.includes("['scripts/verify-concurrent-workspaces.mjs']")
+  || !liveVerifier.includes('acknowledged_documents_preserved === 20')) {
+  throw new Error('Live verification must reproduce both ten-way acknowledged-save rounds.');
+}
 await access(verifyUrlScript, constants.X_OK);
 await access(verifyRateLimitScript, constants.R_OK);
+await access(verifyConcurrencyScript, constants.R_OK);
 
 console.log('Deployment contract: synced durable /data SQLite snapshot, one replica, SNI binding, build identity, Key Vault-backed approved HMRC provider with taxpayer OAuth consent, explicit handoff-only fallback, concurrent persistence verification, non-charging QA fixture, and repeatable URL accessibility check are configured.');

@@ -37,25 +37,22 @@ test('workspace endpoints save and return an encrypted document', async ({ reque
 });
 
 test('@regression:concurrent-workspace-saves-are-readable-before-the-success-response-is-trusted', async ({ request }) => {
-  const probes = await Promise.all(Array.from({ length: 10 }, async (_, index) => {
-    const id = crypto.randomUUID();
-    const description = `Concurrent durable workspace ${index} ${id}`;
-    const headers = { 'x-workspace-id': id, 'x-forwarded-for': `198.51.100.${index + 1}` };
-    const document = {
-      ...validDocument,
-      updatedAt: new Date().toISOString(),
-      transactions: [{ ...validDocument.transactions[0], id, description, amountPence: index + 1 }],
-    };
-    const saved = await request.put('/api/workspace', { headers, data: { document } });
-    const restored = await request.get('/api/workspace', { headers });
-    return { id, description, saved, restored };
-  }));
-
-  for (const probe of probes) {
-    expect(probe.saved.status(), `save for ${probe.id}`).toBe(200);
-    expect(probe.restored.status(), `read for ${probe.id}`).toBe(200);
-    expect((await probe.restored.json()).document.transactions[0].description, `document for ${probe.id}`).toBe(probe.description);
-  }
+  const evidence = JSON.parse(execFileSync(process.execPath, ['scripts/verify-concurrent-workspaces.mjs'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      VERIFY_ORIGIN: process.env.VERIFY_ORIGIN || 'http://127.0.0.1:4173',
+      CONCURRENCY_ROUNDS: '2',
+    },
+  }).trim());
+  expect(evidence).toMatchObject({
+    status: 'ok',
+    rounds: 2,
+    concurrent_writes_per_round: 10,
+    acknowledged_documents_preserved: 20,
+    delayed_read_ms: 1500,
+  });
 });
 
 test('@regression:workspace-rejects-malformed-transaction-objects before persistence', async ({ request }) => {

@@ -28,6 +28,12 @@ if (process.env.REQUIRE_APPROVED_HMRC === '1') {
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }
+if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
+  // The encrypted SQLite snapshot and in-memory quotas require exactly one
+  // process. Check this before any stateful or rate-limit assertions so a
+  // generic autoscaling deployment cannot masquerade as an application bug.
+  execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
+}
 
 for (const [plan, slug] of [['monthly', 'mtd-quarterly-ready'], ['annual', 'mtd-quarterly-ready-annual']]) {
   const checkout = await fetch(`${billing}/${slug}/checkout`, { method: 'POST', headers: { accept: 'application/json' } });
@@ -75,6 +81,12 @@ assert(saved.status === 200, `workspace save returned ${saved.status}`);
 const restored = await response('/api/workspace', { headers: { 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.241' } });
 assert(restored.status === 200, `saved workspace read returned ${restored.status}`);
 assert((await restored.json()).document?.transactions?.[0]?.description === durableDocument.transactions[0].description, 'saved workspace was not restored');
+const concurrencyEvidence = JSON.parse(execFileSync(process.execPath, ['scripts/verify-concurrent-workspaces.mjs'], {
+  cwd: new URL('..', import.meta.url),
+  encoding: 'utf8',
+  env: { ...process.env, VERIFY_ORIGIN: origin },
+}).trim());
+assert(concurrencyEvidence.status === 'ok' && concurrencyEvidence.acknowledged_documents_preserved === 20, 'concurrent acknowledged workspace saves were not all preserved');
 const malformed = await response('/api/workspace', {
   method: 'PUT',
   headers: { 'content-type': 'application/json', 'x-workspace-id': crypto.randomUUID(), 'x-forwarded-for': '203.0.113.244' },
@@ -117,8 +129,4 @@ const rateLimitEvidence = JSON.parse(execFileSync(process.execPath, ['scripts/ve
 }).trim());
 assert(rateLimitEvidence.status === 'ok', 'stable-connection rate-limit verification failed');
 
-if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
-  execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
-}
-
-console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, taxpayer_consent_flow: taxpayerConsentFlow, safe_paid_fixture: 'non-charging/non-filing', read_limit: rateLimitEvidence.read.allowance, write_limit: rateLimitEvidence.write.allowance, stable_rate_limit_connection: true, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));
+console.log(JSON.stringify({ origin, build_sha: health.build_sha, checkout: ['monthly', 'annual'], durable_workspace: true, concurrent_acknowledged_documents_preserved: concurrencyEvidence.acknowledged_documents_preserved, hmrc_integration_configured: health.hmrc_integration_configured, hmrc_integration_mode: health.hmrc_integration_mode, taxpayer_consent_flow: taxpayerConsentFlow, safe_paid_fixture: 'non-charging/non-filing', read_limit: rateLimitEvidence.read.allowance, write_limit: rateLimitEvidence.write.allowance, stable_rate_limit_connection: true, topology_verified: process.env.VERIFY_AZURE_TOPOLOGY === '1', status: 'ok' }));

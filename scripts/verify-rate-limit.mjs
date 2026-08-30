@@ -66,6 +66,10 @@ async function verify(kind, allowance) {
     responses.slice(0, allowance).every(response => response.status !== 429),
     `${kind} limit rejected a request before the ${allowance}-request allowance`,
   );
+  assert(
+    responses.slice(0, allowance).every(response => response.status === (kind === 'read' ? 400 : 204)),
+    `${kind} requests did not reach the expected validation response before the allowance`,
+  );
   assert(responses[allowance].status === 429, `${kind} request ${allowance + 1} returned ${responses[allowance].status}, expected 429`);
   const retryAfter = Number.parseInt(responses[allowance].retryAfter || '', 10);
   assert(Number.isInteger(retryAfter) && retryAfter > 0, `${kind} 429 response omitted a positive Retry-After value`);
