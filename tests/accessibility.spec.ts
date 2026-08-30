@@ -1,6 +1,18 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+
+function freshClientIp(): string {
+  return `2001:db8:${randomUUID().replaceAll('-', '').slice(0, 4)}::1`;
+}
+
+test.beforeEach(async ({ page }) => {
+  const clientIp = freshClientIp();
+  await page.route('**/api/page-view', route => route.continue({
+    headers: { ...route.request().headers(), 'x-forwarded-for': clientIp },
+  }));
+});
 
 function submissionLabels(mode: string) {
   return mode === 'hmrc_sandbox_no_filing'
@@ -126,9 +138,9 @@ test('keyboard path opens the demo without console errors', async ({ page }) => 
 test('submission review dialog is keyboard-operable and has no serious Axe findings when an integration is available', async ({ page, request }) => {
   const health = await (await request.get('/health')).json() as { hmrc_integration_configured?: boolean; hmrc_integration_mode?: string; hmrc_taxpayer_consent_required?: boolean };
   if (health.hmrc_taxpayer_consent_required) {
-    await page.route('**/health', route => route.fulfill({
+    await page.route('**/api/hmrc/consent', route => route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ ...health, hmrc_taxpayer_consent_required: false }),
+      body: JSON.stringify({ consented: true, expires_at: 4_102_444_800 }),
     }));
   }
   await page.goto('/records');
@@ -138,6 +150,10 @@ test('submission review dialog is keyboard-operable and has no serious Axe findi
     return;
   }
   const { reviewAction, reviewConfirmation, confirmAction } = submissionLabels(health.hmrc_integration_mode || 'approved_provider');
+  await page.evaluate(async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
   await page.evaluate(() => localStorage.setItem('quarterly-ready:document', JSON.stringify({
     schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
     quarterStart: '2026-04-06', quarterEnd: '2026-07-05', figuresReviewed: true, markedReady: true,

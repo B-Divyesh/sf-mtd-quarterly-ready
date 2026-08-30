@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 
 const validDocument = {
   schemaVersion: 1, businessName: 'Maya Patel Tutoring', quarterLabel: '6 April to 5 July 2026',
@@ -191,7 +192,7 @@ test('@regression:shared-write-limit allows 12 writes then returns 429 with Retr
 });
 
 test('@regression:OAuth callback shares the stricter write quota', async ({ request }) => {
-  const headers = { 'x-forwarded-for': '203.0.113.96' };
+  const headers = { 'x-forwarded-for': `2001:db8:${randomUUID().replaceAll('-', '').slice(0, 4)}::96` };
   for (let index = 0; index < 12; index += 1) {
     expect((await request.post('/api/page-view', { headers })).status()).toBe(204);
   }

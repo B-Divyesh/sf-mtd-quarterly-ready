@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+
+function freshClientIp(): string {
+  return `2001:db8:${randomUUID().replaceAll('-', '').slice(0, 4)}::2`;
+}
+
+test.beforeEach(async ({ page }) => {
+  const clientIp = freshClientIp();
+  await page.route('**/api/page-view', route => route.continue({
+    headers: { ...route.request().headers(), 'x-forwarded-for': clientIp },
+  }));
+});
 
 test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps sample changes separate from real records', async ({ page, context }) => {
   const outgoing: string[] = [];
@@ -60,6 +72,10 @@ test('@regression:csv-invalid-rows-are-atomic rejects impossible, out-of-quarter
 });
 
 test('@claim:free-quarter-persistence @claim:quarter-record-separation @regression:current-and-future-quarters remain separate across reloads', async ({ page, request }) => {
+  const browserClientIp = freshClientIp();
+  await page.route('**/api/workspace', route => route.continue({
+    headers: { ...route.request().headers(), 'x-forwarded-for': browserClientIp },
+  }));
   await page.goto('/records');
   const selector = page.getByLabel('Working quarter');
   const currentStart = await selector.inputValue();
@@ -71,7 +87,9 @@ test('@claim:free-quarter-persistence @claim:quarter-record-separation @regressi
   await page.locator('#add-form select[name="category"]').selectOption('Sales');
   const currentSave = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace' && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Save transaction' }).click();
-  const currentWorkspaceId = await (await currentSave).request().headerValue('x-workspace-id');
+  const currentSaveResponse = await currentSave;
+  expect(currentSaveResponse.status()).toBe(200);
+  const currentWorkspaceId = await currentSaveResponse.request().headerValue('x-workspace-id');
   await page.reload();
   await expect(page.getByText('Current-quarter lesson', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Create next quarter' }).click();
@@ -86,11 +104,14 @@ test('@claim:free-quarter-persistence @claim:quarter-record-separation @regressi
   await page.locator('#add-form select[name="category"]').selectOption('Sales');
   const nextSave = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace' && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Save transaction' }).click();
-  const nextWorkspaceId = await (await nextSave).request().headerValue('x-workspace-id');
+  const nextSaveResponse = await nextSave;
+  expect(nextSaveResponse.status()).toBe(200);
+  const nextWorkspaceId = await nextSaveResponse.request().headerValue('x-workspace-id');
   expect(currentWorkspaceId).toBeTruthy();
   expect(nextWorkspaceId).toBeTruthy();
   expect(nextWorkspaceId).not.toBe(currentWorkspaceId);
-  const headers = (workspaceId: string) => ({ 'x-workspace-id': workspaceId, 'x-forwarded-for': '203.0.113.77' });
+  const readClientIp = freshClientIp();
+  const headers = (workspaceId: string) => ({ 'x-workspace-id': workspaceId, 'x-forwarded-for': readClientIp });
   const [currentRemote, nextRemote] = await Promise.all([
     request.get('/api/workspace', { headers: headers(currentWorkspaceId!) }),
     request.get('/api/workspace', { headers: headers(nextWorkspaceId!) }),
