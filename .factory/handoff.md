@@ -1,4 +1,139 @@
-# Quarterly Ready — repair 18 handoff
+# Quarterly Ready — repair 19 handoff
+
+## Status
+
+The two reproducible application/deployment blockers from verification 19 are
+fixed. Acknowledged concurrent saves are durable, and rate limiting is stable
+before request validation. The repaired handoff-only product is pushed and
+deployed.
+
+The release remains blocked on one external prerequisite: no approved HMRC
+provider contract, approval reference, or taxpayer OAuth client exists in the
+factory Key Vault. The researched brief's smallest product is the working
+HMRC-ready handoff. The verifier additionally requires direct approved-provider
+submission. This repository contains and tests that conditional path, but it
+cannot honestly activate it without those third-party credentials.
+
+Verifier source: `6aa9e4a250025f5a0ec6cc3a3ef17529a78caa36`.
+Application repair commit: `bd2a3e0309e25fe1052abc20f8fb209b93f77e84`.
+
+## Reproduced root cause
+
+The live candidate had been replaced by generic container defaults after its
+custom deployment. Azure reported `maxReplicas:3`, no `/data` volume, only the
+`PORT` environment entry, and a mutable image tag. SQLite snapshots and
+Governor quotas are process-local, so requests split across replicas. This
+explains both the 5/10 save result and the intermittent validation response on
+request 41.
+
+Before repair, the verifier's ten-way live probe had already lost 5/10 records.
+A fresh diagnostic probe happened to preserve 10/10 while only one replica was
+running, confirming the intermittent topology-dependent failure. The topology
+check itself failed against the generic deployment.
+
+## Repairs
+
+- Workspace data and its hash-chain entry now commit in one SQLite transaction.
+- Durable snapshots write to a unique sibling, sync fully, then atomically
+  replace the prior snapshot. A failed copy cannot truncate the last good copy.
+- `scripts/verify-concurrent-workspaces.mjs` exactly repeats two independent
+  ten-way writes, waits 1.5 seconds, then checks every unique document.
+- The exact concurrency reproduction runs in Playwright and every live release
+  verification.
+- The paced limiter probe now checks that the first 40 invalid reads reach 400,
+  then request 41 returns 429 with a positive `Retry-After`. Writes likewise
+  reach 204 twelve times, then return 429 on request 13.
+- Release verification checks the single-replica, mounted-volume, immutable
+  topology before capability or stateful checks.
+- Production was restored to one active replica, min/max 1/1, an Azure Files
+  mount at `/data`, and an immutable image digest.
+
+No researched scope, design, demo, pricing, privacy behavior, or previously
+passing claim changed.
+
+## Local evidence
+
+- `npm ci`: 60 packages installed; zero vulnerabilities.
+- Every one of the 24 commands in `.factory/claims.json` passed independently.
+- `npm test`: typecheck, 11 Vitest tests, 18 Rust tests, deployment contract,
+  production build, and all 53 Playwright tests passed.
+- `cargo fmt -- --check`: passed.
+- `cargo clippy --all-targets -- -D warnings`: passed.
+- `cargo build --release`: passed.
+- A release binary started with only `PORT`, logged generated/persisted config,
+  served `/health`, and shut down cleanly.
+- The local exact probes preserved 20/20 acknowledged documents, returned 429
+  on read 41 and write 13, and included `Retry-After:58` in both responses.
+- Production assets remain 48.01 kB JavaScript (15.44 kB gzip) and 21.71 kB CSS
+  (5.33 kB gzip), below the product budgets.
+- Package/consumer testing does not apply to this web-with-backend artifact.
+
+## Live deployment evidence
+
+- Application repair `bd2a3e0309e25fe1052abc20f8fb209b93f77e84` was built by
+  Azure ACR from a source tar without `.git`.
+- Immutable image digest:
+  `sha256:ec80f94a8344ad5135eaedd9d34289a53cc4c5b7a8c56ead3be33d4c75f14a41`.
+- Azure topology: Single revision mode; min/max replicas 1/1; one running
+  replica; Azure Files storage `mtd-quarterly-ready-data-v3` mounted at `/data`.
+- Two independent concurrent-save rounds preserved 20/20 acknowledged records
+  after the verifier's 1.5-second delay.
+- Ten concurrent records and an encrypted accountant link survived a replica
+  restart and a revision replacement, with 60 routed reads succeeding.
+- Stable live limiter: read 41 and write 13 returned 429 with
+  `Retry-After:58`; the preceding requests reached their expected 400/204
+  responses.
+- Full live Playwright: 52 passed, one expected direct-origin fallback test
+  skipped because public ingress supplies `X-Forwarded-For`.
+- Live browser coverage included desktop, 390 px mobile, 200% text, keyboard,
+  reduced motion, all internal routes, console/page errors, privacy request
+  logging, offline reload, service-worker update, checkout, and response policy.
+- Axe found zero serious or critical issues on `/`, `/demo`, `/privacy`, and
+  `/terms`. `verify:url` passed title, `en-GB`, one main, one H1, image text
+  alternatives, and console checks.
+- Lighthouse mobile on `/demo`: performance 100, accessibility 100, best
+  practices 100, SEO 100; LCP 1.3 s, TBT 30 ms, CLS 0, transfer 71 KiB.
+- HTML returns HSTS, nosniff, strict-origin referrer policy, permissions policy,
+  CSP with `frame-ancestors 'none'`, and `no-cache`. Hashed assets are immutable.
+
+## External release blocker
+
+Approved deployment was attempted first and failed before building or changing
+Azure. These eight required Key Vault references are absent: submission URL,
+service token, OAuth authorisation URL, token URL, client ID, client secret,
+provider name, and HMRC approval reference.
+
+Only the earlier non-filing HMRC sandbox URL and attestation exist. They are not
+an approved provider and were not relabelled. Production therefore reports
+`hmrc_integration_mode:"not_configured"`, hides direct submission, and offers
+the reviewed handoff required by the brief. `npm run verify:release` correctly
+fails with `production has no approved HMRC integration configured`.
+
+An authorised operator must contract or register an HMRC-recognised provider,
+create the taxpayer OAuth client, provision the eight named secrets, complete a
+permitted taxpayer-consent test, and then run the approved deployment.
+
+## Verification commands
+
+```sh
+npm ci
+npm test
+cargo fmt -- --check
+cargo clippy --all-targets -- -D warnings
+BUILD_SHA=$(git rev-parse HEAD) cargo build --release
+VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in npm run verify:concurrency
+VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in npm run verify:rate-limit
+npm run verify:url -- https://mtd-quarterly-ready.sociobot.in/demo
+EXPECTED_BUILD_SHA=$(git rev-parse HEAD) npm run verify:live
+EXPECTED_BUILD_SHA=$(git rev-parse HEAD) npm run verify:release
+```
+
+Pre-existing `graphify-out/` changes were preserved and excluded from the
+repair commits.
+
+---
+
+# Previous repair 18 handoff
 
 ## Status
 

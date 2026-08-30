@@ -19,6 +19,12 @@ assert(health.status === 'ok', '/health did not report ok');
 assert(health.safe_qa_fixtures === true, '/health reports SAFE_QA_FIXTURES is not enabled');
 assert(typeof health.hmrc_integration_configured === 'boolean', '/health omitted the HMRC integration capability');
 assert(typeof health.hmrc_integration_mode === 'string', '/health omitted the HMRC integration mode');
+if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
+  // The encrypted SQLite snapshot and in-memory quotas require exactly one
+  // process. Check this before any capability, state, or rate-limit assertion
+  // so generic autoscaling cannot masquerade as an application bug.
+  execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
+}
 if (process.env.REQUIRE_APPROVED_HMRC === '1') {
   assert(health.hmrc_integration_configured === true, 'production has no approved HMRC integration configured');
   assert(health.hmrc_integration_mode === 'approved_provider', `production HMRC mode is ${health.hmrc_integration_mode}, expected approved_provider`);
@@ -28,13 +34,6 @@ if (process.env.REQUIRE_APPROVED_HMRC === '1') {
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }
-if (process.env.VERIFY_AZURE_TOPOLOGY === '1') {
-  // The encrypted SQLite snapshot and in-memory quotas require exactly one
-  // process. Check this before any stateful or rate-limit assertions so a
-  // generic autoscaling deployment cannot masquerade as an application bug.
-  execFileSync('bash', ['scripts/verify-azure-topology.sh'], { stdio: 'inherit' });
-}
-
 for (const [plan, slug] of [['monthly', 'mtd-quarterly-ready'], ['annual', 'mtd-quarterly-ready-annual']]) {
   const checkout = await fetch(`${billing}/${slug}/checkout`, { method: 'POST', headers: { accept: 'application/json' } });
   assert(checkout.status === 200, `${plan} checkout returned ${checkout.status}, expected a checkout URL`);
