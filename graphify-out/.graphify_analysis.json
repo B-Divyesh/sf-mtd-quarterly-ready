@@ -6,7 +6,6 @@
       "envfilter",
       "error",
       "fspath",
-      "hashset",
       "option",
       "sqlitepool",
       "src_main",
@@ -31,11 +30,7 @@
       "src_main_integrationmode",
       "src_main_integrationmode_as_str",
       "src_main_internal",
-      "src_main_invalid_transaction",
-      "src_main_is_calendar_date",
       "src_main_is_database_locked_message",
-      "src_main_is_iso_date",
-      "src_main_is_standard_uk_quarter",
       "src_main_licenceverdict",
       "src_main_load_or_create_key",
       "src_main_log_filter",
@@ -60,7 +55,6 @@
       "src_main_taxpayer_consent_from_env",
       "src_main_taxpayer_consent_from_values",
       "src_main_taxpayerconsent",
-      "src_main_validate_transaction",
       "src_main_validates_transaction_document",
       "src_main_workspacedocument",
       "string"
@@ -68,6 +62,7 @@
     "1": [
       "arc",
       "body",
+      "hashset",
       "intoresponse",
       "json",
       "mutex",
@@ -91,6 +86,10 @@
       "src_main_hmrc_compatible_payload",
       "src_main_hmrc_consent_callback",
       "src_main_hmrc_consent_status",
+      "src_main_invalid_transaction",
+      "src_main_is_calendar_date",
+      "src_main_is_iso_date",
+      "src_main_is_standard_uk_quarter",
       "src_main_licence_token",
       "src_main_load_taxpayer_consent_token",
       "src_main_page_view",
@@ -106,6 +105,7 @@
       "src_main_taxpayer_consent_uses_oauth_state_encrypts_the_token_and_marks_the_workspace_ready",
       "src_main_unix_now",
       "src_main_validate_document",
+      "src_main_validate_transaction",
       "src_main_verify_licence_token",
       "src_main_workspace_id",
       "src_main_write_audit",
@@ -410,8 +410,8 @@
     ]
   },
   "cohesion": {
-    "0": 0.06861239119303636,
-    "1": 0.1488095238095238,
+    "0": 0.07644110275689223,
+    "1": 0.1265993265993266,
     "2": 0.05555555555555555,
     "3": 0.16666666666666666,
     "4": 0.1,
@@ -491,37 +491,15 @@
       "degree": 14
     },
     {
-      "id": "src_main_start_hmrc_consent",
-      "label": "start_hmrc_consent()",
+      "id": "src_main_hmrc_consent_callback",
+      "label": "hmrc_consent_callback()",
       "degree": 14
     }
   ],
   "surprises": [
     {
-      "source": "addTransaction()",
-      "target": "deleteReceipt()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/receipts.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "addTransaction()",
-      "target": "saveReceipt()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/receipts.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "addTransaction()",
-      "target": "validateTransaction()",
+      "source": "checklist()",
+      "target": "summarise()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/records.ts"
@@ -531,8 +509,8 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "bindRecords()",
-      "target": "nextUkQuarter()",
+      "source": "recordsPage()",
+      "target": "availableQuarters()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/quarters.ts"
@@ -542,11 +520,33 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "bindRecords()",
-      "target": "deleteReceipt()",
+      "source": "recordsPage()",
+      "target": "quarterFromStart()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/receipts.ts"
+        "frontend/src/quarters.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
+      "target": "summarise()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/records.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
+      "target": "loadDocument()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
