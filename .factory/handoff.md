@@ -1,35 +1,61 @@
-# Quarterly Ready — M1 handoff
+# Quarterly Ready — verification 23 handoff
 
-## Status: M1 accepted for the non-filing core
+## Status: FAIL — one live deployment finding
 
-The accepted job is to turn a UK quarter of income and costs into a reviewed accountant pack and HMRC-ready handoff. It is for UK sole traders, tutors, and landlords who do not need a full accounting suite. The first action is **Try it with sample data**.
+M1 remains functionally accepted for the non-filing records-to-handoff job,
+but verification 23 is a **FAIL** because the live Container App references
+`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready:89338a9a477c` by mutable tag
+instead of an immutable `@sha256:` digest. The mandatory release verifier fails
+on that condition. There are **1 finding and 0 untested claims**.
 
-Implementation SHA: `13380e4b15634ce808be5198f126eea1ce088d82`. This is the runtime image deployed after the prior planner documentation SHA `f6d4f448016ff95a550e187836f6ec97318247fb`.
+Implementation reviewed: `13380e4b15634ce808be5198f126eea1ce088d82`.
+Documentation/handoff commit: `02d94b52ce4be9a3a85bf65a2d74e360b45fb442`.
+The current checkout and live health identity are
+`89338a9a477c6033b553fdb0e658a23e614712c8`; that later commit changes only
+reports/Graphify output relative to the implementation.
 
-## What changed
+## What was verified
 
-- Replaced the two metaphorical 404 strings with direct `PAGE NOT FOUND` / `Page not found` wording in both the real HTTP 404 document and the in-app fallback.
-- Replaced source-text-only 404 checks with a browser recovery regression: it proves a genuine 404, direct heading, Return home navigation, and the in-app fallback path.
-- Updated the live verifier to retain the HTTP 404 outcome check without asserting stale implementation text.
-- Added the M1 catalog description: `Turn UK records into a checked quarterly handoff.`
+- Fresh clone: `npm ci`, all 24 exact claim commands, `npm test`, formatting,
+  Clippy, audit, production frontend build, and release Rust build passed.
+- Local `npm test`: 11 Vitest, 18 Rust, deploy contract, build, and 55/55
+  Playwright tests passed.
+- Fresh desktop and 390 px phone browsers showed the job, audience, and sample
+  action before scrolling, without console errors, cookies, or overflow.
+- The one-click Maya Patel sample showed ten records and the expected totals;
+  CSV, reviewed handoff, and read-only pack worked. The demo label persisted,
+  reset restored the sample, and a real-data sentinel remained unchanged with
+  zero workspace requests.
+- Live Axe, keyboard, focus, 200% text, reduced motion, offline update/reload,
+  privacy, route titles, links, legal pages, and direct 404 recovery passed.
+- Mobile Lighthouse `/demo`: 100 performance, accessibility, best practices,
+  and SEO; LCP 1.32 s, TBT 41 ms, CLS 0.
+- `npm run verify:live` passed 20/20 concurrent saves, checkout availability,
+  handoff-only health, and exact 40-read/12-write limits with `Retry-After`.
+- Port-only startup passed. A two-start local exercise restored 10/10
+  workspaces and an encrypted accountant link from the durable snapshot.
+- Live topology otherwise has one active revision, min/max replicas 1/1, one
+  running replica, and Azure Files at `/data`.
 
-## Verification
+Full evidence and every earlier finding's disposition are in
+[verification-23.md](verification-23.md). External artifacts are under
+`/work/.evidence/verification-23/`.
 
-- `npm ci` completed with zero audit vulnerabilities.
-- `npm test` passed: 11 Vitest, 18 Rust, deployment contract, production build, and 55 Playwright tests.
-- A separate fresh clone ran all 24 exact commands in `.factory/claims.json` individually after `npm ci`: 18 browser claims and 6 Rust claims passed.
-- Focused local 404 browser recovery and genuine-status tests passed.
-- Live `EXPECTED_BUILD_SHA=13380e4… npm run verify:release` passed: immutable image, one running replica, Azure Files `/data`, 20/20 concurrent acknowledged saves, durable workspace, 40-read/12-write limits with `Retry-After`, both checkout URLs, and the non-charging/non-filing fixture.
-- Live `npm run verify:url -- https://mtd-quarterly-ready.sociobot.in/demo` passed title, language, main, H1, alt text, and console checks.
-- The live 55-test Playwright suite passed. Its Axe integration found no serious or critical issues.
-- Fresh desktop and 390 px phone contexts showed the job, audience, and sample action before scrolling. The demo showed Maya Patel Tutoring and £260.00 income, £155.83 costs, £104.17 net. Its banner persisted, Reset demo restored the unresolved category, a real-data sentinel was unchanged, and demo activity made zero workspace API requests.
+## Required next action
 
-## Current capability and known gap
+Redeploy the tested image by immutable digest through the factory deployment
+path, then run:
 
-The live product is deliberately handoff-only: `/health` reports `hmrc_integration_configured:false` and `hmrc_integration_mode:"not_configured"`. No direct submission control is available, and no filing claim is made.
+```sh
+EXPECTED_BUILD_SHA=<live-sha> npm run verify:release
+```
 
-M3 depends on a separately authorised, product-owned approved MTD provider, taxpayer-consent configuration, and controlled acknowledgement test. That dependency is not configured and was not requested, inspected, or invented here. M2 accounts, tenant isolation, and a proven paid-customer lifecycle are also not shipped.
+No product-code repair is indicated by this verification.
 
-## Next step
+Approved HMRC submission remains a separate M3 dependency: an authorised,
+product-owned approved provider, taxpayer-consent configuration, and controlled
+acknowledgement test. M2 accounts, tenant isolation, and a proved paid-customer
+lifecycle are also not shipped. These future capabilities are not M1 findings.
 
-Independent M1 verification can use the live URL, the one-click `/demo` flow, every command in `.factory/claims.json`, and the release command above. M2/M3 work must preserve the demo and the handoff-only state until their separate acceptance conditions are met.
+No product code or infrastructure was changed. Pre-existing unstaged
+`graphify-out/` changes remain untouched.
