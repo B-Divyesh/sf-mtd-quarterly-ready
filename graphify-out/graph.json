@@ -2450,7 +2450,7 @@
       "file_type": "code",
       "norm_label": "protectedreplacement",
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L93"
+      "source_location": "L95"
     },
     {
       "id": "scripts_check_deploy_contract_replacementupdate",
@@ -2460,7 +2460,7 @@
       "file_type": "code",
       "norm_label": "replacementupdate",
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L94"
+      "source_location": "L96"
     },
     {
       "id": "scripts_check_deploy_contract_required",
@@ -2480,7 +2480,7 @@
       "file_type": "code",
       "norm_label": "revisionreplacement",
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L92"
+      "source_location": "L94"
     },
     {
       "id": "scripts_check_deploy_contract_verifyconcurrencyscript",
@@ -2530,7 +2530,7 @@
       "file_type": "code",
       "norm_label": "concurrencyevidence",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L83"
+      "source_location": "L87"
     },
     {
       "id": "scripts_verify_live_durabledocument",
@@ -2540,7 +2540,7 @@
       "file_type": "code",
       "norm_label": "durabledocument",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L68"
+      "source_location": "L72"
     },
     {
       "id": "scripts_verify_live_fixtureheaders",
@@ -2550,7 +2550,7 @@
       "file_type": "code",
       "norm_label": "fixtureheaders",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L115"
+      "source_location": "L119"
     },
     {
       "id": "scripts_verify_live_ratelimitevidence",
@@ -2560,7 +2560,7 @@
       "file_type": "code",
       "norm_label": "ratelimitevidence",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L124"
+      "source_location": "L128"
     },
     {
       "id": "scripts_verify_live_workspaceid",
@@ -2570,7 +2570,7 @@
       "file_type": "code",
       "norm_label": "workspaceid",
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L49"
+      "source_location": "L53"
     },
     {
       "id": "scripts_verify_rate_limit",
@@ -2702,7 +2702,7 @@
       },
       "norm_label": "stop_revision_for_snapshot_handoff()",
       "source_file": "scripts/deploy-container.sh",
-      "source_location": "L101"
+      "source_location": "L65"
     },
     {
       "id": "scripts_verify_url_errors",
@@ -5284,7 +5284,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "scripts/deploy-container.sh",
-      "source_location": "L122",
+      "source_location": "L86",
       "weight": 1.0
     },
     {
@@ -11648,7 +11648,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L92",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -11659,7 +11659,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L93",
+      "source_location": "L95",
       "weight": 1.0
     },
     {
@@ -11670,7 +11670,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/check-deploy-contract.mjs",
-      "source_location": "L94",
+      "source_location": "L96",
       "weight": 1.0
     },
     {
@@ -11802,7 +11802,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L115",
+      "source_location": "L119",
       "weight": 1.0
     },
     {
@@ -11813,7 +11813,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L124",
+      "source_location": "L128",
       "weight": 1.0
     },
     {
@@ -11824,18 +11824,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L49",
-      "weight": 1.0
-    },
-    {
-      "source": "scripts_verify_live",
-      "target": "scripts_verify_live_durabledocument",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "scripts/verify-live.mjs",
-      "source_location": "L68",
+      "source_location": "L53",
       "weight": 1.0
     },
     {
@@ -11851,13 +11840,24 @@
     },
     {
       "source": "scripts_verify_live",
+      "target": "scripts_verify_live_durabledocument",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "scripts/verify-live.mjs",
+      "source_location": "L72",
+      "weight": 1.0
+    },
+    {
+      "source": "scripts_verify_live",
       "target": "scripts_verify_live_concurrencyevidence",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/verify-live.mjs",
-      "source_location": "L83",
+      "source_location": "L87",
       "weight": 1.0
     },
     {
@@ -13078,7 +13078,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "scripts/deploy-container.sh",
-      "source_location": "L101",
+      "source_location": "L65",
       "weight": 1.0
     },
     {
@@ -13246,5 +13246,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "93aa50f868807038aa85ece13c4a8a492d9839de"
+  "built_at_commit": "1c893635f66aeb48eec3270dee7cdf25993ceb52"
 }
