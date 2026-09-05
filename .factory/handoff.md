@@ -17,6 +17,7 @@ Implementation SHA: `13380e4b15634ce808be5198f126eea1ce088d82`. This is the runt
 
 - `npm ci` completed with zero audit vulnerabilities.
 - `npm test` passed: 11 Vitest, 18 Rust, deployment contract, production build, and 55 Playwright tests.
+- A separate fresh clone ran all 24 exact commands in `.factory/claims.json` individually after `npm ci`: 18 browser claims and 6 Rust claims passed.
 - Focused local 404 browser recovery and genuine-status tests passed.
 - Live `EXPECTED_BUILD_SHA=13380e4… npm run verify:release` passed: immutable image, one running replica, Azure Files `/data`, 20/20 concurrent acknowledged saves, durable workspace, 40-read/12-write limits with `Retry-After`, both checkout URLs, and the non-charging/non-filing fixture.
 - Live `npm run verify:url -- https://mtd-quarterly-ready.sociobot.in/demo` passed title, language, main, H1, alt text, and console checks.

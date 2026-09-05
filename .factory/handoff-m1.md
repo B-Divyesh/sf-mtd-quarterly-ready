@@ -13,6 +13,7 @@ The M1.1 repair deployed implementation `13380e4b15634ce808be5198f126eea1ce088d8
 ## Evidence
 
 - Documented clean setup: `npm ci`, then `npm test` — passed (11 Vitest, 18 Rust, deployment contract, build, 55 Playwright).
+- A separate fresh clone ran all 24 exact claim commands individually after `npm ci`: 18 browser claims and 6 Rust claims passed.
 - Local focused 404 route and browser recovery checks passed.
 - Release verification against the deployed implementation passed with one immutable image, one running replica, the product Azure Files `/data` mount, 20/20 acknowledged concurrent saves, restart/revision durability, and 40-read/12-write external rate limits with `Retry-After`.
 - `verify:url` passed live `/demo`; the live browser suite passed all 55 tests, including Axe integration.
