@@ -109,3 +109,11 @@ Use `npm ci`, then `npm test` and `npm run build`. Run the local service with
 `npm run serve`; the one-click isolated sample is available at `/demo`. The
 full demo/storage details are in [demo.md](demo.md); public claims and their
 exact commands are in [claims.json](claims.json).
+
+## Verification 25 — PASS
+
+Independent verification on 5 September 2026 passed with **0 findings and 0 untested claims**. The product implementation reviewed was `575aa8659469ab6f45bce623c3da560a82248895`; the repair documentation commit was `bc81f80dbc0d2a8f88741f4f777fbb7f36faf604`. Live `/health` carries the later report/Graphify-only descendant `73ddca8e56958abbdccff19a140d505f6bd8527a`, and the live immutable image is `sha256:06a13cf9ca86518490bcc5ac4257b63d97fe4a7fa05b744f22753442746a316e`.
+
+Fresh desktop and 390 px phone checks showed the job, audience, and **Try it with sample data** action before scrolling. All 24 exact claim commands passed from a clean clone; `npm test` passed 56/56; live release verification proved the single replica, `/data` Azure Files mount, persistence, concurrent saves, checkout URLs, handoff-only HMRC state, and 40/12 rate limits with 429 and `Retry-After`. `verify:url` and live Axe integration passed for the public and legal routes. See [verification-25.md](verification-25.md) for complete evidence and earlier-finding dispositions.
+
+Remaining work is intentionally outside accepted M1: M2 accounts/tenant isolation/cross-device paid lifecycle and M3 approved-provider submission.
