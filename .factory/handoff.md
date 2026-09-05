@@ -117,3 +117,42 @@ Independent verification on 5 September 2026 passed with **0 findings and 0 unte
 Fresh desktop and 390 px phone checks showed the job, audience, and **Try it with sample data** action before scrolling. All 24 exact claim commands passed from a clean clone; `npm test` passed 56/56; live release verification proved the single replica, `/data` Azure Files mount, persistence, concurrent saves, checkout URLs, handoff-only HMRC state, and 40/12 rate limits with 429 and `Retry-After`. `verify:url` and live Axe integration passed for the public and legal routes. See [verification-25.md](verification-25.md) for complete evidence and earlier-finding dispositions.
 
 Remaining work is intentionally outside accepted M1: M2 accounts/tenant isolation/cross-device paid lifecycle and M3 approved-provider submission.
+
+## Strict review 1 — PASS
+
+Strict review 1 on 5 September 2026 passed with **0 findings and 0 untested
+claims**. It reviewed implementation
+`575aa8659469ab6f45bce623c3da560a82248895`, with the separate prior
+verification documentation commit
+`8b7b017fad59364c0e1886378b7164d446e29a59` and live health build label
+`73ddca8e56958abbdccff19a140d505f6bd8527a`. The label is a
+documentation/Graphify/accessibility-test-only descendant; no runtime source,
+asset, dependency, Docker, or build configuration changed beyond the
+implementation candidate.
+
+Fresh desktop and phone browser contexts showed the job, target audience, and
+**Try it with sample data** before scrolling. The sample showed its persistent
+isolation label, ten realistic Maya Patel Tutoring records, reset, and Start
+for real; reset restored the sample with no errors. This independently closes
+Verification 24's decorative-label finding: the public interface now uses
+plain task/result names such as **Quarter status**, **How it works**, and
+**Downloads and sharing**.
+
+From `npm ci`, all 24 exact claim commands passed; `npm test` passed
+56/56; production output is 15.32 kB gzip JS and 5.32 kB gzip CSS.
+`verify:url` passed live for landing, demo, privacy, and terms. Fresh live
+Axe scans reported zero serious or critical issues. The designed unknown route
+returns the expected HTTP 404 and offers Return home.
+
+`EXPECTED_BUILD_SHA=73ddca8e56958abbdccff19a140d505f6bd8527a npm run
+verify:release` passed against the immutable
+`sha256:06a13cf9ca86518490bcc5ac4257b63d97fe4a7fa05b744f22753442746a316e`
+image: one replica, durable `/data` mount, persistence, 20 concurrent saves,
+checkout fixtures, handoff-only HMRC status, and 40/12 rate limits followed
+by 429 with `Retry-After`.
+
+M1 remains the only shipped milestone. M2 accounts/tenant isolation and
+paid-customer lifecycle, plus M3 approved-provider consent/submission, remain
+unshipped external-dependency work. No product code, deployment configuration,
+or pre-existing Graphify changes were modified by this review. See
+[review-1.md](review-1.md) for the complete evidence.
