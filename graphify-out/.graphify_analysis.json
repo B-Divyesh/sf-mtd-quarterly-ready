@@ -462,13 +462,13 @@
       "degree": 25
     },
     {
-      "id": "src_main_create_share",
-      "label": "create_share()",
+      "id": "frontend_src_main_bindrecords",
+      "label": "bindRecords()",
       "degree": 19
     },
     {
-      "id": "frontend_src_main_bindrecords",
-      "label": "bindRecords()",
+      "id": "src_main_create_share",
+      "label": "create_share()",
       "degree": 19
     },
     {
@@ -492,67 +492,67 @@
       "degree": 15
     },
     {
-      "id": "src_main_hmrc_consent_callback",
-      "label": "hmrc_consent_callback()",
+      "id": "frontend_src_main_recordspage",
+      "label": "recordsPage()",
       "degree": 14
     },
     {
-      "id": "src_main_start_hmrc_consent",
-      "label": "start_hmrc_consent()",
+      "id": "src_main_hmrc_consent_callback",
+      "label": "hmrc_consent_callback()",
       "degree": 14
     }
   ],
   "surprises": [
     {
-      "source": "leaveDemo()",
-      "target": "clearDemoReceipts()",
-      "source_files": [
-        "frontend/src/storage.ts",
-        "frontend/src/receipts.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "resetDemo()",
-      "target": "clearDemoReceipts()",
-      "source_files": [
-        "frontend/src/storage.ts",
-        "frontend/src/receipts.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "recordsPage()",
-      "target": "availableQuarters()",
+      "source": "sharePack()",
+      "target": "createShare()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities"
     },
     {
-      "source": "bindRecords()",
-      "target": "nextUkQuarter()",
+      "source": "refreshHmrcConsent()",
+      "target": "hmrcConsentStatus()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities"
     },
     {
-      "source": "recordsPage()",
-      "target": "quarterFromStart()",
+      "source": "refreshRemote()",
+      "target": "loadRemote()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "renderShare()",
+      "target": "loadShare()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "connectHmrc()",
+      "target": "startHmrcConsent()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
