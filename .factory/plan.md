@@ -7,7 +7,7 @@
 
 Quarterly Ready is a UK record-to-quarterly-update product, not a general ledger or tax adviser. The live product is deliberately **handoff-only**. It helps a person capture and review a quarter, then download a CSV or reviewed handoff. It must not be described as filing to HMRC, providing taxpayer consent, offering sign-in, isolating tenants, or completing a paid subscription.
 
-The current milestone is **M1.1 — repair and re-verify the non-filing core**. The record-to-handoff workflow is substantially implemented and independently exercised. It is not accepted as a fully compliant MTD submission product, and it has one small unresolved M1 repair: the real 404 page uses metaphorical copy instead of direct recovery wording. M2 and M3 are not completed merely because there are local fixtures or conditional code paths for their features.
+The accepted milestone is **M1 — records to reviewed handoff**. Its M1.1 repair deployed on 5 September 2026: both real 404 render paths now use direct recovery wording, and the recovery flow is covered in the browser suite. M1 is accepted only as a non-filing core. M2 and M3 are not completed merely because there are local fixtures or conditional code paths for their features.
 
 | Area | Real status | Evidence |
 | --- | --- | --- |
@@ -22,12 +22,11 @@ The current milestone is **M1.1 — repair and re-verify the non-filing core**. 
 
 The following prior defects are closed by the latest verification: clean-checkout claim harness, TypeScript check, empty-workspace console error, API validation, receipt quota recovery, real-quarter separation, server-side licence gate, checkout endpoint availability, durable one-replica topology, concurrent-save retention, external rate limiting, service-worker offline reload, and genuine HTTP 404 status. The history and proof are retained in [verification-22.md](verification-22.md) under “Earlier finding disposition.”
 
-Two items remain open:
+One external dependency remains outside M1:
 
-1. **Critical product-contract blocker:** no live approved HMRC integration, taxpayer consent, or submission. A mock, a safe QA fixture, a provider-shaped payload, and an HMRC sandbox greeting are not evidence of a real filing capability.
-2. **Minor M1 repair:** change the 404 copy from `NO SIGNAL` / `This page is not on the panel` to plain page-not-found language, then rerun the focused route, accessibility, and link checks. The HTTP status and recovery link already pass.
+1. **Critical M3 dependency:** no live approved HMRC integration, taxpayer consent, or submission. A mock, a safe QA fixture, a provider-shaped payload, and an HMRC sandbox greeting are not evidence of a real filing capability.
 
-The first is an M3 external dependency, not permission to claim M3 is built. The second is the immediate next implementation task. Until it passes, M1 is functionally verified but formally pending repair.
+The M3 dependency is not permission to claim M3 is built. M1 is formally accepted for the truthful records-to-handoff workflow.
 
 ## PRD
 
@@ -86,7 +85,7 @@ M3 retains the reviewed document/audit trail and adds a product-owned approved-p
 
 The accepted identity is the **mid-century instrument panel** documented in [design.md](design.md): warm paper/panel/brass colours, Georgia plus system sans, an 8-pixel rhythm, labelled controls, a quarter dial, visible status lamps, and a 240 ms dial sweep that becomes instant under reduced motion. The original generated instrument still-life and its provenance are also recorded there.
 
-Key screens are: landing and live preview; demo/real quarter desk; transaction capture/import and receipt recovery; quarter checklist/review; output bay; authenticated account/business selector in M2; and conditional consent/submission confirmation in M3. All retain one H1, landmarks, route focus announcements, designed focus rings, 44 px controls, error recovery, and the 390 px labelled-slip layout. M1.1 must make the 404 screen use direct recovery language without changing this visual system.
+Key screens are: landing and live preview; demo/real quarter desk; transaction capture/import and receipt recovery; quarter checklist/review; output bay; authenticated account/business selector in M2; and conditional consent/submission confirmation in M3. All retain one H1, landmarks, route focus announcements, designed focus rings, 44 px controls, error recovery, and the 390 px labelled-slip layout. M1.1 made the 404 screen use direct recovery language without changing this visual system.
 
 ## Milestones
 
@@ -94,7 +93,7 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 
 **Scope:** landing, `/demo`, `/records`, `/privacy`, `/terms`, manual capture, bank CSV import, browser-local receipt capture, unresolved-work checklist, explicit human review, free CSV and reviewed handoff downloads, and demo accountant pack.
 
-**Status:** implemented and independently verified for a non-filing workflow; **formal acceptance pending M1.1** because of the 404 copy repair. It is not an accepted solution to the entire researched MTD-submission job.
+**Status:** **accepted on 5 September 2026 for the non-filing workflow.** M1.1 replaced the two metaphorical 404 strings with direct recovery wording, proved the real 404 and in-app fallback return a visitor home, and re-verified the live handoff-only deployment. It is not an accepted solution to the entire researched MTD-submission job.
 
 **Definition of done:**
 
@@ -102,11 +101,11 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 - Demo data is isolated from real browser/server data; receipt bytes remain outside localStorage and server records.
 - A real browser workspace can create a UK quarter, validate/import records, resolve checklist failures, persist a reviewed document, and freely download CSV/handoff output.
 - Empty, invalid, offline, quota, keyboard, mobile, reduced-motion, legal, privacy, route, and 404 recovery states pass; all public copy truthfully says the product is handoff-only.
-- M1.1 replaces the two metaphorical 404 strings with direct wording and reruns the focused 404, `verify:url`, Axe, link crawl, and relevant full browser regression. No public claim may be broadened in that repair.
+- M1.1 completed the direct 404 wording, focused 404 recovery, `verify:url`, Axe integration, link crawl, and full browser regression without broadening a public claim.
 
 **Claims and tests:** Existing claim IDs `demo-isolation`, `demo-access`, `privacy-no-tracking`, `accountant-csv`, `quarter-review`, `free-quarter-persistence`, `csv-import`, `receipt-capture`, `receipt-locality`, `quarter-record-separation`, `hmrc-handoff`, and `offline-browser-copy` are the M1 evidence set. Each exact command lives in [claims.json](claims.json); the latest independent run passed all 24 manifest commands, with the M1 set exercised in the demo/live browser suite. See [verification-22.md](verification-22.md).
 
-**No external dependency blocks M1.1.** It must not turn on provider, billing, sign-in, or messaging work.
+**No external dependency blocks M1.** It did not turn on provider, billing, sign-in, or messaging work.
 
 ### M2 — authenticated records, tenancy, and paid service
 
@@ -165,4 +164,4 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 | A checkout redirect is mistaken for a working subscription. | M2 authorised entitlement, revoke, restore, and server-gate test with no direct payment-provider integration. |
 | Compliance copy outruns capability. | Every release cross-checks the landing, README, legal pages, [claims.json](claims.json), `/health` capability, and actual provider status. |
 
-**Release rule:** Do not call the product an HMRC filing service or a tenant-isolated subscription SaaS until M2/M3 acceptance criteria have independently passed. Until then, ship only the truthful non-filing records-to-handoff promise and retain the outstanding 404 repair in the next work order.
+**Release rule:** Do not call the product an HMRC filing service or a tenant-isolated subscription SaaS until M2/M3 acceptance criteria have independently passed. Until then, ship only the truthful non-filing records-to-handoff promise.

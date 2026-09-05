@@ -1,32 +1,34 @@
-# Quarterly Ready — venture plan handoff
+# Quarterly Ready — M1 handoff
 
-## Status: plan complete; product release remains FAIL
+## Status: M1 accepted for the non-filing core
 
-This planner work order made no product-code, deployment, infrastructure, billing, or external-service change. It inspected the researched brief, current implementation, all repository QA reports/evidence, and the live health endpoint, then added the venture plan at [plan.md](plan.md) and the machine-readable status at `/work/.evidence/venture-plan.json`.
+The accepted job is to turn a UK quarter of income and costs into a reviewed accountant pack and HMRC-ready handoff. It is for UK sole traders, tutors, and landlords who do not need a full accounting suite. The first action is **Try it with sample data**.
 
-The live service still reports build `7c840e4853bbcb16270977bdb568271ebd86c746` with `hmrc_integration_configured:false` and `hmrc_integration_mode:"not_configured"`. The product is correctly handoff-only. It does not provide live HMRC filing, taxpayer consent, sign-in, tenant isolation, or a proven paid-customer lifecycle.
+Implementation SHA: `13380e4b15634ce808be5198f126eea1ce088d82`. This is the runtime image deployed after the prior planner documentation SHA `f6d4f448016ff95a550e187836f6ec97318247fb`.
 
-## Current milestone
+## What changed
 
-**M1.1 — repair and re-verify the non-filing core.**
+- Replaced the two metaphorical 404 strings with direct `PAGE NOT FOUND` / `Page not found` wording in both the real HTTP 404 document and the in-app fallback.
+- Replaced source-text-only 404 checks with a browser recovery regression: it proves a genuine 404, direct heading, Return home navigation, and the in-app fallback path.
+- Updated the live verifier to retain the HTTP 404 outcome check without asserting stale implementation text.
+- Added the M1 catalog description: `Turn UK records into a checked quarterly handoff.`
 
-The non-filing records-to-reviewed-handoff workflow is well evidenced, but formal M1 acceptance is pending the small plain-words repair to the 404 page. M2 (accounts, tenancy, persistence ownership, and paid lifecycle) is not a shipped capability. M3 (approved provider, consent, and filing) is blocked on an external product-owned integration and is not shipped.
+## Verification
 
-## What was verified in this planning checkout
+- `npm ci` completed with zero audit vulnerabilities.
+- `npm test` passed: 11 Vitest, 18 Rust, deployment contract, production build, and 55 Playwright tests.
+- Focused local 404 browser recovery and genuine-status tests passed.
+- Live `EXPECTED_BUILD_SHA=13380e4… npm run verify:release` passed: immutable image, one running replica, Azure Files `/data`, 20/20 concurrent acknowledged saves, durable workspace, 40-read/12-write limits with `Retry-After`, both checkout URLs, and the non-charging/non-filing fixture.
+- Live `npm run verify:url -- https://mtd-quarterly-ready.sociobot.in/demo` passed title, language, main, H1, alt text, and console checks.
+- The live 55-test Playwright suite passed. Its Axe integration found no serious or critical issues.
+- Fresh desktop and 390 px phone contexts showed the job, audience, and sample action before scrolling. The demo showed Maya Patel Tutoring and £260.00 income, £155.83 costs, £104.17 net. Its banner persisted, Reset demo restored the unresolved category, a real-data sentinel was unchanged, and demo activity made zero workspace API requests.
 
-```sh
-npm ci
-npm test
-```
+## Current capability and known gap
 
-Passed: TypeScript typecheck, 11 Vitest tests, 18 Rust tests, deployment-contract check, Vite build, and 54 Playwright tests. The built assets were 15.59 kB gzip JavaScript and 5.33 kB gzip CSS.
+The live product is deliberately handoff-only: `/health` reports `hmrc_integration_configured:false` and `hmrc_integration_mode:"not_configured"`. No direct submission control is available, and no filing claim is made.
 
-Read-only live check on 5 September confirmed the deployed health capability is handoff-only. The latest independent evidence remains [verification-22.md](verification-22.md): 24/24 declared claims passed, 53 live browser tests passed with one inapplicable non-claim skip, and mobile Lighthouse scored 100/100/100/100. The latest independent verdict remains FAIL because no approved direct-submission integration exists and the 404 copy is metaphorical.
+M3 depends on a separately authorised, product-owned approved MTD provider, taxpayer-consent configuration, and controlled acknowledgement test. That dependency is not configured and was not requested, inspected, or invented here. M2 accounts, tenant isolation, and a proven paid-customer lifecycle are also not shipped.
 
-## Open work and exact dependencies
+## Next step
 
-1. **Next work order — M1.1:** replace `NO SIGNAL` / `This page is not on the panel` with direct page-not-found recovery copy. Re-run focused 404, link, accessibility, and browser checks. Do not broaden scope.
-2. **M2:** introduce real Sociobot Entra CIAM identity and server-enforced tenant ownership, explicit migration/export/delete, and a verified billing lifecycle. Checkout URLs and UUID-addressed encrypted records do not prove these capabilities.
-3. **M3 (critical external blocker):** an authorised operator must provide a product-owned approved MTD provider/consent integration. A mock bridge, safe QA fixture, and non-filing HMRC sandbox greeting do not prove or enable filing. Do not request or place credentials in this repository.
-
-The full scope, definitions of done, test/claim separation, data boundaries, risk experiments, and dependency ledger are in [plan.md](plan.md). The pre-existing `graphify-out/` changes were preserved and remain unstaged.
+Independent M1 verification can use the live URL, the one-click `/demo` flow, every command in `.factory/claims.json`, and the release command above. M2/M3 work must preserve the demo and the handoff-only state until their separate acceptance conditions are met.
