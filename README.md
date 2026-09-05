@@ -75,7 +75,7 @@ This runs TypeScript unit tests, Rust tests, a clean frontend build, Playwright 
 
 Set `EXPECTED_BUILD_SHA` before `npm run verify:live` to check the deployed identity, HMRC capability disclosure, checkout, 404, empty-workspace, and rate-limit policies. Run `npm run verify:topology` with Azure access to assert one running replica and an Azure Files mount at `/data`.
 
-For a release decision, run `EXPECTED_BUILD_SHA=<commit> npm run verify:release`. It requires an immutable image identity, one-replica Azure Files topology, and a Key Vault-backed approved provider that returns an OAuth taxpayer-consent URL.
+For a release decision, run `EXPECTED_BUILD_SHA=<commit> npm run verify:release`. It requires an immutable image identity, one-replica Azure Files topology, and confirms that this product deployment remains handoff-only with no direct HMRC submission capability.
 
 ## Container
 
@@ -92,11 +92,11 @@ Production uses one active container replica. SQLite stays on the container's lo
 
 The server defaults to `/data` in the container and `./data` locally. Its live SQLite path defaults to `/tmp/quarterly-ready` and can be overridden with `DATABASE_DIR`. It creates its AES-256-GCM key on first boot and stores it with restricted permissions when the filesystem supports POSIX modes.
 
-Optional variables are `DATA_DIR`, `DATABASE_DIR`, `FRONTEND_DIR`, `SOCIOBOT_BILLING_URL`, `HMRC_INTEGRATION_URL`, `HMRC_INTEGRATION_TOKEN`, and `HMRC_INTEGRATION_MODE`. A production direct-submission configuration also needs `HMRC_CONSENT_AUTHORIZE_URL`, `HMRC_CONSENT_TOKEN_URL`, `HMRC_CONSENT_CLIENT_ID`, `HMRC_CONSENT_CLIENT_SECRET`, `HMRC_CONSENT_REDIRECT_URI`, `HMRC_PROVIDER_NAME`, and `HMRC_PROVIDER_APPROVAL_REFERENCE`. `PORT` defaults to `8080`.
+Optional local runtime variables are `DATA_DIR`, `DATABASE_DIR`, `FRONTEND_DIR`, and `SOCIOBOT_BILLING_URL`. `PORT` defaults to `8080`.
 
-Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports the fixture, approved-provider capability with taxpayer consent, the immutable image identity, and the durable one-replica topology. The fixture token authorises one exact synthetic document and never files a return.
+The product-owned deployment contract accepts only `DEPLOYMENT_MODE=handoff-only` (its default). It sets `HMRC_INTEGRATION_MODE=not_configured`, supplies no direct-submission environment variables, and declares no container-app secret references. Any other deployment mode exits before a build or runtime change. This is intentional: Quarterly Ready provides records, CSV, and reviewed accountant handoffs, but it does not claim to file an HMRC return.
 
-An approved HMRC provider submission URL, service token, OAuth authorisation URL, token URL, registered client credentials, provider name, and approval reference must be stored in the named Key Vault secrets before a release deployment. The deploy script binds them through managed-identity secret references and never reads or prints their values. A taxpayer explicitly starts consent from their quarter; the OAuth request carries no quarter records. The server encrypts the returned taxpayer token and refuses direct submission without it. Without the whole verified configuration, the UI offers only records, CSV, and handoff downloads.
+Release deployment sets `SAFE_QA_FIXTURES=1` in both the image and Container App template. It refuses to report success unless `/health` reports the fixture, `not_configured` HMRC capability, the immutable image identity, and the durable one-replica topology. The fixture token authorises one exact synthetic document and never files a return.
 
 See [privacy](https://mtd-quarterly-ready.sociobot.in/privacy), [terms](https://mtd-quarterly-ready.sociobot.in/terms), and [the visual thesis](.factory/design.md).
 

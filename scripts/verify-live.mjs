@@ -31,6 +31,10 @@ if (process.env.REQUIRE_APPROVED_HMRC === '1') {
   assert(health.hmrc_taxpayer_consent_required === true, 'production approved HMRC integration has no taxpayer-consent flow');
   assert(typeof health.hmrc_provider_name === 'string' && health.hmrc_provider_name.trim().length > 0, 'production approved HMRC integration did not identify its provider');
 }
+if (process.env.REQUIRE_HANDOFF_ONLY === '1') {
+  assert(health.hmrc_integration_configured === false, 'handoff-only production unexpectedly has direct HMRC submission configured');
+  assert(health.hmrc_integration_mode === 'not_configured', `handoff-only production HMRC mode is ${health.hmrc_integration_mode}, expected not_configured`);
+}
 if (process.env.EXPECTED_BUILD_SHA) {
   assert(health.build_sha === process.env.EXPECTED_BUILD_SHA, `/health reported ${health.build_sha}, expected ${process.env.EXPECTED_BUILD_SHA}`);
 }

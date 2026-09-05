@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Deploy Quarterly Ready with the state guarantees its SQLite backend requires.
 #
-# Default mode is an approved HMRC provider release. It fails closed unless the
-# provider credentials have already been supplied through Key Vault. The only
-# alternative is the explicit handoff-only mode, which deploys the useful
-# records/CSV/handoff product without pretending it can file a return.
+# This product-owned deployment contract is handoff-only. It deploys the
+# records/CSV/accountant-handoff product and deliberately configures no direct
+# HMRC submission capability. A filing integration needs a separately reviewed
+# product-owned contract; this script must never inspect a shared vault or bind
+# credentials on its behalf.
 set -euo pipefail
 
 SLUG="mtd-quarterly-ready"
@@ -17,7 +18,7 @@ STORAGE_ACCOUNT="sociobotblob"
 FILE_SHARE="sf-mtd-quarterly-ready-data-v3"
 ENV_STORAGE="mtd-quarterly-ready-data-v3"
 PORT=8080
-DEPLOYMENT_MODE="${DEPLOYMENT_MODE:-approved}"
+DEPLOYMENT_MODE="${DEPLOYMENT_MODE:-handoff-only}"
 SOURCE_SHA="$(git rev-parse HEAD)"
 IMAGE_TAG="${APP}:${SOURCE_SHA:0:12}"
 IMAGE="${REGISTRY}.azurecr.io/${IMAGE_TAG}"
@@ -25,51 +26,14 @@ RESOURCE_ID="/subscriptions/${SUBSCRIPTION}/resourceGroups/${RESOURCE_GROUP}"
 ENVIRONMENT_ID="${RESOURCE_ID}/providers/Microsoft.App/managedEnvironments/${ENVIRONMENT}"
 IDENTITY_ID="${RESOURCE_ID}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/factory-worker-identity"
 CERTIFICATE_ID="${ENVIRONMENT_ID}/managedCertificates/cert-${SLUG}"
-KEY_VAULT="sociobot-keyvault1"
-HMRC_SUBMISSION_URL_SECRET="mtd-quarterly-ready-approved-provider-submission-url"
-HMRC_SERVICE_TOKEN_SECRET="mtd-quarterly-ready-approved-provider-service-token"
-HMRC_AUTHORIZE_URL_SECRET="mtd-quarterly-ready-approved-provider-authorize-url"
-HMRC_TOKEN_URL_SECRET="mtd-quarterly-ready-approved-provider-token-url"
-HMRC_CLIENT_ID_SECRET="mtd-quarterly-ready-approved-provider-client-id"
-HMRC_CLIENT_SECRET_SECRET="mtd-quarterly-ready-approved-provider-client-secret"
-HMRC_PROVIDER_NAME_SECRET="mtd-quarterly-ready-approved-provider-name"
-HMRC_APPROVAL_REFERENCE_SECRET="mtd-quarterly-ready-approved-provider-approval-reference"
 APP_URL="https://management.azure.com${RESOURCE_ID}/providers/Microsoft.App/containerApps/${APP}?api-version=2024-03-01"
 
-HMRC_SECRET_CONFIG="[]"
-HMRC_ENV_CONFIG=""
 EXPECTED_HMRC_MODE="not_configured"
-case "${DEPLOYMENT_MODE}" in
-  approved)
-    # Query only metadata. A real provider needs both its service credential
-    # and a taxpayer OAuth configuration; no value is read, printed, or baked
-    # into the image.
-    HMRC_REQUIRED_SECRETS=(
-      "${HMRC_SUBMISSION_URL_SECRET}" "${HMRC_SERVICE_TOKEN_SECRET}"
-      "${HMRC_AUTHORIZE_URL_SECRET}" "${HMRC_TOKEN_URL_SECRET}"
-      "${HMRC_CLIENT_ID_SECRET}" "${HMRC_CLIENT_SECRET_SECRET}"
-      "${HMRC_PROVIDER_NAME_SECRET}" "${HMRC_APPROVAL_REFERENCE_SECRET}"
-    )
-    for secret_name in "${HMRC_REQUIRED_SECRETS[@]}"; do
-      if ! az keyvault secret show --vault-name "${KEY_VAULT}" --name "${secret_name}" --query id -o none >/dev/null 2>&1; then
-        echo "missing approved HMRC provider or taxpayer-consent secret references; refusing a release deployment" >&2
-        echo "expected Key Vault secret: ${secret_name}" >&2
-        exit 1
-      fi
-    done
-    HMRC_SECRET_CONFIG="[{\"name\":\"hmrc-submission-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_SUBMISSION_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-service-token\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_SERVICE_TOKEN_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-authorize-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_AUTHORIZE_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-token-url\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_TOKEN_URL_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-client-id\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_CLIENT_ID_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-client-secret\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_CLIENT_SECRET_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-provider-name\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_PROVIDER_NAME_SECRET}\",\"identity\":\"${IDENTITY_ID}\"},{\"name\":\"hmrc-approval-reference\",\"keyVaultUrl\":\"https://${KEY_VAULT}.vault.azure.net/secrets/${HMRC_APPROVAL_REFERENCE_SECRET}\",\"identity\":\"${IDENTITY_ID}\"}]"
-    HMRC_ENV_CONFIG=', {"name":"HMRC_INTEGRATION_URL","secretRef":"hmrc-submission-url"}, {"name":"HMRC_INTEGRATION_TOKEN","secretRef":"hmrc-service-token"}, {"name":"HMRC_INTEGRATION_MODE","value":"approved_provider"}, {"name":"HMRC_CONSENT_AUTHORIZE_URL","secretRef":"hmrc-authorize-url"}, {"name":"HMRC_CONSENT_TOKEN_URL","secretRef":"hmrc-token-url"}, {"name":"HMRC_CONSENT_CLIENT_ID","secretRef":"hmrc-client-id"}, {"name":"HMRC_CONSENT_CLIENT_SECRET","secretRef":"hmrc-client-secret"}, {"name":"HMRC_CONSENT_REDIRECT_URI","value":"https://mtd-quarterly-ready.sociobot.in/api/hmrc/consent/callback"}, {"name":"HMRC_PROVIDER_NAME","secretRef":"hmrc-provider-name"}, {"name":"HMRC_PROVIDER_APPROVAL_REFERENCE","secretRef":"hmrc-approval-reference"}'
-    EXPECTED_HMRC_MODE="approved_provider"
-    echo "approved HMRC provider and taxpayer-consent secret references found; binding them without reading values"
-    ;;
-  handoff-only)
-    echo "handoff-only deployment selected: direct HMRC submission remains unavailable and is not advertised"
-    ;;
-  *)
-    echo "DEPLOYMENT_MODE must be approved or handoff-only" >&2
-    exit 2
-    ;;
-esac
+if [[ "${DEPLOYMENT_MODE}" != "handoff-only" ]]; then
+  echo "DEPLOYMENT_MODE must be handoff-only; direct HMRC submission is not configured by this product deployment" >&2
+  exit 2
+fi
+echo "handoff-only product contract selected: no direct HMRC submission configuration will be deployed"
 
 echo "== ACR build ${IMAGE_TAG}"
 az acr build --registry "${REGISTRY}" --image "${IMAGE_TAG}" --file Dockerfile \
@@ -125,7 +89,7 @@ az rest --method patch --url "${APP_URL}" --headers "Content-Type=application/js
   "properties": {
     "configuration": {
       "activeRevisionsMode": "Single",
-      "secrets": ${HMRC_SECRET_CONFIG},
+      "secrets": [],
       "ingress": {
         "customDomains": [{
           "name": "${SLUG}.sociobot.in",
@@ -139,7 +103,7 @@ az rest --method patch --url "${APP_URL}" --headers "Content-Type=application/js
         "name": "app",
         "image": "${IMAGE}",
         "resources": {"cpu": 0.5, "memory": "1Gi"},
-        "env": [{"name": "PORT", "value": "${PORT}"}, {"name": "SAFE_QA_FIXTURES", "value": "1"}${HMRC_ENV_CONFIG}],
+        "env": [{"name": "PORT", "value": "${PORT}"}, {"name": "SAFE_QA_FIXTURES", "value": "1"}, {"name": "HMRC_INTEGRATION_MODE", "value": "not_configured"}],
         "volumeMounts": [{"volumeName": "workspace-data", "mountPath": "/data"}]
       }],
       "scale": {"minReplicas": 1, "maxReplicas": 1},
@@ -211,10 +175,5 @@ done
 DURABILITY_PROBE_VALUE="${SOURCE_SHA}" node scripts/verify-durability.mjs check
 bash scripts/verify-azure-topology.sh
 
-if [[ "${DEPLOYMENT_MODE}" == "approved" ]]; then
-  echo "== release verification (identity, approved HMRC capability, paid safe fixture, and topology)"
-  EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_APPROVED_HMRC=1 node scripts/verify-live.mjs
-else
-  echo "== handoff-only verification (identity, paid safe fixture, and topology)"
-  EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 node scripts/verify-live.mjs
-fi
+echo "== handoff-only verification (identity, non-filing capability, paid safe fixture, and topology)"
+EXPECTED_BUILD_SHA="${SOURCE_SHA}" VERIFY_AZURE_TOPOLOGY=1 REQUIRE_HANDOFF_ONLY=1 node scripts/verify-live.mjs
