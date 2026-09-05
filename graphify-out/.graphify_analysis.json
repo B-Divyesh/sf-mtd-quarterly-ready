@@ -462,13 +462,13 @@
       "degree": 25
     },
     {
-      "id": "src_main_create_share",
-      "label": "create_share()",
+      "id": "frontend_src_main_bindrecords",
+      "label": "bindRecords()",
       "degree": 19
     },
     {
-      "id": "frontend_src_main_bindrecords",
-      "label": "bindRecords()",
+      "id": "src_main_create_share",
+      "label": "create_share()",
       "degree": 19
     },
     {
@@ -492,13 +492,13 @@
       "degree": 15
     },
     {
-      "id": "src_main_hmrc_consent_callback",
-      "label": "hmrc_consent_callback()",
+      "id": "frontend_src_main_recordspage",
+      "label": "recordsPage()",
       "degree": 14
     },
     {
-      "id": "src_main_start_hmrc_consent",
-      "label": "start_hmrc_consent()",
+      "id": "src_main_hmrc_consent_callback",
+      "label": "hmrc_consent_callback()",
       "degree": 14
     }
   ],
