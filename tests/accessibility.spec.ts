@@ -91,20 +91,25 @@ test('@regression:two-hundred-percent-text keeps the mobile first action usable 
   await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
 });
 
-test('@regression:plain-words-labels help a visitor find the quarter status and downloads', async ({ page }) => {
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-    await page.setViewportSize(viewport);
+test('@regression:plain-words-labels help a visitor find the quarter status and downloads', async ({ browser }) => {
+  for (const [index, viewport] of [{ width: 1440, height: 900 }, { width: 390, height: 844 }].entries()) {
+    const context = await browser.newContext({ viewport });
+    const page = await context.newPage();
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'Turn records into a checked quarterly update' })).toBeInViewport();
     await expect(page.getByText('For UK sole traders, tutors and landlords who need MTD records without a full accounting suite.')).toBeInViewport();
     await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeInViewport();
-  }
 
-  await expect(page.getByRole('region', { name: 'Quarter status' }).getByText('1 transaction needs a category')).toBeVisible();
-  await page.getByRole('link', { name: 'Try it with sample data' }).click();
-  const downloads = page.getByRole('region', { name: 'Downloads and sharing' });
-  await expect(downloads.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
-  await expect(downloads.getByRole('button', { name: 'Make accountant link' })).toBeEnabled();
+    if (index === 1) {
+      await expect(page.getByRole('region', { name: 'Quarter status' }).getByText('1 transaction needs a category')).toBeVisible();
+      await page.getByRole('link', { name: 'Try it with sample data' }).click();
+      const downloads = page.getByRole('region', { name: 'Downloads and sharing' });
+      await expect(downloads.getByRole('button', { name: 'Download accountant CSV' })).toBeEnabled();
+      await expect(downloads.getByRole('button', { name: 'Make accountant link' })).toBeEnabled();
+    }
+
+    await context.close();
+  }
 });
 
 test('@regression:reduced-motion makes the quarter dial transition effectively instant', async ({ page }) => {

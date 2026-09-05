@@ -1,42 +1,111 @@
-# Quarterly Ready — M1 build 2 handoff
+# Quarterly Ready — M1 repair 21 handoff
 
-## Verification 24: FAIL
+## Status: PASS
 
-Independent verification 24 found **1 minor finding and 0 untested claims**. The landing and app still use public decorative/mood labels including `LIVE READOUT`, `OPERATING SEQUENCE`, `DATA POSITION`, `LIVE SERVICE`, and `OUTPUT BAY`, contrary to the plain-words contract. Replace those with direct section names and extend the copy audit before asking for a PASS re-verification. No product code was changed by this verification work order.
+This repair closes Verification 24's only finding: public decorative labels
+were not plain words. The current M1 product is still a non-filing
+records-to-reviewed-handoff workflow.
 
-The functional evidence otherwise passes. It reviewed implementation `13380e4` and documentation commit `910bfe2`; the live build identifies as `cdb79b2`, a reports/Graphify-only descendant with no product-source change. The current live image is immutable at `sha256:6f173296546779b901687651d9926c8bb5db7c29abcc7049b3f66a1f6c8a266e`. From a fresh clone, all 24 exact claim commands and `npm test` passed. Live release verification passed one-replica `/data` topology, durable/concurrent saves, checkout routing, handoff-only HMRC state, and 40/12 API limits with 429 plus `Retry-After`. A fresh desktop and phone run confirmed the first-screen job/audience/action, realistic sample output, persistent demo label, reset, real-data isolation, accessibility, offline demo copy, legal routes, links, and 404 recovery. The full evidence is in [verification-24.md](verification-24.md).
+- **Implementation commit:** `575aa8659469ab6f45bce623c3da560a82248895`
+- **Earlier verification documentation commit:** `3a64f54` (the historical
+  Verification 24 FAIL report)
+- **Live build:** `575aa8659469ab6f45bce623c3da560a82248895`
+- **Live immutable image:**
+  `sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:2ee8384c21c77c05dd2334c108bb34c65a1bc6093040b04fdc5c9734776afb3f`
 
-M1 remains the accepted non-filing records-to-reviewed-handoff workflow. M2 accounts/tenancy and M3 approved-provider submission remain future work and external dependencies, respectively.
+The historical Verification 24 report remains a FAIL record. Its one copy
+finding is now fixed and this handoff records the repair evidence.
 
-## Previous release result: PASS
+## What changed
 
-Verification-23's only current-milestone finding is fixed. The live deployment
-uses immutable image
-`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:359061bec80ef1cb2c9339c228f1f5f5cbaddf0c61301cd38163659fcc088585`.
-The exact release verifier passes.
+The first screen now begins directly with the job: **Turn records into a
+checked quarterly update**. It names the audience (UK sole traders, tutors,
+and landlords) and shows **Try it with sample data** as the first action.
 
-No product code changed. Application implementation remains `13380e4`; the
-deployed tested image reports `89338a9`. This later handoff is documentation,
-not a new product image.
+All public mood/decorative labels were replaced at their source, on landing,
+app, legal, share, and static 404 surfaces. Direct labels now include:
 
-## Proof
+- **Quarter status**
+- **How it works**
+- **What this tool does not do**
+- **Your data**
+- **Accountant links from £12 a month**
+- **Quarter checks**
+- **Review your quarter**
+- **Downloads and sharing**
 
-- Live health: 200, build `89338a9`, safe QA fixture enabled, HMRC mode
-  `not_configured`.
-- Live topology: Single mode, min/max 1/1, one running replica, the existing
-  `mtd-quarterly-ready-data-v3` Azure Files mount at `/data`, exact digest
-  above.
-- `/data` preservation: ten pre-deployment workspaces and one encrypted link
-  survived deployment and 60 routed reads.
-- Release verification: 20/20 concurrent saves, monthly and annual checkout,
-  exact 40/12 API allowances, and 429 plus `Retry-After` all passed.
-- Clean clone: 24/24 claim commands and `npm test` passed; formatting, Clippy,
-  audit, production build, and release build passed.
-- Live browser: 54 applicable tests passed with one expected ingress-only
-  skip; Axe found no serious/critical issues and `verify:url` passed.
-- Fresh desktop/phone sample, downloads, persistent demo label, reset, and
-  real-data isolation passed. Lighthouse scored 100/100/100/100.
+The copy audit now includes the public-label inventory and terminology table.
+The regression test uses fresh desktop and phone browser contexts, verifies the
+job/audience/first action before scrolling, then enters the sample and checks
+the named quarter status and usable download/sharing controls. It tests the
+visitor outcome, not source strings.
 
-Detailed milestone evidence and remaining future dependencies are in
-[handoff-m1.md](handoff-m1.md). M2 accounts/tenancy and M3 approved-provider
-submission are not shipped and were not pulled into M1.
+## Verification
+
+From the documented clean setup, `npm ci` completed with 60 packages and zero
+audit vulnerabilities. All **24/24** exact commands declared in
+`.factory/claims.json` passed independently. The managed `npm test` suite
+passed **56/56** tests: type checking, 11 unit tests, 18 Rust tests, deploy
+contract, production build, and browser tests. Formatting and Clippy also
+passed. The production bundle is 15.32 kB gzip JavaScript and 5.32 kB gzip CSS.
+
+The outcome regression was rerun after its fresh-context refinement. The live
+browser run passed the plain-words desktop/phone test and the demo-isolation
+claim. `verify:url` passed against `/demo` with the route title, `lang=en-GB`,
+one main landmark, one H1, no missing image alternatives, and zero console
+errors. Playwright Axe coverage remains free of serious and critical findings.
+
+The live fresh phone and desktop checks confirmed, before scrolling:
+
+- job: **Turn records into a checked quarterly update**;
+- audience: the named UK sole-trader, tutor, and landlord audience;
+- first action: **Try it with sample data**.
+
+The phone sample then showed the persistent **Demo — sample data, nothing is
+saved** label, the realistic Maya Patel Tutoring quarter, one uncategorised
+transaction, and enabled CSV/accountant-link actions. The live demo-isolation
+claim confirmed that its changes stay in `demo:` storage, use no cookies, and
+make only same-origin requests. Reset remains available in the persistent
+banner; real storage is not used by the sample.
+
+## Deployment and backend checks
+
+The durable deployment script built and released the immutable image above.
+Live `/health` reports the implementation commit, safe QA fixtures, and
+`hmrc_integration_mode: not_configured`.
+
+The release verifier passed all of the following:
+
+- single active/running replica with min/max replicas 1/1;
+- product Azure Files storage mounted at `/data`;
+- persistence through a replica restart and revision replacement;
+- 20 concurrent acknowledged saved workspaces;
+- monthly and annual checkout routing and the non-charging/non-filing QA
+  fixture;
+- handoff-only HMRC status;
+- 40 read and 12 write allowances, followed by 429 responses with
+  `Retry-After` (including the OAuth callback path).
+
+No provider, billing-registration, volume, or replica configuration changed in
+this M1 copy repair. Existing Graphify changes remain unmodified and unstaged.
+
+## Current milestone and remaining dependencies
+
+**M1, shipped:** record/import transactions, keep receipt evidence locally,
+review categories and quarter checks, download CSV/HMRC handoff files, and
+share the isolated sample accountant pack. It does not make a tax filing.
+
+**M2, not shipped:** accounts, authenticated tenant isolation, cross-device
+recovery, and the paid-customer purchase/restore lifecycle.
+
+**M3 external dependency:** an approved HMRC provider contract and runtime
+configuration for explicit taxpayer consent plus a controlled submission
+acknowledgement. Direct HMRC submission is hidden while that dependency is not
+configured.
+
+## Running it
+
+Use `npm ci`, then `npm test` and `npm run build`. Run the local service with
+`npm run serve`; the one-click isolated sample is available at `/demo`. The
+full demo/storage details are in [demo.md](demo.md); public claims and their
+exact commands are in [claims.json](claims.json).
