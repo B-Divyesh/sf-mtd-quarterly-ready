@@ -1,31 +1,91 @@
-# Quarterly Ready M1 — accepted milestone handoff
+# Quarterly Ready M1 — immutable deployment handoff
 
 ## Milestone result
 
-**M1 — records to reviewed handoff is accepted.** It covers the landing page, one-click isolated demo, transaction and receipt capture, CSV import, review checks, free accountant CSV, reviewed handoff JSON, and demo accountant pack. The product is intentionally non-filing.
+**M1 — records to reviewed handoff is accepted.** The sole verification-23
+finding is closed: the live Container App now uses an immutable image digest.
+No application code, public promise, Dockerfile, or future milestone feature
+changed in this repair.
 
-The M1.1 repair deployed implementation `13380e4b15634ce808be5198f126eea1ce088d82`. It changed only the two 404 copy strings and their verification:
+The application implementation remains
+`13380e4b15634ce808be5198f126eea1ce088d82`. The deployed, previously tested
+image reports build `89338a9a477c6033b553fdb0e658a23e614712c8`; commits between those
+identities change reports or generated analysis, not runtime source. This
+handoff is a later documentation change and is intentionally not the deployed
+application identity.
 
-- real HTTP 404: `PAGE NOT FOUND` and `Page not found`;
-- in-app fallback: the same direct wording;
-- browser regression: genuine 404 status, clear recovery heading, Return home action, and client-side fallback recovery.
+## Deployment result
 
-## Evidence
+On 5 September 2026 UTC, the installed fleet wrapper
+`/opt/fleet/lib/deploy-container.sh` resolved the existing tested image tag and
+deployed this exact reference:
 
-- Documented clean setup: `npm ci`, then `npm test` — passed (11 Vitest, 18 Rust, deployment contract, build, 55 Playwright).
-- A separate fresh clone ran all 24 exact claim commands individually after `npm ci`: 18 browser claims and 6 Rust claims passed.
-- Local focused 404 route and browser recovery checks passed.
-- Release verification against the deployed implementation passed with one immutable image, one running replica, the product Azure Files `/data` mount, 20/20 acknowledged concurrent saves, restart/revision durability, and 40-read/12-write external rate limits with `Retry-After`.
-- `verify:url` passed live `/demo`; the live browser suite passed all 55 tests, including Axe integration.
-- Fresh desktop and 390 px mobile contexts showed the required job, audience, and first action before scrolling. A fresh demo used realistic Maya Patel Tutoring data, kept its sample banner through changes, reset correctly, and did not change a real-data sentinel or call the workspace API.
+```text
+sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:359061bec80ef1cb2c9339c228f1f5f5cbaddf0c61301cd38163659fcc088585
+```
 
-## Boundaries and dependencies
+The wrapper used a PATCH against the existing product app. The resulting live
+revision is `sf-mtd-quarterly-ready--0000078`. Authoritative topology checks
+show Single revision mode, min/max replicas 1/1, one running replica, and the
+existing `mtd-quarterly-ready-data-v3` Azure Files storage mounted at `/data`
+through volume `workspace-data`. The app retained the existing environment
+names and health configuration. No secret values were read or logged.
 
-M1 does not provide accounts, tenant isolation, a proven paid-customer lifecycle, taxpayer consent, or HMRC filing. The live health capability is `not_configured` for HMRC integration. Approved submission remains an M3 external dependency: a product-owned approved-provider contract and consent configuration, followed by an authorised controlled acknowledgement test. No credential or provider setting was added or read for this milestone.
+Before deployment, an isolated probe saved ten workspaces and one encrypted
+accountant link. After deployment, all ten workspaces and the link remained
+readable across 60 routed reads. This proves the existing `/data` state was
+preserved while the image reference changed from a tag to a digest.
 
-## Independent verification entry points
+## Verification
 
-- Live demo: `https://mtd-quarterly-ready.sociobot.in/demo`
-- Claims: every exact `test` command in `.factory/claims.json`
-- Local suite: `npm test`
-- Live release check: `EXPECTED_BUILD_SHA=13380e4b15634ce808be5198f126eea1ce088d82 npm run verify:release`
+From a fresh clone of `b591c65c729e487f901b4818e1ed9bbbca242aa2`:
+
+- `npm ci`: passed with zero reported vulnerabilities.
+- Every exact command in `.factory/claims.json`: 24/24 passed individually.
+- `npm test`: passed — 11 Vitest, 18 Rust, deployment contract, production
+  build, and 55 Playwright tests.
+- `cargo fmt --all -- --check`, Clippy with all targets/features, npm audit,
+  and the release Rust build: passed.
+- `dist/` was produced; initial JavaScript is 15.59 kB gzip and CSS is 5.33 kB
+  gzip.
+- A release binary started with only `PORT`, reported the implementation SHA,
+  and stopped cleanly.
+
+Post-deployment:
+
+- `EXPECTED_BUILD_SHA=89338a9a477c6033b553fdb0e658a23e614712c8 npm run verify:release` passed.
+- The release verifier proved the exact immutable digest, durable one-replica
+  topology, 20/20 concurrent saves, both checkout endpoints, handoff-only HMRC
+  state, and 429 with positive `Retry-After` after 40 reads or 12 writes.
+- `verify:url` passed `/demo`. The complete live suite passed 54 applicable
+  tests with one expected ingress-only skip, including Axe, keyboard, focus,
+  200% text, 390 px layout, reduced motion, offline reload, links, legal pages,
+  route titles, invalid input, recovery, and genuine 404 behavior.
+- Fresh desktop and phone contexts showed the job, audience, and sample action
+  before scrolling with no browser errors. The phone stayed at 390 px without
+  overflow.
+- The Maya Patel sample showed ten records and £260.00 income, £155.83 costs,
+  and £104.17 net. CSV and reviewed handoff downloads passed. The sample label
+  remained on the read-only pack, reset restored the sample, a real-data
+  sentinel stayed unchanged, and the demo made zero workspace requests.
+- Mobile Lighthouse `/demo`: 100 performance, 100 accessibility, 100 best
+  practices, and 100 SEO; FCP 1.23 s, LCP 1.32 s, TBT 20 ms, CLS 0.
+
+Screenshots, Lighthouse JSON, and the durability state are under
+`/work/.evidence/mtd-quarterly-ready-m1-build-2/`.
+
+## Scope and dependencies
+
+M1 remains a non-filing workflow: capture/import records, attach browser-local
+receipts, review the quarter, download CSV and reviewed handoff files, and use
+the sample accountant pack. Live health truthfully reports HMRC mode
+`not_configured`.
+
+Accounts, authenticated tenant isolation, purchase/restore proof, and a paid
+customer lifecycle remain M2 work. An approved provider contract, taxpayer
+consent configuration, and controlled acknowledgement remain M3 external
+dependencies. No HMRC setting, provider credential, shared service, or
+out-of-scope resource was accessed in this repair.
+
+Pre-existing unstaged `graphify-out/` changes were preserved and excluded from
+the documentation commit.

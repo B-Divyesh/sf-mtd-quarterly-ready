@@ -7,6 +7,8 @@
 
 Quarterly Ready is a UK record-to-quarterly-update product, not a general ledger or tax adviser. The live product is deliberately **handoff-only**. It helps a person capture and review a quarter, then download a CSV or reviewed handoff. It must not be described as filing to HMRC, providing taxpayer consent, offering sign-in, isolating tenants, or completing a paid subscription.
 
+M1.2 closed the final verification-23 deployment finding on 5 September 2026. The already-tested image is now pinned by immutable registry digest while the existing one-replica `/data` mount is preserved. This operational repair did not add or change a product capability.
+
 The accepted milestone is **M1 — records to reviewed handoff**. Its M1.1 repair deployed on 5 September 2026: both real 404 render paths now use direct recovery wording, and the recovery flow is covered in the browser suite. M1 is accepted only as a non-filing core. M2 and M3 are not completed merely because there are local fixtures or conditional code paths for their features.
 
 | Area | Real status | Evidence |
@@ -147,7 +149,7 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 
 | Dependency | Applies to | Current evidence/status | Required next action |
 | --- | --- | --- | --- |
-| Product-owned `/data`, immutable image, single active replica | M1/M2/M3 | Verified in [verification-22.md](verification-22.md). | Preserve and reverify after runtime changes. |
+| Product-owned `/data`, immutable image, single active replica | M1/M2/M3 | Verified after the M1.2 deployment in [handoff-m1.md](handoff-m1.md); the verification-23 mutable-tag finding is closed. | Preserve and reverify after runtime changes. |
 | Sociobot billing controller and two subscriptions | M2/M3 | Checkout URLs and unlicensed-link rejection observed; purchase/restore not exercised. | Authorised billing verification; do not embed a payment provider. |
 | Sociobot Entra CIAM | M2/M3 | No sign-in path or tenant identity exists. | Authorised identity integration, then isolation tests. |
 | Approved MTD provider and taxpayer OAuth consent | M3 | Live health is `not_configured`; only mocks/non-filing fixture exist. | Separate authorised integration work and controlled provider verification. |
