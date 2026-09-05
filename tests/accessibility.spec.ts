@@ -123,6 +123,24 @@ test('all internal links return successful pages', async ({ page, request }) => 
   for (const link of links) expect((await request.get(link)).status(), link).toBeLessThan(400);
 });
 
+test('@regression:not-found-recovery gives a clear 404 and returns a visitor home', async ({ page }) => {
+  const response = await page.goto('/not-a-quarterly-ready-route');
+  expect(response?.status()).toBe(404);
+  await expect(page).toHaveTitle('Page not found — Quarterly Ready');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+  await page.getByRole('link', { name: 'Return home' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Turn records into a checked quarterly update');
+
+  await page.evaluate(() => {
+    history.pushState({}, '', '/missing-in-app-route');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+  await page.getByRole('link', { name: 'Return home' }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test('keyboard path opens the demo without console errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });

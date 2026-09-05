@@ -1,6 +1,6 @@
 # Landing page copy audit
 
-Audited again on 2026-08-30. Counts split hyphenated terms as one word. Labels and prices are included because a visitor may read them alone.
+Audited again on 2026-09-05. Counts split hyphenated terms as one word. Labels and prices are included because a visitor may read them alone.
 
 | Copy | Words | Result |
 | --- | ---: | --- |
@@ -24,6 +24,16 @@ Audited again on 2026-08-30. Counts split hyphenated terms as one word. Labels a
 | Choose annual · £99 | 3 | Pass |
 
 No sentence exceeds 22 words. The average is 6.8 words. No banned word appears.
+
+## 404 recovery copy
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Page not found | 3 | Pass |
+| The address may have changed. | 5 | Pass |
+| Return home | 2 | Pass |
+
+The static 404 and in-app fallback use the same direct recovery wording. The page has no mood label or metaphor.
 
 ## Terminology table
 

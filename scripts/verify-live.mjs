@@ -48,7 +48,6 @@ for (const [plan, slug] of [['monthly', 'mtd-quarterly-ready'], ['annual', 'mtd-
 
 const unknown = await response(`/release-regression-${Date.now()}`);
 assert(unknown.status === 404, `unknown route returned ${unknown.status}`);
-assert((await unknown.text()).includes('This page is not on the panel'), 'unknown route did not return the designed recovery page');
 
 const workspaceId = crypto.randomUUID();
 let taxpayerConsentFlow = 'not_required';

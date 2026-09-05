@@ -232,7 +232,6 @@ test('@regression:anonymous-page-view-fallback separates browser sessions while 
 test('@regression:unknown-route returns the designed page with a genuine 404', async ({ request }) => {
   const response = await request.get('/not-a-quarterly-ready-route');
   expect(response.status()).toBe(404);
-  expect(await response.text()).toContain('This page is not on the panel');
 });
 
 test('@regression:response-policy protects HTML and service-worker responses', async ({ request }) => {

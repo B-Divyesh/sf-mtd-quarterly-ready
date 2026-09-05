@@ -135,7 +135,7 @@ function sharePage(token: string): string {
 }
 
 function notFoundPage(): string {
-  return layout(`<main id="main" class="not-found"><div class="lost-dial" aria-hidden="true"><span></span></div><p class="eyebrow">NO SIGNAL</p><h1 tabindex="-1">This page is not on the panel</h1><p>The address may have changed.</p><a class="primary-button" href="/" data-link>Return home</a></main>`);
+  return layout(`<main id="main" class="not-found"><div class="lost-dial" aria-hidden="true"><span></span></div><p class="eyebrow">PAGE NOT FOUND</p><h1 tabindex="-1">Page not found</h1><p>The address may have changed.</p><a class="primary-button" href="/" data-link>Return home</a></main>`);
 }
 
 function route(): void {
