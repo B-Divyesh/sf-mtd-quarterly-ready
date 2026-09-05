@@ -1,70 +1,32 @@
-# Quarterly Ready — verification 22 handoff
+# Quarterly Ready — venture plan handoff
 
-## Status: FAIL
+## Status: plan complete; product release remains FAIL
 
-Independent verification found **2 findings and 0 untested claims**. The scoped
-isolation cleanup passes, but the product cannot complete the brief's required
-approved HMRC submission. The styled 404 also uses metaphorical copy prohibited
-by the plain-words contract.
+This planner work order made no product-code, deployment, infrastructure, billing, or external-service change. It inspected the researched brief, current implementation, all repository QA reports/evidence, and the live health endpoint, then added the venture plan at [plan.md](plan.md) and the machine-readable status at `/work/.evidence/venture-plan.json`.
 
-## Revisions
+The live service still reports build `7c840e4853bbcb16270977bdb568271ebd86c746` with `hmrc_integration_configured:false` and `hmrc_integration_mode:"not_configured"`. The product is correctly handoff-only. It does not provide live HMRC filing, taxpayer consent, sign-in, tenant isolation, or a proven paid-customer lifecycle.
 
-- Isolation/deployment candidate: `3e34f53e0d4b5ce13d058a3d2dd6f238388c088c`.
-- Documentation checkout: `1c893635f66aeb48eec3270dee7cdf25993ceb52`.
-- Live runtime build: `7c840e4853bbcb16270977bdb568271ebd86c746`.
-- Last application-code change in that runtime lineage:
-  `a428876efd57704a2617e67e983ffe561b6abee0`.
+## Current milestone
 
-The live app assets match the clean build byte for byte. The later isolation
-and Graphify changes do not alter the compiled application.
+**M1.1 — repair and re-verify the non-filing core.**
 
-## What passed
+The non-filing records-to-reviewed-handoff workflow is well evidenced, but formal M1 acceptance is pending the small plain-words repair to the 404 page. M2 (accounts, tenancy, persistence ownership, and paid lifecycle) is not a shipped capability. M3 (approved provider, consent, and filing) is blocked on an external product-owned integration and is not shipped.
 
-- All 24 exact claim commands passed from a fresh clone after `npm ci`.
-- `npm test` passed: typecheck, 11 Vitest, 18 Rust, deploy contract, production
-  build, and 54 Playwright tests.
-- Formatting, Clippy with warnings denied, npm audit, and release build passed.
-- The live suite passed 53 tests with one inapplicable non-claim fallback skip.
-- Desktop and 390 px phone first screens, one-click demo, realistic output,
-  persistent demo banner, reset, and real-data isolation passed.
-- Accessibility, keyboard, focus, 200% text, reduced motion, legal routes,
-  offline reload/update, link crawl, security headers, and genuine 404 status
-  passed.
-- Lighthouse `/demo`: 100 performance, 100 accessibility, 100 best practices,
-  100 SEO; LCP 1.29 s and CLS 0.
-- Live release verification passed one-replica `/data` topology, immutable
-  image identity, concurrent persistence, both checkout routes, and exact
-  40-read/12-write limits with 429 plus `Retry-After`.
-- A local two-start exercise restored ten workspaces and an accountant link
-  from encrypted durable storage.
-- Isolation checks passed shell syntax, fail-closed mode rejection, deployment
-  contract, and executable-config inspection. No shared-vault or HMRC secret
-  reference remains.
-
-## Open findings
-
-1. Critical: live HMRC submission through an approved integration remains
-   unavailable. The handoff-only deployment is honest and isolated, but it
-   does not complete the researched job.
-2. Minor: the 404 uses `NO SIGNAL` and `This page is not on the panel`; replace
-   that metaphorical copy with direct page-not-found wording.
-
-## Reproduce
+## What was verified in this planning checkout
 
 ```sh
 npm ci
 npm test
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-npm audit --audit-level=high
-npm run test:deploy-contract
-EXPECTED_BUILD_SHA=7c840e4853bbcb16270977bdb568271ebd86c746 npm run verify:release
-VERIFY_ORIGIN=https://mtd-quarterly-ready.sociobot.in \
-  EXPECTED_BUILD_SHA=7c840e4853bbcb16270977bdb568271ebd86c746 \
-  npx playwright test
 ```
 
-Full evidence and prior-finding disposition are in
-[`verification-22.md`](verification-22.md). No product code, deployment, or
-infrastructure was changed. Pre-existing `graphify-out/` changes remain
-unstaged.
+Passed: TypeScript typecheck, 11 Vitest tests, 18 Rust tests, deployment-contract check, Vite build, and 54 Playwright tests. The built assets were 15.59 kB gzip JavaScript and 5.33 kB gzip CSS.
+
+Read-only live check on 5 September confirmed the deployed health capability is handoff-only. The latest independent evidence remains [verification-22.md](verification-22.md): 24/24 declared claims passed, 53 live browser tests passed with one inapplicable non-claim skip, and mobile Lighthouse scored 100/100/100/100. The latest independent verdict remains FAIL because no approved direct-submission integration exists and the 404 copy is metaphorical.
+
+## Open work and exact dependencies
+
+1. **Next work order — M1.1:** replace `NO SIGNAL` / `This page is not on the panel` with direct page-not-found recovery copy. Re-run focused 404, link, accessibility, and browser checks. Do not broaden scope.
+2. **M2:** introduce real Sociobot Entra CIAM identity and server-enforced tenant ownership, explicit migration/export/delete, and a verified billing lifecycle. Checkout URLs and UUID-addressed encrypted records do not prove these capabilities.
+3. **M3 (critical external blocker):** an authorised operator must provide a product-owned approved MTD provider/consent integration. A mock bridge, safe QA fixture, and non-filing HMRC sandbox greeting do not prove or enable filing. Do not request or place credentials in this repository.
+
+The full scope, definitions of done, test/claim separation, data boundaries, risk experiments, and dependency ledger are in [plan.md](plan.md). The pre-existing `graphify-out/` changes were preserved and remain unstaged.
