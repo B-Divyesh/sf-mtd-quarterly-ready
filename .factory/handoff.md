@@ -1,6 +1,10 @@
 # Quarterly Ready — M2 account foundation handoff
 
-## Current status: M2 foundation implemented; not customer-live or accepted
+## Current status: verification 26 PASS; M2 foundation is implemented but not customer-live or accepted
+
+Independent verification 26 reviewed implementation `08b2470eaff37e998e30323e98c2f87d8750baf6`, documentation commit `ef9442547aae1c0caff1a732b78cf4b89667a980`, and the later live build label `0dcc20f5fec98a476540ea9f684cb92879de6903`. It passed with **0 findings and 0 untested claims**. All 27 exact claim commands passed from a clean checkout; `npm test` passed 11 frontend unit, 22 Rust, and 59 browser tests. Live checks passed for fresh desktop/phone first-screen copy, one-click sample/reset, Axe, URL structure, account-unavailable truthfulness, one-replica `/data` persistence, 20 concurrent saves, and the 40/12 limit followed by 429 with `Retry-After`.
+
+The live build differs from the implementation only in documentation/Graphify output; no runtime source, asset, dependency, Docker, or build configuration differs. The complete independent evidence and earlier-finding dispositions are in [verification-26.md](verification-26.md). No product code or pre-existing Graphify worktree changes were modified by verification.
 
 Implementation `08b2470eaff37e998e30323e98c2f87d8750baf6` is live as `sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:c365807e7e365a3f8f0ee016a5a4b686aa5333bff778a554ed0cdafc62085e98`. It adds the prepared account/session/tenant boundary while keeping M1 browser workflow and demo accepted and unchanged. Live identity configuration is absent, so `/account` says sign-in is unavailable; M2 is not an account, cross-device, or paid-lifecycle release. See [handoff-m2.md](handoff-m2.md) for current evidence and dependencies. The remainder preserves historical M1 evidence.
 
