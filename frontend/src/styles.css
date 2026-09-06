@@ -127,6 +127,15 @@ button[disabled] { opacity: .55; cursor: not-allowed; transform: none !important
 .app-heading .period-label { margin-bottom: 12px; }
 .app-heading p:last-child { color: var(--muted); }
 .connection { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--line); background: var(--panel); font-weight: 700; }
+.account-status { max-width: 920px; margin: -8px 0 30px; padding: 18px 20px; display: flex; align-items: end; justify-content: space-between; gap: 24px; border: 2px solid var(--ink); background: #e4e0c8; box-shadow: 0 4px 0 var(--brass); }
+.account-status h2 { margin: 0 0 6px; font-family: Arial, sans-serif; font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; }
+.account-status p { margin: 0; color: var(--muted); }
+.account-status a { color: var(--orange-dark); font-weight: 800; }
+.account-status-controls { min-width: min(100%, 270px); display: grid; grid-template-columns: 1fr; gap: 5px; }
+.account-status-controls label { font-size: .8rem; font-weight: 800; }
+.account-status-controls select { margin: 0; }
+.account-status-controls button { margin-top: 6px; }
+.account-saved { min-height: 44px; display: inline-flex; align-items: center; color: var(--teal); font-weight: 800; }
 .notice { margin-bottom: 18px; padding: 12px 16px; border-left: 5px solid var(--teal); background: #e4e0c8; }
 .business-settings { max-width: 560px; margin: -10px 0 28px; border-bottom: 1px solid var(--line); }
 .business-settings summary { min-height: 44px; display: flex; align-items: center; color: var(--orange-dark); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
@@ -219,6 +228,14 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
 .prose-page h2 { margin-top: 48px; font-size: 1.7rem; }
 .prose-page p { max-width: 66ch; }
 .loading-state, .error-state, .shared-document { margin-top: 42px; padding: 28px; border: 2px solid var(--ink); background: var(--panel); }
+.account-panel { margin-top: 42px; padding: 28px; border: 2px solid var(--ink); background: var(--panel); box-shadow: 0 5px 0 var(--brass); }
+.account-panel h2 { margin-top: 0; font-size: 1.7rem; }
+.account-panel > label { display: block; margin-top: 22px; font-weight: 800; }
+.account-panel > select { max-width: 460px; }
+.account-panel .paper-form { max-width: 560px; margin-top: 28px; }
+.account-panel .paper-form h3 { margin-top: 0; }
+.account-panel .paper-form > div { display: flex; align-items: end; gap: 10px; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 28px; }
 .spinner { display: block; width: 38px; height: 38px; border: 5px solid var(--panel-deep); border-top-color: var(--teal); border-radius: 50%; animation: spin 1s linear infinite; }
 .shared-document .mini-summary { margin-bottom: 30px; }.shared-document .mini-summary > div { border: 1px solid var(--ink); }
 .shared-document .table-wrap { margin-top: 24px; }
@@ -245,6 +262,7 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
   .site-header { min-height: 78px; }
   .site-header nav { gap: 12px; font-size: .88rem; }
   .site-header nav a:first-child { display: none; }
+  .site-header nav a:not([href="/account"]) { display: none; }
   .wordmark-dial { width: 34px; height: 34px; }
   .hero { min-height: 0; padding: 44px 0 58px; }
   h1 { font-size: clamp(2.55rem, 13vw, 3.8rem); }
@@ -266,6 +284,8 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
   .demo-banner span { width: 100%; justify-content: space-between; }
   .app-main { padding-top: 34px; }
   .app-heading { align-items: flex-start; flex-direction: column; }
+  .account-status { align-items: stretch; flex-direction: column; }
+  .account-status-controls { width: 100%; }
   .control-panel { grid-template-columns: 1fr; padding: 18px; }
   .signal-box { grid-column: auto; }
   .quarter-dial { width: 120px; height: 120px; }
@@ -273,6 +293,7 @@ dialog .switch-label input { flex: 0 0 auto; margin-top: 3px; }
   .section-toolbar > div:last-child { width: 100%; flex-direction: column; }
   .form-grid { grid-template-columns: 1fr; }
   .business-settings form > div { align-items: stretch; flex-direction: column; }
+  .account-panel .paper-form > div { align-items: stretch; flex-direction: column; }
   .quarter-controls > div { align-items: stretch; flex-direction: column; }
   .table-wrap { overflow: visible; border: 0; background: transparent; box-shadow: none; }
   table, tbody { display: block; }

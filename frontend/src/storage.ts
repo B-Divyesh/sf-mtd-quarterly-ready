@@ -9,6 +9,8 @@ const LEGACY_REAL_KEY = 'quarterly-ready:document';
 const REAL_PREFIX = 'quarterly-ready:document:';
 const ACTIVE_QUARTER_KEY = 'quarterly-ready:active-quarter';
 const WORKSPACE_PREFIX = 'quarterly-ready:workspace-id:';
+const ACCOUNT_SYNC_PREFIX = 'quarterly-ready:account-sync:';
+let selectedBusinessId: string | null = null;
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 
@@ -86,8 +88,35 @@ export function workspaceId(quarterStart = activeQuarterStart()): string {
   return id;
 }
 
+export function setAccountBusiness(businessId: string | null): void {
+  selectedBusinessId = businessId && /^[0-9a-f-]{36}$/i.test(businessId) ? businessId : null;
+}
+
+export function accountBusiness(): string | null { return selectedBusinessId; }
+
+function accountSyncKey(document: Pick<QuarterDocument, 'quarterStart'>): string {
+  return `${ACCOUNT_SYNC_PREFIX}${selectedBusinessId || 'none'}:${document.quarterStart}`;
+}
+
+export function accountSyncEnabled(document: Pick<QuarterDocument, 'quarterStart'>): boolean {
+  return Boolean(selectedBusinessId && localStorage.getItem(accountSyncKey(document)) === '1');
+}
+
+function enableAccountSync(document: Pick<QuarterDocument, 'quarterStart'>): void {
+  if (selectedBusinessId) localStorage.setItem(accountSyncKey(document), '1');
+}
+
 export async function loadRemote(): Promise<QuarterDocument | null> {
   const quarterStart = activeQuarterStart();
+  if (selectedBusinessId) {
+    const response = await fetch(`/api/businesses/${encodeURIComponent(selectedBusinessId)}/quarters/${encodeURIComponent(quarterStart)}`);
+    if (!response.ok) throw new Error('Account records could not be loaded. Your browser copy is still available.');
+    const result = await response.json() as { document: QuarterDocument | null };
+    if (!result.document) return null;
+    localStorage.setItem(`${REAL_PREFIX}${result.document.quarterStart}`, JSON.stringify(result.document));
+    enableAccountSync(result.document);
+    return result.document;
+  }
   const response = await fetch('/api/workspace', { headers: { 'x-workspace-id': workspaceId(quarterStart) } });
   if (!response.ok) throw new Error('Saved records could not be loaded. Your browser copy is still available.');
   const result = await response.json() as { document: QuarterDocument | null };
@@ -100,12 +129,34 @@ async function saveRemote(document: QuarterDocument): Promise<void> {
   try {
     const serverDocument = clone(document);
     for (const transaction of serverDocument.transactions) delete transaction.receiptData;
-    const response = await fetch('/api/workspace', {
-      method: 'PUT', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId(document.quarterStart) },
-      body: JSON.stringify({ document: serverDocument })
-    });
+    const response = selectedBusinessId && accountSyncEnabled(document)
+      ? await fetch(`/api/businesses/${encodeURIComponent(selectedBusinessId)}/quarters/${encodeURIComponent(document.quarterStart)}`, {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ document: serverDocument })
+      })
+      : await fetch('/api/workspace', {
+        method: 'PUT', headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId(document.quarterStart) },
+        body: JSON.stringify({ document: serverDocument })
+      });
     if (!response.ok) window.dispatchEvent(new CustomEvent('save-error'));
   } catch { window.dispatchEvent(new CustomEvent('save-error')); }
+}
+
+export async function migrateBrowserQuarter(document: QuarterDocument): Promise<QuarterDocument> {
+  if (!selectedBusinessId) throw new Error('Choose a business before moving this quarter.');
+  const migrationKey = `${ACCOUNT_SYNC_PREFIX}move:${selectedBusinessId}:${document.quarterStart}`;
+  let migrationId = localStorage.getItem(migrationKey);
+  if (!migrationId) { migrationId = crypto.randomUUID(); localStorage.setItem(migrationKey, migrationId); }
+  const serverDocument = clone(document);
+  for (const transaction of serverDocument.transactions) delete transaction.receiptData;
+  const response = await fetch(`/api/businesses/${encodeURIComponent(selectedBusinessId)}/quarters/${encodeURIComponent(document.quarterStart)}`, {
+    method: 'PUT', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ document: serverDocument, migration_id: migrationId })
+  });
+  const result = await response.json().catch(() => ({})) as { document?: QuarterDocument; error?: string };
+  if (!response.ok || !result.document) throw new Error(result.error || 'This browser quarter could not be moved. Try again.');
+  enableAccountSync(result.document);
+  localStorage.setItem(`${REAL_PREFIX}${result.document.quarterStart}`, JSON.stringify(result.document));
+  return result.document;
 }
 
 function liveHeaders(document: QuarterDocument): HeadersInit {
@@ -120,10 +171,14 @@ function liveHeaders(document: QuarterDocument): HeadersInit {
 export async function createShare(document: QuarterDocument): Promise<string> {
   const sharedDocument = clone(document);
   for (const transaction of sharedDocument.transactions) delete transaction.receiptData;
-  const response = await fetch('/api/share', {
-    method: 'POST', headers: liveHeaders(document),
-    body: JSON.stringify({ document: sharedDocument })
-  });
+  const response = selectedBusinessId && accountSyncEnabled(document)
+    ? await fetch(`/api/businesses/${encodeURIComponent(selectedBusinessId)}/quarters/${encodeURIComponent(document.quarterStart)}/share`, {
+      method: 'POST', headers: { 'x-sociobot-license': localStorage.getItem('sb_license:mtd-quarterly-ready') || '' }
+    })
+    : await fetch('/api/share', {
+      method: 'POST', headers: liveHeaders(document),
+      body: JSON.stringify({ document: sharedDocument })
+    });
   const result = await response.json().catch(() => ({})) as { token?: string; error?: string };
   if (!response.ok || !result.token) throw new Error(result.error || 'The accountant link was not created. Check your connection and try again.');
   return `${location.origin}/share/${result.token}`;
@@ -165,4 +220,4 @@ export async function loadShare(token: string): Promise<QuarterDocument> {
   return result.document;
 }
 
-export const storageKeys = { demo: DEMO_KEY, realPrefix: REAL_PREFIX, activeQuarter: ACTIVE_QUARTER_KEY };
+export const storageKeys = { demo: DEMO_KEY, realPrefix: REAL_PREFIX, activeQuarter: ACTIVE_QUARTER_KEY, accountSyncPrefix: ACCOUNT_SYNC_PREFIX };

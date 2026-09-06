@@ -9,9 +9,10 @@ function freshClientIp(): string {
 
 test.beforeEach(async ({ page }) => {
   const clientIp = freshClientIp();
-  await page.route('**/api/page-view', route => route.continue({
-    headers: { ...route.request().headers(), 'x-forwarded-for': clientIp },
-  }));
+  // Each browser scenario represents a separate visitor behind ingress. This
+  // prevents an unrelated earlier scenario from consuming this scenario's
+  // deliberately enforced per-client API allowance.
+  await page.context().setExtraHTTPHeaders({ 'x-forwarded-for': clientIp });
 });
 
 function submissionLabels(mode: string) {
@@ -28,7 +29,7 @@ function submissionLabels(mode: string) {
     };
 }
 
-for (const path of ['/', '/demo', '/privacy', '/terms']) {
+for (const path of ['/', '/demo', '/account', '/privacy', '/terms']) {
   test(`accessibility baseline ${path}`, async ({ page }) => {
     await page.goto(path);
     await expect(page.locator('main')).toHaveCount(1);
@@ -38,6 +39,19 @@ for (const path of ['/', '/demo', '/privacy', '/terms']) {
     expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact || ''))).toEqual([]);
   });
 }
+
+test('@regression:account-page explains unavailable-sign-in without changing browser records', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/records');
+  const browserQuarter = await page.evaluate(() => localStorage.getItem('quarterly-ready:document:' + localStorage.getItem('quarterly-ready:active-quarter')));
+  await page.goto('/account');
+  await expect(page.getByRole('heading', { level: 1, name: 'Manage your account records' })).toBeVisible();
+  await expect(page.getByText('Account sign-in is not available yet')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('quarterly-ready:document:' + localStorage.getItem('quarterly-ready:active-quarter')))).toBe(browserQuarter);
+  expect(errors).toEqual([]);
+});
 
 test('@regression:verify-url-helper checks title, language, landmark, image text, and browser errors', () => {
   const origin = process.env.VERIFY_ORIGIN || 'http://127.0.0.1:4173';

@@ -18,7 +18,7 @@ The accepted milestone is **M1 — records to reviewed handoff**. Its M1.1 repai
 | Billing | **Partly demonstrated.** The latest verification observed both checkout endpoints returning permitted hosted URLs and verified the server rejects an unlicensed live-link request. No purchase, renewal, entitlement restoration, or paid customer journey was exercised. | [billing.md](billing.md), [verification-22.md](verification-22.md) |
 | Accountant links | **Implemented and tested as a conditional service.** Demo uses a fixture; live links require a server-verified subscription and expire after 30 days. This does not establish an account model or tenant isolation. | [verification-22.md](verification-22.md), [claims.json](claims.json) |
 | Approved-provider submission and taxpayer consent | **Demonstrated only with local mocks.** The live health response says `hmrc_integration_configured:false` and `hmrc_integration_mode:"not_configured"`; direct submission is hidden. The non-filing QA/sandbox path files no return. | [verification-22.md](verification-22.md), [isolation-2026-09-05.md](isolation-2026-09-05.md) |
-| Accounts, sign-in, and tenant isolation | **Unavailable.** Real workspaces are addressed by browser-held random IDs. There is no authenticated user or server-side ownership check, so this cannot be called multi-tenant isolation or cross-device account recovery. | [README.md](../README.md), [storage.ts](../frontend/src/storage.ts), [main.rs](../src/main.rs) |
+| Accounts, sign-in, and tenant isolation | **M2 foundation, not a live customer capability.** Account routes use server sessions and membership checks when CIAM is configured. The live service has no authorised CIAM registration, so it exposes no sign-in, account migration, tenant isolation, or cross-device recovery claim. M1 browser workspaces remain available only as explicit migration sources. | [README.md](../README.md), [storage.ts](../frontend/src/storage.ts), [main.rs](../src/main.rs) |
 
 ### Accepted evidence versus release acceptance
 
@@ -75,7 +75,7 @@ Current browser/server boundaries are intentionally narrow:
 | Minimal measurement | Same-origin daily page count only; no IP address field, advertising cookies, or third-party analytics were verified. |
 | Billing | Explicit, user-triggered request to the Sociobot controller only. The current endpoint check is not a paid-customer proof. |
 
-The current workspace UUID is not an identity boundary. A future authenticated API must derive ownership from a verified session, never from a client-selected ID. Current encryption and the durable snapshot reduce storage risk but do not create account tenancy, a user-visible backup policy, or self-service server deletion.
+The M1 workspace UUID is not an identity boundary. It remains only to preserve accepted browser records until a signed-in customer explicitly migrates a quarter. The M2 account API derives account-data ownership from a verified session and membership, never from a client-selected workspace ID. Current live configuration still does not create public account tenancy, recovery, or self-service server deletion because CIAM is not enabled.
 
 ### Target architecture by milestone
 
@@ -87,7 +87,7 @@ M3 retains the reviewed document/audit trail and adds a product-owned approved-p
 
 The accepted identity is the **mid-century instrument panel** documented in [design.md](design.md): warm paper/panel/brass colours, Georgia plus system sans, an 8-pixel rhythm, labelled controls, a quarter dial, visible status lamps, and a 240 ms dial sweep that becomes instant under reduced motion. The original generated instrument still-life and its provenance are also recorded there.
 
-Key screens are: landing and live preview; demo/real quarter desk; transaction capture/import and receipt recovery; quarter checklist/review; output bay; authenticated account/business selector in M2; and conditional consent/submission confirmation in M3. All retain one H1, landmarks, route focus announcements, designed focus rings, 44 px controls, error recovery, and the 390 px labelled-slip layout. M1.1 made the 404 screen use direct recovery language without changing this visual system.
+Key screens are: landing and live preview; demo/real quarter desk; transaction capture/import and receipt recovery; quarter checklist/review; downloads and sharing; authenticated account/business selector in M2; and conditional consent/submission confirmation in M3. All retain one H1, landmarks, route focus announcements, designed focus rings, 44 px controls, error recovery, and the 390 px labelled-slip layout. M1.1 made the 404 screen use direct recovery language without changing this visual system.
 
 ## Milestones
 
@@ -113,7 +113,7 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 
 **Scope:** replace browser-UUID authority with accounts and tenant-scoped persistence; preserve the demo; deliver purchase/restore and a server-verified entitlement for live accountant links.
 
-**Status:** **not started as a customer capability.** Current encryption, per-quarter browser storage, server link gate, and checkout URL checks are foundations or demonstrations, not M2 acceptance.
+**Status:** **M2 implementation is in progress, but not shipped as a customer capability.** The repository now has the account data model, OIDC/PKCE session boundary, membership checks, explicit idempotent browser-quarter migration, account export/delete, and account-scoped link route. The live service has no authorised Sociobot Entra CIAM issuer/client registration, so `/account` truthfully says sign-in is unavailable and no account/tenant/cross-device claim is public. Existing M1 browser workspaces remain intact for migration and are not an account authority. M2 cannot be accepted until CIAM sign-in and the authorised entitlement/restore journey are exercised end to end.
 
 **Definition of done:**
 
@@ -123,7 +123,7 @@ Key screens are: landing and live preview; demo/real quarter desk; transaction c
 - The £12/month and £99/year controller journeys support restore/paste and server-side verification. A controller test path may prove wiring without charging, but M2 acceptance also needs an authorised end-to-end entitlement/restore check; a checkout URL alone is insufficient.
 - The service retains the current one-replica durable SQLite safeguards, encrypted records, audit log, rate limits, health/build identity, and no receipt-byte upload. Add tenant-isolation, auth failure, migration, export/delete, billing failure/retry, and account recovery tests.
 
-**Claims and tests to carry forward:** `accountant-link`, `accountant-link-expiry`, `server-licence-gate`, and `paid-tier` need authenticated, observable end-to-end coverage. Add exact claims for tenant isolation, account export/delete, and entitlement restoration. The existing server-gate and paid-tier checks are passing evidence only; neither proves a purchased subscription nor a tenant boundary.
+**Claims and tests to carry forward:** `accountant-link`, `accountant-link-expiry`, `server-licence-gate`, and `paid-tier` need authenticated, observable end-to-end coverage. The implementation adds exact isolated-server checks for `tenant-isolation`, `account-migration`, and `account-export-delete`; they prove the account boundary but do not substitute for authorised CIAM sign-in. Add entitlement restoration only after the controller provides an authorised lifecycle path. The existing server-gate and paid-tier checks are passing evidence only; neither proves a purchased subscription nor a tenant boundary.
 
 **External dependencies:** Sociobot Entra CIAM application/issuer setup and the Sociobot billing-controller registrations/verification service. The billing endpoint availability was observed in verification 22; account identity and paid-customer verification have not been supplied or tested. Future authorized operators provision those integrations; product workers do not request, inspect, or report credentials.
 

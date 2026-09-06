@@ -6,13 +6,17 @@ use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Path, Query, State},
     handler::Handler,
-    http::{header, HeaderName, HeaderValue, Request, StatusCode},
+    http::{header, HeaderMap, HeaderName, HeaderValue, Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Redirect, Response},
     routing::{get, get_service, post},
     Json, Router,
 };
-use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use base64::{
+    engine::general_purpose::{STANDARD as B64, URL_SAFE_NO_PAD},
+    Engine,
+};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use rand::{rngs::OsRng, RngCore};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -49,6 +53,10 @@ const BUILD_SHA: &str = match option_env!("BUILD_SHA") {
 };
 const MAX_DOCUMENT_BYTES: usize = 5 * 1024 * 1024;
 const SHARE_EXPIRY_SECONDS: u64 = 30 * 24 * 60 * 60;
+const SESSION_EXPIRY_SECONDS: u64 = 14 * 24 * 60 * 60;
+const AUTH_STATE_EXPIRY_SECONDS: u64 = 10 * 60;
+const SESSION_COOKIE: &str = "quarterly_ready_session";
+const AUTH_STATE_COOKIE: &str = "quarterly_ready_auth_state";
 const SAFE_FIXTURE_TOKEN: &str = "quarterly-ready-safe-no-charge-fixture-v1";
 const SAFE_FIXTURE_BUSINESS: &str = "Quarterly Ready safe QA fixture";
 const SQLITE_BUSY_TIMEOUT_MS: u64 = 30_000;
@@ -75,8 +83,58 @@ struct AppState {
     write_lock: Arc<Mutex<()>>,
     client: reqwest::Client,
     billing_base_url: String,
+    auth: Option<AuthConfig>,
     hmrc_integration: Option<ApprovedIntegration>,
     safe_qa_fixtures: bool,
+}
+
+/// Sociobot Entra CIAM is a public OIDC client. The client ID and issuer are
+/// runtime configuration, rather than source-controlled credentials. PKCE
+/// means this product does not require an OAuth client secret.
+#[derive(Clone)]
+struct AuthConfig {
+    issuer: String,
+    client_id: String,
+    redirect_uri: String,
+}
+
+#[derive(Deserialize)]
+struct OidcDiscovery {
+    issuer: String,
+    authorization_endpoint: String,
+    token_endpoint: String,
+    jwks_uri: String,
+}
+
+#[derive(Deserialize)]
+struct OidcJwks {
+    keys: Vec<OidcJwk>,
+}
+
+#[derive(Deserialize)]
+struct OidcJwk {
+    kid: Option<String>,
+    kty: String,
+    n: Option<String>,
+    e: Option<String>,
+}
+
+#[derive(Clone, Deserialize)]
+struct IdTokenClaims {
+    sub: String,
+    iss: String,
+    exp: usize,
+    nonce: Option<String>,
+    email: Option<String>,
+    name: Option<String>,
+    preferred_username: Option<String>,
+}
+
+#[derive(Clone)]
+struct AuthenticatedUser {
+    subject: String,
+    display_name: String,
+    email: Option<String>,
 }
 
 #[derive(Clone)]
@@ -122,6 +180,61 @@ struct Health {
     hmrc_integration_mode: &'static str,
     hmrc_taxpayer_consent_required: bool,
     hmrc_provider_name: Option<String>,
+    accounts_configured: bool,
+}
+
+#[derive(Serialize)]
+struct AuthSession {
+    configured: bool,
+    authenticated: bool,
+    user: Option<AccountUser>,
+    businesses: Vec<Business>,
+}
+
+#[derive(Serialize)]
+struct AccountUser {
+    display_name: String,
+    email: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct Business {
+    id: String,
+    name: String,
+    role: String,
+}
+
+#[derive(Deserialize)]
+struct CreateBusiness {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct AuthCallback {
+    state: String,
+    code: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct OidcTokenResponse {
+    id_token: String,
+}
+
+#[derive(Serialize)]
+struct AuthStart {
+    authorization_url: String,
+}
+
+#[derive(Deserialize)]
+struct AccountQuarterWrite {
+    document: Value,
+    migration_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct AccountQuarterResult {
+    document: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -277,6 +390,7 @@ async fn main() {
         .await
         .expect("persist startup database snapshot");
     let hmrc_integration = approved_integration_from_env();
+    let auth = auth_config_from_env();
     let safe_qa_fixtures = safe_fixtures_enabled();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
@@ -291,6 +405,7 @@ async fn main() {
         client,
         billing_base_url: env::var("SOCIOBOT_BILLING_URL")
             .unwrap_or_else(|_| "https://api.sociobot.in/api/v1".into()),
+        auth,
         hmrc_integration,
         safe_qa_fixtures,
     };
@@ -318,6 +433,7 @@ async fn main() {
         .as_ref()
         .map(|integration| integration.mode.as_str())
         .unwrap_or("not_configured");
+    let accounts_configured = state.auth.is_some();
     let app = build_router(state, frontend_dir);
 
     info!(
@@ -330,6 +446,11 @@ async fn main() {
             "not_configured"
         },
         safe_qa_fixtures,
+        accounts = if accounts_configured {
+            "configured"
+        } else {
+            "not_configured"
+        },
         "quarterly_ready_started"
     );
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
@@ -350,6 +471,40 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
     let write_limit = rate_limit_layer(WRITE_RATE_LIMIT_BURST);
     Router::new()
         .route("/health", get(health))
+        .route(
+            "/api/auth/session",
+            get(auth_session.layer(read_limit.clone())),
+        )
+        .route(
+            "/api/auth/start",
+            post(auth_start.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/auth/callback",
+            get(auth_callback.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/account",
+            get(account_details.layer(read_limit.clone()))
+                .delete(delete_account.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/account/export",
+            get(export_account.layer(read_limit.clone())),
+        )
+        .route(
+            "/api/businesses",
+            post(create_business.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/businesses/:business_id/quarters/:quarter_start",
+            get(get_account_quarter.layer(read_limit.clone()))
+                .put(put_account_quarter.layer(write_limit.clone())),
+        )
+        .route(
+            "/api/businesses/:business_id/quarters/:quarter_start/share",
+            post(create_account_share.layer(write_limit.clone())),
+        )
         .route(
             "/api/workspace",
             get(get_workspace.layer(read_limit.clone()))
@@ -381,6 +536,7 @@ fn build_router(state: AppState, frontend_dir: PathBuf) -> Router {
         .route_service("/", get_service(ServeFile::new(index.clone())))
         .route_service("/demo", get_service(ServeFile::new(index.clone())))
         .route_service("/records", get_service(ServeFile::new(index.clone())))
+        .route_service("/account", get_service(ServeFile::new(index.clone())))
         .route_service("/privacy", get_service(ServeFile::new(index.clone())))
         .route_service("/terms", get_service(ServeFile::new(index.clone())))
         .route_service("/share/:token", get_service(ServeFile::new(index)))
@@ -449,7 +605,895 @@ async fn health(State(state): State<AppState>) -> Json<Health> {
         hmrc_provider_name: integration
             .and_then(|configured| configured.taxpayer_consent.as_ref())
             .map(|consent| consent.provider_name.clone()),
+        accounts_configured: state.auth.is_some(),
     })
+}
+
+fn auth_config_from_env() -> Option<AuthConfig> {
+    auth_config_from_values(
+        env::var("OIDC_ISSUER").ok(),
+        env::var("OIDC_CLIENT_ID").ok(),
+        env::var("OIDC_REDIRECT_URI").ok(),
+    )
+}
+
+fn auth_config_from_values(
+    issuer: Option<String>,
+    client_id: Option<String>,
+    redirect_uri: Option<String>,
+) -> Option<AuthConfig> {
+    let issuer = issuer?;
+    let client_id = client_id?;
+    let redirect_uri = redirect_uri
+        .unwrap_or_else(|| "https://mtd-quarterly-ready.sociobot.in/api/auth/callback".into());
+    if !issuer.starts_with("https://")
+        || client_id.trim().is_empty()
+        || !redirect_uri.starts_with("https://")
+        || redirect_uri.contains('#')
+    {
+        return None;
+    }
+    Some(AuthConfig {
+        issuer: issuer.trim_end_matches('/').to_owned(),
+        client_id,
+        redirect_uri,
+    })
+}
+
+async fn oidc_discovery(
+    client: &reqwest::Client,
+    auth: &AuthConfig,
+) -> Result<OidcDiscovery, ApiError> {
+    let endpoint = format!("{}/.well-known/openid-configuration", auth.issuer);
+    let response = client.get(endpoint).send().await.map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service could not be reached. Try again in a moment.",
+        )
+    })?;
+    if !response.status().is_success() {
+        return Err(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service is not ready. Try again in a moment.",
+        ));
+    }
+    let metadata: OidcDiscovery = response.json().await.map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service returned an unreadable setup. Try again in a moment.",
+        )
+    })?;
+    if metadata.issuer.trim_end_matches('/') != auth.issuer
+        || !metadata.authorization_endpoint.starts_with("https://")
+        || !metadata.token_endpoint.starts_with("https://")
+        || !metadata.jwks_uri.starts_with("https://")
+    {
+        return Err(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service setup is not valid. Try again later.",
+        ));
+    }
+    Ok(metadata)
+}
+
+fn random_url_token(byte_count: usize) -> String {
+    let mut bytes = vec![0; byte_count];
+    OsRng.fill_bytes(&mut bytes);
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+fn token_hash(token: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn pkce_challenge(verifier: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(verifier.as_bytes());
+    URL_SAFE_NO_PAD.encode(hasher.finalize())
+}
+
+fn request_cookie(request: &Request<Body>, name: &str) -> Option<String> {
+    request
+        .headers()
+        .get(header::COOKIE)
+        .and_then(|header| header.to_str().ok())?
+        .split(';')
+        .map(str::trim)
+        .find_map(|value| value.strip_prefix(&format!("{name}=")))
+        .filter(|value| !value.is_empty() && value.len() <= 512)
+        .map(str::to_owned)
+}
+
+/// The OIDC state is a high-entropy, one-time value. Comparing the complete
+/// fixed-length value without an early exit also avoids turning this check into
+/// an oracle for the browser-bound state cookie.
+fn tokens_equal(left: &str, right: &str) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    left.as_bytes()
+        .iter()
+        .zip(right.as_bytes())
+        .fold(0u8, |difference, (a, b)| difference | (a ^ b))
+        == 0
+}
+
+async fn authenticated_user(
+    state: &AppState,
+    session_token: Option<String>,
+) -> Result<AuthenticatedUser, ApiError> {
+    let token = session_token.ok_or(ApiError(
+        StatusCode::UNAUTHORIZED,
+        "Sign in to access account records.",
+    ))?;
+    let row = sqlx::query("SELECT users.subject, users.display_name, users.email, sessions.expires_at FROM sessions JOIN users ON users.subject = sessions.subject WHERE sessions.token_hash = ?")
+        .bind(token_hash(&token))
+        .fetch_optional(&state.db)
+        .await
+        .map_err(internal)?
+        .ok_or(ApiError(StatusCode::UNAUTHORIZED, "Your sign-in has expired. Sign in again."))?;
+    let expires_at: i64 = row.get("expires_at");
+    if expires_at <= unix_now() as i64 {
+        return Err(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "Your sign-in has expired. Sign in again.",
+        ));
+    }
+    Ok(AuthenticatedUser {
+        subject: row.get("subject"),
+        display_name: row.get("display_name"),
+        email: row.get("email"),
+    })
+}
+
+async fn businesses_for_user(state: &AppState, subject: &str) -> Result<Vec<Business>, ApiError> {
+    let rows = sqlx::query("SELECT businesses.id, businesses.name, memberships.role FROM memberships JOIN businesses ON businesses.id = memberships.business_id WHERE memberships.subject = ? ORDER BY businesses.created_at ASC")
+        .bind(subject)
+        .fetch_all(&state.db)
+        .await
+        .map_err(internal)?;
+    Ok(rows
+        .into_iter()
+        .map(|row| Business {
+            id: row.get("id"),
+            name: row.get("name"),
+            role: row.get("role"),
+        })
+        .collect())
+}
+
+async fn require_business_membership(
+    state: &AppState,
+    subject: &str,
+    business_id: &str,
+) -> Result<String, ApiError> {
+    if Uuid::parse_str(business_id).is_err() {
+        return Err(ApiError(StatusCode::NOT_FOUND, "Business not found."));
+    }
+    let role = sqlx::query("SELECT role FROM memberships WHERE business_id = ? AND subject = ?")
+        .bind(business_id)
+        .bind(subject)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(internal)?
+        .map(|row| row.get::<String, _>("role"))
+        .ok_or(ApiError(StatusCode::NOT_FOUND, "Business not found."))?;
+    Ok(role)
+}
+
+async fn auth_session(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<AuthSession>, ApiError> {
+    let configured = state.auth.is_some();
+    let session_token = request_cookie(&request, SESSION_COOKIE);
+    let Ok(user) = authenticated_user(&state, session_token).await else {
+        return Ok(Json(AuthSession {
+            configured,
+            authenticated: false,
+            user: None,
+            businesses: Vec::new(),
+        }));
+    };
+    let businesses = businesses_for_user(&state, &user.subject).await?;
+    Ok(Json(AuthSession {
+        configured,
+        authenticated: true,
+        user: Some(AccountUser {
+            display_name: user.display_name,
+            email: user.email,
+        }),
+        businesses,
+    }))
+}
+
+async fn account_details(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<AuthSession>, ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    let businesses = businesses_for_user(&state, &user.subject).await?;
+    Ok(Json(AuthSession {
+        configured: state.auth.is_some(),
+        authenticated: true,
+        user: Some(AccountUser {
+            display_name: user.display_name,
+            email: user.email,
+        }),
+        businesses,
+    }))
+}
+
+async fn auth_start(
+    State(state): State<AppState>,
+) -> Result<(HeaderMap, Json<AuthStart>), ApiError> {
+    let auth = state.auth.as_ref().ok_or(ApiError(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Sign-in is not configured for this service yet.",
+    ))?;
+    let discovery = oidc_discovery(&state.client, auth).await?;
+    let state_token = random_url_token(32);
+    let nonce = random_url_token(32);
+    let verifier = random_url_token(48);
+    let expires_at = unix_now() + AUTH_STATE_EXPIRY_SECONDS;
+    {
+        let _write = state.write_lock.lock().await;
+        sqlx::query(
+            "INSERT INTO auth_states(state, nonce, code_verifier, expires_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind(&state_token)
+        .bind(&nonce)
+        .bind(&verifier)
+        .bind(expires_at as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+        persist_state(&state).await?;
+    }
+    let mut url = Url::parse(&discovery.authorization_endpoint).map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service setup is not valid. Try again later.",
+        )
+    })?;
+    url.query_pairs_mut()
+        .append_pair("client_id", &auth.client_id)
+        .append_pair("redirect_uri", &auth.redirect_uri)
+        .append_pair("response_type", "code")
+        .append_pair("response_mode", "query")
+        .append_pair("scope", "openid profile email")
+        .append_pair("state", &state_token)
+        .append_pair("nonce", &nonce)
+        .append_pair("code_challenge", &pkce_challenge(&verifier))
+        .append_pair("code_challenge_method", "S256");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "{AUTH_STATE_COOKIE}={state_token}; Path=/api/auth/callback; Max-Age={AUTH_STATE_EXPIRY_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+        ))
+        .map_err(internal)?,
+    );
+    Ok((
+        headers,
+        Json(AuthStart {
+            authorization_url: url.into(),
+        }),
+    ))
+}
+
+async fn auth_callback(
+    State(state): State<AppState>,
+    Query(callback): Query<AuthCallback>,
+    request: Request<Body>,
+) -> Result<Response, ApiError> {
+    let auth = state.auth.as_ref().ok_or(ApiError(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Sign-in is not configured for this service yet.",
+    ))?;
+    if callback.state.len() < 32 || callback.state.len() > 128 {
+        return Err(ApiError(
+            StatusCode::BAD_REQUEST,
+            "This sign-in response is not valid. Start again from the account page.",
+        ));
+    }
+    let browser_state = request_cookie(&request, AUTH_STATE_COOKIE).ok_or(ApiError(
+        StatusCode::BAD_REQUEST,
+        "This sign-in response does not match this browser. Start again from the account page.",
+    ))?;
+    if !tokens_equal(&browser_state, &callback.state) {
+        return Err(ApiError(
+            StatusCode::BAD_REQUEST,
+            "This sign-in response does not match this browser. Start again from the account page.",
+        ));
+    }
+    if callback.error.is_some() {
+        let mut response = Redirect::to("/account?sign-in=cancelled").into_response();
+        response.headers_mut().insert(
+            header::SET_COOKIE,
+            HeaderValue::from_str(&format!(
+                "{AUTH_STATE_COOKIE}=; Path=/api/auth/callback; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+            ))
+            .map_err(internal)?,
+        );
+        return Ok(response);
+    }
+    let code = callback
+        .code
+        .filter(|value| !value.trim().is_empty())
+        .ok_or(ApiError(
+            StatusCode::BAD_REQUEST,
+            "This sign-in response has no code. Start again from the account page.",
+        ))?;
+    let auth_state = {
+        let _write = state.write_lock.lock().await;
+        let row =
+            sqlx::query("SELECT nonce, code_verifier, expires_at FROM auth_states WHERE state = ?")
+                .bind(&callback.state)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(internal)?;
+        sqlx::query("DELETE FROM auth_states WHERE state = ?")
+            .bind(&callback.state)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        persist_state(&state).await?;
+        row
+    }
+    .ok_or(ApiError(
+        StatusCode::GONE,
+        "This sign-in request has expired. Start again from the account page.",
+    ))?;
+    let expires_at: i64 = auth_state.get("expires_at");
+    if expires_at <= unix_now() as i64 {
+        return Err(ApiError(
+            StatusCode::GONE,
+            "This sign-in request has expired. Start again from the account page.",
+        ));
+    }
+    let nonce: String = auth_state.get("nonce");
+    let code_verifier: String = auth_state.get("code_verifier");
+    let discovery = oidc_discovery(&state.client, auth).await?;
+    let tokens = state
+        .client
+        .post(&discovery.token_endpoint)
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("client_id", auth.client_id.as_str()),
+            ("redirect_uri", auth.redirect_uri.as_str()),
+            ("code", code.as_str()),
+            ("code_verifier", code_verifier.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|_| {
+            ApiError(
+                StatusCode::BAD_GATEWAY,
+                "The sign-in service could not finish. Start again.",
+            )
+        })?;
+    if !tokens.status().is_success() {
+        return Err(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in service did not accept this request. Start again.",
+        ));
+    }
+    let tokens: OidcTokenResponse = tokens.json().await.map_err(|_| {
+        ApiError(
+            StatusCode::BAD_GATEWAY,
+            "The sign-in service returned an unreadable result. Start again.",
+        )
+    })?;
+    let user = verify_id_token(&state.client, auth, &discovery, &tokens.id_token, &nonce).await?;
+    let session_token = random_url_token(32);
+    let session_expires = unix_now() + SESSION_EXPIRY_SECONDS;
+    {
+        let _write = state.write_lock.lock().await;
+        sqlx::query("INSERT INTO users(subject, display_name, email, created_at) VALUES(?, ?, ?, ?) ON CONFLICT(subject) DO UPDATE SET display_name=excluded.display_name, email=excluded.email")
+            .bind(&user.subject)
+            .bind(&user.display_name)
+            .bind(&user.email)
+            .bind(unix_now() as i64)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query("DELETE FROM sessions WHERE expires_at <= ?")
+            .bind(unix_now() as i64)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query(
+            "INSERT INTO sessions(token_hash, subject, expires_at, created_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind(token_hash(&session_token))
+        .bind(&user.subject)
+        .bind(session_expires as i64)
+        .bind(unix_now() as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+        write_audit(
+            &state,
+            &format!("account:{}", user.subject),
+            "account_signed_in",
+            b"oidc_pkce",
+        )
+        .await?;
+        persist_state(&state).await?;
+    }
+    let mut response = Redirect::to("/account?sign-in=complete").into_response();
+    response.headers_mut().append(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "{AUTH_STATE_COOKIE}=; Path=/api/auth/callback; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+        ))
+        .map_err(internal)?,
+    );
+    response.headers_mut().append(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "{SESSION_COOKIE}={session_token}; Path=/; Max-Age={SESSION_EXPIRY_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+        ))
+        .map_err(internal)?,
+    );
+    Ok(response)
+}
+
+async fn verify_id_token(
+    client: &reqwest::Client,
+    auth: &AuthConfig,
+    discovery: &OidcDiscovery,
+    id_token: &str,
+    nonce: &str,
+) -> Result<AuthenticatedUser, ApiError> {
+    let token_header = decode_header(id_token).map_err(|_| {
+        ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in result is not valid. Start again.",
+        )
+    })?;
+    if token_header.alg != Algorithm::RS256 {
+        return Err(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in result uses an unsupported signature. Start again.",
+        ));
+    }
+    let key_id = token_header.kid.ok_or(ApiError(
+        StatusCode::UNAUTHORIZED,
+        "The sign-in result has no signing key. Start again.",
+    ))?;
+    let jwks = client.get(&discovery.jwks_uri).send().await.map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service could not be verified. Start again.",
+        )
+    })?;
+    if !jwks.status().is_success() {
+        return Err(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service could not be verified. Start again.",
+        ));
+    }
+    let jwks: OidcJwks = jwks.json().await.map_err(|_| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "The sign-in service returned no usable signing key. Start again.",
+        )
+    })?;
+    let key = jwks
+        .keys
+        .iter()
+        .find(|key| key.kid.as_deref() == Some(key_id.as_str()) && key.kty == "RSA")
+        .and_then(|key| Some((key.n.as_deref()?, key.e.as_deref()?)))
+        .ok_or(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in result was signed with an unknown key. Start again.",
+        ))?;
+    let key = DecodingKey::from_rsa_components(key.0, key.1).map_err(|_| {
+        ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in signing key is not valid. Start again.",
+        )
+    })?;
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.set_issuer(&[auth.issuer.as_str()]);
+    validation.set_audience(&[auth.client_id.as_str()]);
+    let token = decode::<IdTokenClaims>(id_token, &key, &validation).map_err(|_| {
+        ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in result could not be verified. Start again.",
+        )
+    })?;
+    let claims = token.claims;
+    if claims.iss.trim_end_matches('/') != auth.issuer
+        || claims.exp <= unix_now() as usize
+        || claims.nonce.as_deref() != Some(nonce)
+        || claims.sub.trim().is_empty()
+        || claims.sub.len() > 512
+    {
+        return Err(ApiError(
+            StatusCode::UNAUTHORIZED,
+            "The sign-in result does not match this request. Start again.",
+        ));
+    }
+    let display_name = claims
+        .name
+        .or(claims.preferred_username.clone())
+        .or(claims.email.clone())
+        .unwrap_or_else(|| "Quarterly Ready user".to_owned())
+        .chars()
+        .take(120)
+        .collect();
+    let email = claims
+        .email
+        .filter(|email| email.len() <= 320 && email.contains('@'));
+    Ok(AuthenticatedUser {
+        subject: format!("{}|{}", auth.issuer, claims.sub),
+        display_name,
+        email,
+    })
+}
+
+async fn create_business(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<(StatusCode, Json<Business>), ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    let bytes = axum::body::to_bytes(request.into_body(), 16 * 1024)
+        .await
+        .map_err(|_| {
+            ApiError(
+                StatusCode::BAD_REQUEST,
+                "The business details could not be read. Try again.",
+            )
+        })?;
+    let input: CreateBusiness = serde_json::from_slice(&bytes).map_err(|_| {
+        ApiError(
+            StatusCode::BAD_REQUEST,
+            "Enter a business name and try again.",
+        )
+    })?;
+    let name = input.name.trim();
+    if name.is_empty() || name.chars().count() > 120 {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Enter a business name of 120 characters or fewer.",
+        ));
+    }
+    let business = Business {
+        id: Uuid::new_v4().to_string(),
+        name: name.to_owned(),
+        role: "owner".to_owned(),
+    };
+    let _write = state.write_lock.lock().await;
+    sqlx::query("INSERT INTO businesses(id, owner_subject, name, created_at) VALUES(?, ?, ?, ?)")
+        .bind(&business.id)
+        .bind(&user.subject)
+        .bind(&business.name)
+        .bind(unix_now() as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    sqlx::query(
+        "INSERT INTO memberships(business_id, subject, role, created_at) VALUES(?, ?, 'owner', ?)",
+    )
+    .bind(&business.id)
+    .bind(&user.subject)
+    .bind(unix_now() as i64)
+    .execute(&state.db)
+    .await
+    .map_err(internal)?;
+    write_audit(
+        &state,
+        &format!("business:{}", business.id),
+        "business_created",
+        business.name.as_bytes(),
+    )
+    .await?;
+    persist_state(&state).await?;
+    Ok((StatusCode::CREATED, Json(business)))
+}
+
+fn account_quarter_key(business_id: &str, quarter_start: &str) -> String {
+    format!("business:{business_id}:quarter:{quarter_start}")
+}
+
+fn validate_business_quarter(quarter_start: &str) -> Result<(), ApiError> {
+    let period = quarter_from_start(quarter_start)
+        .ok_or(ApiError(StatusCode::NOT_FOUND, "Quarter not found."))?;
+    if period.0 != quarter_start {
+        return Err(ApiError(StatusCode::NOT_FOUND, "Quarter not found."));
+    }
+    Ok(())
+}
+
+/// Return the matching standard-UK quarter end. Kept next to the authenticated
+/// route checks so a path cannot point at a different reporting period.
+fn quarter_from_start(start: &str) -> Option<(String, String)> {
+    if !is_calendar_date(start) {
+        return None;
+    }
+    let year = start.get(0..4)?.parse::<u32>().ok()?;
+    let end = match start.get(5..)? {
+        "04-06" => format!("{year:04}-07-05"),
+        "07-06" => format!("{year:04}-10-05"),
+        "10-06" => format!("{:04}-01-05", year + 1),
+        "01-06" => format!("{year:04}-04-05"),
+        _ => return None,
+    };
+    Some((start.to_owned(), end))
+}
+
+async fn stored_account_quarter(
+    state: &AppState,
+    business_id: &str,
+    quarter_start: &str,
+) -> Result<Option<Value>, ApiError> {
+    let row = sqlx::query(
+        "SELECT payload FROM account_quarters WHERE business_id = ? AND quarter_start = ?",
+    )
+    .bind(business_id)
+    .bind(quarter_start)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(internal)?;
+    row.map(|row| decrypt_json(&state.key, &row.get::<Vec<u8>, _>("payload")))
+        .transpose()
+}
+
+async fn get_account_quarter(
+    State(state): State<AppState>,
+    Path((business_id, quarter_start)): Path<(String, String)>,
+    request: Request<Body>,
+) -> Result<Json<AccountQuarterResult>, ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    validate_business_quarter(&quarter_start)?;
+    require_business_membership(&state, &user.subject, &business_id).await?;
+    Ok(Json(AccountQuarterResult {
+        document: stored_account_quarter(&state, &business_id, &quarter_start).await?,
+    }))
+}
+
+async fn put_account_quarter(
+    State(state): State<AppState>,
+    Path((business_id, quarter_start)): Path<(String, String)>,
+    request: Request<Body>,
+) -> Result<Json<AccountQuarterResult>, ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    validate_business_quarter(&quarter_start)?;
+    let role = require_business_membership(&state, &user.subject, &business_id).await?;
+    if role != "owner" {
+        return Err(ApiError(
+            StatusCode::FORBIDDEN,
+            "This business membership cannot change records.",
+        ));
+    }
+    let bytes = axum::body::to_bytes(request.into_body(), MAX_DOCUMENT_BYTES)
+        .await
+        .map_err(|_| {
+            ApiError(
+                StatusCode::BAD_REQUEST,
+                "The records could not be read. Try saving again.",
+            )
+        })?;
+    let input: AccountQuarterWrite = serde_json::from_slice(&bytes).map_err(|_| {
+        ApiError(
+            StatusCode::BAD_REQUEST,
+            "The records are not valid JSON. Check the file and try again.",
+        )
+    })?;
+    validate_document(&input.document)?;
+    if input.document.get("quarterStart").and_then(Value::as_str) != Some(quarter_start.as_str()) {
+        return Err(ApiError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "The records must belong to the selected quarter.",
+        ));
+    }
+    let migration_id = input
+        .migration_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty());
+    if let Some(migration_id) = migration_id {
+        if migration_id.len() > 128 || Uuid::parse_str(migration_id).is_err() {
+            return Err(ApiError(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "The browser move could not be verified. Try it again from this device.",
+            ));
+        }
+    }
+    let encrypted = encrypt_json(&state.key, &input.document)?;
+    let _write = state.write_lock.lock().await;
+    if let Some(migration_id) = migration_id {
+        let existing = sqlx::query("SELECT 1 FROM account_migrations WHERE business_id = ? AND quarter_start = ? AND migration_id = ?")
+            .bind(&business_id)
+            .bind(&quarter_start)
+            .bind(migration_id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(internal)?;
+        if existing.is_some() {
+            return Ok(Json(AccountQuarterResult {
+                document: stored_account_quarter(&state, &business_id, &quarter_start).await?,
+            }));
+        }
+    }
+    sqlx::query("INSERT INTO account_quarters(business_id, quarter_start, payload, updated_at) VALUES(?, ?, ?, ?) ON CONFLICT(business_id, quarter_start) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at")
+        .bind(&business_id)
+        .bind(&quarter_start)
+        .bind(encrypted)
+        .bind(unix_now() as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    let audit_key = account_quarter_key(&business_id, &quarter_start);
+    let action = if migration_id.is_some() {
+        "browser_quarter_migrated"
+    } else {
+        "account_quarter_saved"
+    };
+    write_audit(&state, &audit_key, action, &bytes).await?;
+    if let Some(migration_id) = migration_id {
+        sqlx::query("INSERT INTO account_migrations(business_id, quarter_start, migration_id, created_at) VALUES(?, ?, ?, ?)")
+            .bind(&business_id)
+            .bind(&quarter_start)
+            .bind(migration_id)
+            .bind(unix_now() as i64)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+    }
+    persist_state(&state).await?;
+    Ok(Json(AccountQuarterResult {
+        document: Some(input.document),
+    }))
+}
+
+async fn create_account_share(
+    State(state): State<AppState>,
+    Path((business_id, quarter_start)): Path<(String, String)>,
+    request: Request<Body>,
+) -> Result<(StatusCode, Json<ShareResult>), ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    validate_business_quarter(&quarter_start)?;
+    let role = require_business_membership(&state, &user.subject, &business_id).await?;
+    if role != "owner" {
+        return Err(ApiError(
+            StatusCode::FORBIDDEN,
+            "This business membership cannot create an accountant link.",
+        ));
+    }
+    let licence = licence_token(&request)?;
+    verify_licence_token(&state, &licence).await?;
+    let document = stored_account_quarter(&state, &business_id, &quarter_start)
+        .await?
+        .ok_or(ApiError(
+            StatusCode::NOT_FOUND,
+            "Save this quarter to your account before making an accountant link.",
+        ))?;
+    let token = Uuid::new_v4().simple().to_string();
+    let expires_at = unix_now() + SHARE_EXPIRY_SECONDS;
+    let encrypted = encrypt_json(&state.key, &document)?;
+    let _write = state.write_lock.lock().await;
+    sqlx::query("INSERT INTO account_shares(token, business_id, quarter_start, payload, expires_at) VALUES(?, ?, ?, ?, ?)")
+        .bind(&token)
+        .bind(&business_id)
+        .bind(&quarter_start)
+        .bind(encrypted)
+        .bind(expires_at as i64)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    write_audit(
+        &state,
+        &account_quarter_key(&business_id, &quarter_start),
+        "accountant_link_created",
+        token.as_bytes(),
+    )
+    .await?;
+    persist_state(&state).await?;
+    Ok((StatusCode::CREATED, Json(ShareResult { token, expires_at })))
+}
+
+async fn export_account(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<Json<Value>, ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    let businesses = businesses_for_user(&state, &user.subject).await?;
+    let mut exported = Vec::new();
+    for business in &businesses {
+        let rows = sqlx::query("SELECT quarter_start, payload, updated_at FROM account_quarters WHERE business_id = ? ORDER BY quarter_start")
+            .bind(&business.id)
+            .fetch_all(&state.db)
+            .await
+            .map_err(internal)?;
+        let quarters = rows
+            .into_iter()
+            .map(|row| {
+                Ok(json!({
+                    "quarter_start": row.get::<String, _>("quarter_start"),
+                    "updated_at": row.get::<i64, _>("updated_at"),
+                    "document": decrypt_json(&state.key, &row.get::<Vec<u8>, _>("payload"))?,
+                }))
+            })
+            .collect::<Result<Vec<_>, ApiError>>()?;
+        exported.push(json!({ "business": business, "quarters": quarters }));
+    }
+    Ok(Json(json!({
+        "format": "quarterly-ready-account-export-v1",
+        "created_at": unix_now(),
+        "account": { "display_name": user.display_name, "email": user.email },
+        "businesses": exported,
+    })))
+}
+
+async fn delete_account(
+    State(state): State<AppState>,
+    request: Request<Body>,
+) -> Result<StatusCode, ApiError> {
+    let user = authenticated_user(&state, request_cookie(&request, SESSION_COOKIE)).await?;
+    let _write = state.write_lock.lock().await;
+    let owned = sqlx::query("SELECT id FROM businesses WHERE owner_subject = ?")
+        .bind(&user.subject)
+        .fetch_all(&state.db)
+        .await
+        .map_err(internal)?;
+    for row in owned {
+        let business_id: String = row.get("id");
+        sqlx::query("DELETE FROM account_shares WHERE business_id = ?")
+            .bind(&business_id)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query("DELETE FROM account_migrations WHERE business_id = ?")
+            .bind(&business_id)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query("DELETE FROM account_quarters WHERE business_id = ?")
+            .bind(&business_id)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query("DELETE FROM memberships WHERE business_id = ?")
+            .bind(&business_id)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+        sqlx::query("DELETE FROM businesses WHERE id = ?")
+            .bind(&business_id)
+            .execute(&state.db)
+            .await
+            .map_err(internal)?;
+    }
+    sqlx::query("DELETE FROM memberships WHERE subject = ?")
+        .bind(&user.subject)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    sqlx::query("DELETE FROM sessions WHERE subject = ?")
+        .bind(&user.subject)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    sqlx::query("DELETE FROM users WHERE subject = ?")
+        .bind(&user.subject)
+        .execute(&state.db)
+        .await
+        .map_err(internal)?;
+    write_audit(
+        &state,
+        &format!("account:{}", user.subject),
+        "account_deleted",
+        b"self_service",
+    )
+    .await?;
+    persist_state(&state).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn get_workspace(
@@ -1301,7 +2345,8 @@ async fn get_share(
             "This accountant link is not valid.",
         ));
     }
-    let row = sqlx::query("SELECT payload, expires_at FROM shares WHERE token = ?")
+    let row = sqlx::query("SELECT payload, expires_at FROM account_shares WHERE token = ? UNION ALL SELECT payload, expires_at FROM shares WHERE token = ? LIMIT 1")
+        .bind(&token)
         .bind(&token)
         .fetch_optional(&state.db)
         .await
@@ -1770,6 +2815,9 @@ async fn persist_database_snapshot(
 }
 
 async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    // M1 browser workspaces remain readable so an existing customer can choose
+    // to move a quarter. M2 account data uses the tables below; its authority
+    // is a signed OIDC session plus membership, never a browser UUID.
     sqlx::query("CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS shares(token TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, payload BLOB NOT NULL, expires_at INTEGER NOT NULL)").execute(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL, action TEXT NOT NULL, created_at INTEGER NOT NULL, hash TEXT NOT NULL)").execute(db).await?;
@@ -1780,6 +2828,36 @@ async fn migrate(db: &SqlitePool) -> Result<(), sqlx::Error> {
     )
     .execute(db)
     .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS users(subject TEXT PRIMARY KEY, display_name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY, subject TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS sessions_subject ON sessions(subject)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS auth_states(state TEXT PRIMARY KEY, nonce TEXT NOT NULL, code_verifier TEXT NOT NULL, expires_at INTEGER NOT NULL)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS businesses(id TEXT PRIMARY KEY, owner_subject TEXT NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS memberships(business_id TEXT NOT NULL, subject TEXT NOT NULL, role TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(business_id, subject))")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS memberships_subject ON memberships(subject)")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS account_quarters(business_id TEXT NOT NULL, quarter_start TEXT NOT NULL, payload BLOB NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(business_id, quarter_start))")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS account_migrations(business_id TEXT NOT NULL, quarter_start TEXT NOT NULL, migration_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(business_id, quarter_start, migration_id))")
+        .execute(db)
+        .await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS account_shares(token TEXT PRIMARY KEY, business_id TEXT NOT NULL, quarter_start TEXT NOT NULL, payload BLOB NOT NULL, expires_at INTEGER NOT NULL)")
+        .execute(db)
+        .await?;
     Ok(())
 }
 
@@ -1815,6 +2893,18 @@ async fn cleanup_expired_shares(db: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(db)
         .await?;
     sqlx::query("DELETE FROM hmrc_consent_states WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    sqlx::query("DELETE FROM sessions WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    sqlx::query("DELETE FROM auth_states WHERE expires_at < ?")
+        .bind(unix_now() as i64)
+        .execute(db)
+        .await?;
+    sqlx::query("DELETE FROM account_shares WHERE expires_at < ?")
         .bind(unix_now() as i64)
         .execute(db)
         .await?;
@@ -1930,6 +3020,307 @@ mod tests {
         }
     }
 
+    async fn account_test_state() -> (AppState, PathBuf) {
+        let root =
+            std::env::temp_dir().join(format!("quarterly-ready-accounts-{}", Uuid::new_v4()));
+        let data = root.join("data");
+        let local = root.join("local");
+        fs::create_dir_all(&data).await.unwrap();
+        fs::create_dir_all(&local).await.unwrap();
+        let database_path = local.join("quarterly-ready.sqlite3");
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&format!("sqlite://{}?mode=rwc", database_path.display()))
+            .await
+            .unwrap();
+        migrate(&db).await.unwrap();
+        (
+            AppState {
+                db,
+                key: [11u8; 32],
+                database_path,
+                snapshot_path: data.join("quarterly-ready.snapshot.sqlite3"),
+                write_lock: Arc::new(Mutex::new(())),
+                client: reqwest::Client::new(),
+                billing_base_url: "https://api.sociobot.in/api/v1".into(),
+                auth: None,
+                hmrc_integration: None,
+                safe_qa_fixtures: false,
+            },
+            root,
+        )
+    }
+
+    fn account_request(token: &str) -> Request<Body> {
+        Request::builder()
+            .header(header::COOKIE, format!("{SESSION_COOKIE}={token}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn account_document(description: &str) -> Value {
+        json!({
+            "schemaVersion": 1,
+            "businessName": "Maya Patel Tutoring",
+            "quarterLabel": "6 April to 5 July 2026",
+            "quarterStart": "2026-04-06",
+            "quarterEnd": "2026-07-05",
+            "figuresReviewed": false,
+            "packDownloaded": false,
+            "markedReady": false,
+            "updatedAt": "2026-04-09T12:00:00.000Z",
+            "transactions": [{
+                "id": "account-record-1",
+                "date": "2026-04-09",
+                "description": description,
+                "amountPence": 4500,
+                "kind": "income",
+                "category": "Sales"
+            }]
+        })
+    }
+
+    async fn seed_account(
+        state: &AppState,
+        subject: &str,
+        token: &str,
+        business_id: &str,
+        business_name: &str,
+        document: &Value,
+    ) {
+        sqlx::query(
+            "INSERT INTO users(subject, display_name, email, created_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind(subject)
+        .bind(subject)
+        .bind(format!("{subject}@example.test"))
+        .bind(1_i64)
+        .execute(&state.db)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO sessions(token_hash, subject, expires_at, created_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind(token_hash(token))
+        .bind(subject)
+        .bind((unix_now() + 3600) as i64)
+        .bind(1_i64)
+        .execute(&state.db)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO businesses(id, owner_subject, name, created_at) VALUES(?, ?, ?, ?)",
+        )
+        .bind(business_id)
+        .bind(subject)
+        .bind(business_name)
+        .bind(1_i64)
+        .execute(&state.db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO memberships(business_id, subject, role, created_at) VALUES(?, ?, 'owner', ?)")
+            .bind(business_id)
+            .bind(subject)
+            .bind(1_i64)
+            .execute(&state.db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO account_quarters(business_id, quarter_start, payload, updated_at) VALUES(?, ?, ?, ?)")
+            .bind(business_id)
+            .bind("2026-04-06")
+            .bind(encrypt_json(&state.key, document).unwrap())
+            .bind(1_i64)
+            .execute(&state.db)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn claim_tenant_isolation() {
+        let (state, root) = account_test_state().await;
+        let first_business = Uuid::new_v4().to_string();
+        let second_business = Uuid::new_v4().to_string();
+        let first_document = account_document("First business lesson");
+        let second_document = account_document("Second business lesson");
+        seed_account(
+            &state,
+            "subject-one",
+            "first-session",
+            &first_business,
+            "First business",
+            &first_document,
+        )
+        .await;
+        seed_account(
+            &state,
+            "subject-two",
+            "second-session",
+            &second_business,
+            "Second business",
+            &second_document,
+        )
+        .await;
+
+        let owner_result = get_account_quarter(
+            State(state.clone()),
+            Path((first_business.clone(), "2026-04-06".into())),
+            account_request("first-session"),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(owner_result.document.unwrap(), first_document);
+
+        let other_user = get_account_quarter(
+            State(state.clone()),
+            Path((first_business, "2026-04-06".into())),
+            account_request("second-session"),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(other_user.0, StatusCode::NOT_FOUND);
+        let second_result = get_account_quarter(
+            State(state.clone()),
+            Path((second_business, "2026-04-06".into())),
+            account_request("second-session"),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(second_result.document.unwrap(), second_document);
+        state.db.close().await;
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn claim_browser_quarter_migration_is_explicit_and_idempotent() {
+        let (state, root) = account_test_state().await;
+        let business = Uuid::new_v4().to_string();
+        let original = account_document("Browser quarter lesson");
+        seed_account(
+            &state,
+            "subject-one",
+            "first-session",
+            &business,
+            "First business",
+            &account_document("Older server lesson"),
+        )
+        .await;
+        let migration_id = Uuid::new_v4().to_string();
+        let request = Request::builder()
+            .header(header::COOKIE, format!("{SESSION_COOKIE}=first-session"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&json!({ "document": original, "migration_id": migration_id }))
+                    .unwrap(),
+            ))
+            .unwrap();
+        let moved = put_account_quarter(
+            State(state.clone()),
+            Path((business.clone(), "2026-04-06".into())),
+            request,
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(moved.document, Some(original.clone()));
+
+        let altered = account_document("Retry must not overwrite the first moved quarter");
+        let retry = Request::builder()
+            .header(header::COOKIE, format!("{SESSION_COOKIE}=first-session"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&json!({ "document": altered, "migration_id": migration_id }))
+                    .unwrap(),
+            ))
+            .unwrap();
+        let repeated = put_account_quarter(
+            State(state.clone()),
+            Path((business.clone(), "2026-04-06".into())),
+            retry,
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(repeated.document, Some(original.clone()));
+        let migration_count: i64 =
+            sqlx::query("SELECT COUNT(*) AS count FROM account_migrations WHERE business_id = ?")
+                .bind(&business)
+                .fetch_one(&state.db)
+                .await
+                .unwrap()
+                .get("count");
+        assert_eq!(migration_count, 1);
+        state.db.close().await;
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn claim_account_export_and_delete() {
+        let (state, root) = account_test_state().await;
+        let first_business = Uuid::new_v4().to_string();
+        let second_business = Uuid::new_v4().to_string();
+        let first_document = account_document("Exported lesson");
+        let second_document = account_document("Other account lesson");
+        seed_account(
+            &state,
+            "subject-one",
+            "first-session",
+            &first_business,
+            "First business",
+            &first_document,
+        )
+        .await;
+        seed_account(
+            &state,
+            "subject-two",
+            "second-session",
+            &second_business,
+            "Second business",
+            &second_document,
+        )
+        .await;
+
+        let export = export_account(State(state.clone()), account_request("first-session"))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(export["format"], "quarterly-ready-account-export-v1");
+        assert_eq!(export["businesses"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            export["businesses"][0]["quarters"][0]["document"],
+            first_document
+        );
+
+        assert_eq!(
+            delete_account(State(state.clone()), account_request("first-session"))
+                .await
+                .unwrap(),
+            StatusCode::NO_CONTENT
+        );
+        let first_user_count: i64 =
+            sqlx::query("SELECT COUNT(*) AS count FROM users WHERE subject = 'subject-one'")
+                .fetch_one(&state.db)
+                .await
+                .unwrap()
+                .get("count");
+        let first_quarter_count: i64 =
+            sqlx::query("SELECT COUNT(*) AS count FROM account_quarters WHERE business_id = ?")
+                .bind(&first_business)
+                .fetch_one(&state.db)
+                .await
+                .unwrap()
+                .get("count");
+        let second_quarter = stored_account_quarter(&state, &second_business, "2026-04-06")
+            .await
+            .unwrap();
+        assert_eq!(first_user_count, 0);
+        assert_eq!(first_quarter_count, 0);
+        assert_eq!(second_quarter, Some(second_document));
+        state.db.close().await;
+        fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[test]
     fn startup_migration_retries_transient_sqlite_locks() {
         assert!(is_database_locked_message("database is locked"));
@@ -2006,6 +3397,7 @@ mod tests {
             write_lock: Arc::new(Mutex::new(())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            auth: None,
             hmrc_integration: None,
             safe_qa_fixtures: false,
         };
@@ -2090,6 +3482,7 @@ mod tests {
             write_lock: Arc::new(Mutex::new(())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            auth: None,
             hmrc_integration: None,
             safe_qa_fixtures: false,
         };
@@ -2115,6 +3508,35 @@ mod tests {
     #[test]
     fn default_log_filter_keeps_startup_information_visible() {
         assert_eq!(log_filter(None).to_string(), "info");
+    }
+
+    #[test]
+    fn account_sign_in_requires_valid_public_oidc_configuration_and_uses_pkce() {
+        assert!(auth_config_from_values(
+            Some("https://identity.example.test/tenant".into()),
+            Some("quarterly-ready-web".into()),
+            None,
+        )
+        .is_some());
+        assert!(auth_config_from_values(
+            Some("http://identity.example.test".into()),
+            Some("quarterly-ready-web".into()),
+            None,
+        )
+        .is_none());
+        assert!(auth_config_from_values(
+            Some("https://identity.example.test".into()),
+            Some("".into()),
+            None,
+        )
+        .is_none());
+        assert_eq!(
+            pkce_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+        assert!(tokens_equal("browser-bound-state", "browser-bound-state"));
+        assert!(!tokens_equal("browser-bound-state", "other-browser-state"));
+        assert!(!tokens_equal("short", "longer"));
     }
 
     #[test]
@@ -2231,6 +3653,7 @@ mod tests {
             write_lock: Arc::new(Mutex::new(())),
             client: reqwest::Client::new(),
             billing_base_url: "https://api.sociobot.in/api/v1".into(),
+            auth: None,
             hmrc_integration: Some(ApprovedIntegration {
                 url: "https://provider.example/periodic-updates".into(),
                 token: "provider-service-token".into(),
@@ -2414,6 +3837,7 @@ mod tests {
             write_lock: Arc::new(Mutex::new(())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
+            auth: None,
             hmrc_integration: None,
             safe_qa_fixtures: false,
         };
@@ -2462,6 +3886,7 @@ mod tests {
             write_lock: Arc::new(Mutex::new(())),
             client: reqwest::Client::new(),
             billing_base_url: format!("http://{address}"),
+            auth: None,
             hmrc_integration: Some(ApprovedIntegration {
                 url: format!("http://{address}/submit"),
                 token: "bridge-secret".into(),

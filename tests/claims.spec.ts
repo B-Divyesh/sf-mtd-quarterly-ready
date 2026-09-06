@@ -24,6 +24,8 @@ test('@claim:demo-isolation @claim:demo-access @claim:privacy-no-tracking keeps 
   expect(keys).toContain('demo:quarterly-ready:document');
   expect(keys).not.toContain('quarterly-ready:document');
   expect(outgoing.every(url => new URL(url).origin === new URL(page.url()).origin)).toBe(true);
+  expect(outgoing.map(url => new URL(url).pathname)).not.toContain('/api/auth/session');
+  expect(outgoing.map(url => new URL(url).pathname)).not.toContain('/api/businesses');
   expect(await context.cookies()).toEqual([]);
 });
 

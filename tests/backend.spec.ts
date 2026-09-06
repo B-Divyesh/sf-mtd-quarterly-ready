@@ -19,6 +19,19 @@ test('health reports the build identity', async ({ request }) => {
   });
 });
 
+test('@regression:account-routes remain honest until the CIAM registration is configured', async ({ request }) => {
+  const health = await (await request.get('/health')).json();
+  expect(health.accounts_configured).toBe(false);
+  const session = await request.get('/api/auth/session', { headers: { 'x-forwarded-for': '203.0.113.18' } });
+  expect(session.status()).toBe(200);
+  expect(await session.json()).toEqual({ configured: false, authenticated: false, user: null, businesses: [] });
+  const protectedAccount = await request.get('/api/account', { headers: { 'x-forwarded-for': '203.0.113.19' } });
+  expect(protectedAccount.status()).toBe(401);
+  const start = await request.post('/api/auth/start', { headers: { 'x-forwarded-for': '203.0.113.17' } });
+  expect(start.status()).toBe(503);
+  expect(await start.json()).toEqual({ error: 'Sign-in is not configured for this service yet.' });
+});
+
 test('@regression:deployed-safe-qa-runtime is enabled and observable through health', async ({ request }) => {
   const health = await (await request.get('/health')).json();
   expect(health.safe_qa_fixtures).toBe(true);

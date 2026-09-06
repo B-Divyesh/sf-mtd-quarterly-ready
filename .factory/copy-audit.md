@@ -45,6 +45,19 @@ included because a visitor may encounter them without their surrounding copy.
 | Sociobot is the merchant of record. Refunds are handled there. | 10 | Pass |
 | Checked quarters for UK sole traders. | 6 | Pass |
 | Version 1.0 · Original generated imagery | 6 | Pass |
+| Account | 1 | Pass |
+
+## Account screen copy
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Manage your account records | 4 | Pass |
+| Sign in, choose a business, and move a browser quarter only when you are ready. | 14 | Pass |
+| Account sign-in is not available yet | 7 | Pass |
+| Keep records across devices | 4 | Pass |
+| Move this browser quarter | 4 | Pass |
+| Download account data | 3 | Pass |
+| Delete account data | 3 | Pass |
 
 No landing sentence exceeds 22 words. The average is 5.8 words. No banned
 word appears. The former panel/mood labels were removed or replaced by the
@@ -65,6 +78,7 @@ data`, `Accountant links`, `Review your quarter`, and `Downloads and sharing`.
 | Terms | Terms for using Quarterly Ready | Names the legal information. |
 | Accountant pack | Review this accountant pack | Names the read-only pack task. |
 | 404 | Page not found | Names the error and precedes Return home. |
+| Account | Manage your account records | Names sign-in, business selection, export, and deletion. |
 
 ## Terminology table
 
@@ -78,3 +92,4 @@ data`, `Accountant links`, `Review your quarter`, and `Downloads and sharing`.
 | MTD bridge | approved integration |
 | Paid recurring access | subscription |
 | Unclassified record | needs a category |
+| Signed-in legal entity | business |

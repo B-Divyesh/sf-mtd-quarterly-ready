@@ -2,7 +2,7 @@ import './styles.css';
 import { accountantCsv, CATEGORIES, hmrcHandoff, parseCsv, pounds, summarise, validateTransaction } from './records';
 import { availableQuarters, nextUkQuarter, quarterFromStart } from './quarters';
 import { deleteReceipt, migrateLegacyReceipts, saveReceipt } from './receipts';
-import { createShare, hmrcConsentStatus, leaveDemo, loadDocument, loadRemote, loadShare, resetDemo, saveDocument, selectQuarter, startHmrcConsent, submitToHmrc } from './storage';
+import { accountBusiness, accountSyncEnabled, createShare, hmrcConsentStatus, leaveDemo, loadDocument, loadRemote, loadShare, migrateBrowserQuarter, resetDemo, saveDocument, selectQuarter, setAccountBusiness, startHmrcConsent, submitToHmrc } from './storage';
 import type { Category, QuarterDocument, Transaction } from './types';
 
 const PRODUCT = 'Quarterly Ready';
@@ -20,6 +20,14 @@ let hmrcTaxpayerConsentRequired = false;
 let hmrcTaxpayerConsentGranted = false;
 let hmrcProviderName = 'the approved provider';
 const attemptedReceiptMigrations = new Set<string>();
+interface AccountBusiness { id: string; name: string; role: string }
+interface AccountSession {
+  configured: boolean;
+  authenticated: boolean;
+  user: { display_name: string; email?: string | null } | null;
+  businesses: AccountBusiness[];
+}
+let accountSession: AccountSession | null = null;
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]!);
@@ -28,7 +36,7 @@ function escapeHtml(value: unknown): string {
 function header(): string {
   return `<header class="site-header">
     <a class="wordmark" href="/" data-link aria-label="Quarterly Ready home"><span class="wordmark-dial" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Quarterly<br>Ready</span></a>
-    <nav aria-label="Main navigation"><a href="/records" data-link>Records</a><a href="/demo" data-link>Demo</a><a href="/privacy" data-link>Privacy</a></nav>
+    <nav aria-label="Main navigation"><a href="/records" data-link>Records</a><a href="/demo" data-link>Demo</a><a href="/account" data-link>Account</a><a href="/privacy" data-link>Privacy</a></nav>
   </header>`;
 }
 
@@ -66,6 +74,18 @@ function pricingSection(): string {
   return `<section class="pricing-section" aria-labelledby="price-title"><div><h2 id="price-title">Accountant links from £12 a month</h2><p>A subscription adds verified, read-only accountant links.</p><p>The free version keeps your quarter and every download.</p></div><div class="price-control"><strong><span>£</span>12</strong><span>per month · or £99 per year</span><button class="primary-button" type="button" data-checkout="monthly">Choose monthly</button><button class="text-button" type="button" data-checkout="annual">Choose annual · £99</button><p id="checkout-result" class="form-message" aria-live="polite"></p><button class="text-button" id="show-license">Have a subscription? Paste it</button><form id="license-form" class="license-form" hidden><label for="license-token">Subscription token</label><div><input id="license-token" name="license" autocomplete="off" required><button type="submit">Verify subscription</button></div></form><p id="license-result" class="form-message" aria-live="polite"></p><small>Sociobot is the merchant of record. Refunds are handled there.</small></div></section>`;
 }
 
+function accountStatus(document: QuarterDocument, demo: boolean): string {
+  if (demo) return '';
+  if (!accountSession) return `<aside class="account-status" role="status"><strong>Checking account sign-in</strong><p>Your browser quarter stays available while this is checked.</p></aside>`;
+  if (!accountSession.configured) return `<aside class="account-status"><strong>Account sign-in is not available yet</strong><p>Your quarter stays in this browser. You can still download every free handoff.</p></aside>`;
+  if (!accountSession.authenticated) return `<aside class="account-status"><strong>Keep records across devices</strong><p>Sign in before moving this browser quarter into an account.</p><a href="/account" data-link>Sign in or create a business</a></aside>`;
+  if (!accountSession.businesses.length) return `<aside class="account-status"><strong>Create your business first</strong><p>Then you can move this browser quarter into your account.</p><a href="/account" data-link>Create a business</a></aside>`;
+  const selected = accountBusiness() || accountSession.businesses[0].id;
+  const business = accountSession.businesses.find(item => item.id === selected) || accountSession.businesses[0];
+  const synced = accountSyncEnabled(document);
+  return `<aside class="account-status" aria-labelledby="account-status-title"><div><h2 id="account-status-title">Your account records</h2><p>${synced ? `This quarter is saved to ${escapeHtml(business.name)}.` : `This quarter is still only in this browser. Choose where to move it.`}</p></div><div class="account-status-controls"><label for="account-business">Business</label><select id="account-business">${accountSession.businesses.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === business.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select>${synced ? '<span class="account-saved">Saved to your account</span>' : '<button id="move-browser-quarter" type="button">Move this browser quarter</button>'}</div></aside>`;
+}
+
 function recordsPage(demo: boolean): string {
   currentDemo = demo;
   currentDocument = loadDocument(demo);
@@ -82,6 +102,7 @@ function recordsPage(demo: boolean): string {
   const quarterControls = demo ? '' : `<div class="quarter-controls"><label for="quarter-select">Working quarter</label><div><select id="quarter-select">${availableQuarters(doc.quarterStart).map(item => `<option value="${item.start}" ${item.start === doc.quarterStart ? 'selected' : ''}>${escapeHtml(item.shortLabel)} · ${escapeHtml(item.label)}</option>`).join('')}</select><button id="next-quarter" class="text-button" type="button">Create next quarter</button></div><small>Each quarter has separate browser and server records.</small></div>`;
   return layout(`<main id="main" class="app-main">
     <div class="app-heading"><div><p class="period-label">${escapeHtml(period.shortLabel)}</p><h1 tabindex="-1">Check this quarter</h1><p>${escapeHtml(doc.quarterLabel)} · ${escapeHtml(doc.businessName || 'Business name not entered')}</p></div><div class="connection" role="status"><span class="lamp ${navigator.onLine ? 'teal' : 'orange'}"></span>${navigator.onLine ? (demo ? 'Demo ready' : 'Saved in this browser') : 'Offline — browser copy active'}</div></div>
+    ${accountStatus(doc, demo)}
     ${quarterControls}
     <details class="business-settings"><summary>Business details</summary><form id="business-form"><label for="business-name">Business name</label><div><input id="business-name" name="businessName" maxlength="100" value="${escapeHtml(doc.businessName)}" required><button type="submit" aria-label="Save business name">Save business name</button></div></form></details>
     ${notice ? `<div class="notice" role="status">${escapeHtml(notice)}</div>` : ''}
@@ -122,7 +143,11 @@ function checklist(doc: QuarterDocument): { title: string; detail: string; done:
 }
 
 function privacyPage(): string {
-  return layout(`<main id="main" class="prose-page"><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>We store your transaction document under a random browser workspace ID. The server encrypts that document before writing it to SQLite.</p><p>Receipt files use this browser's IndexedDB storage and are not copied into localStorage or the server record. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in separate browser storage. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>Quarterly Ready can send a reviewed update only after an approved provider is configured and you give taxpayer consent. Starting consent sends the provider no quarter records. If consent or the provider is unavailable, the app offers a reviewed handoff and does not claim a submission was made.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete this site's browser data to remove local records and receipts. Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> to request deletion of server records.</p></main>`);
+  return layout(`<main id="main" class="prose-page"><h1 tabindex="-1">Privacy in plain words</h1><p class="lede">Quarterly Ready stores the records you enter so you can return to your quarter.</p><h2>What we store</h2><p>Browser quarters stay on this device until you choose to move one into a signed-in business account. The server encrypts account records before writing them to SQLite.</p><p>Receipt files use this browser's IndexedDB storage and are not copied into localStorage or the server record. Accountant links use an encrypted snapshot and expire after 30 days.</p><h2>Demo data</h2><p>The demo uses sample records in separate browser storage. It does not read, write, or copy your real records.</p><h2>Payments and submission</h2><p>Sociobot handles subscription checkout and licence checks. Dodo is its payment provider. Quarterly Ready stores the subscription token in your browser.</p><p>Quarterly Ready can send a reviewed update only after an approved provider is configured and you give taxpayer consent. Starting consent sends the provider no quarter records. If consent or the provider is unavailable, the app offers a reviewed handoff and does not claim a submission was made.</p><h2>What we do not collect</h2><p>There are no advertising cookies or third-party analytics. The server keeps only a daily page count without an IP address.</p><h2>Your choices</h2><p>Delete this site's browser data to remove local records and receipts. When account sign-in is available, <a href="/account" data-link>your account page</a> lets you download or delete account records.</p></main>`);
+}
+
+function accountPage(): string {
+  return layout(`<main id="main" class="prose-page"><h1 tabindex="-1">Manage your account records</h1><p class="lede">Sign in, choose a business, and move a browser quarter only when you are ready.</p><div id="account-page" class="loading-state" role="status"><span class="spinner" aria-hidden="true"></span><p>Checking account sign-in…</p></div></main>`);
 }
 
 function termsPage(): string {
@@ -142,7 +167,8 @@ function route(): void {
   notice = '';
   if (path === '/') { setPage('Quarterly Ready — Check your MTD quarter', homePage()); bindHome(); }
   else if (path === '/demo') { setPage('Demo — Quarterly Ready', recordsPage(true)); bindRecords(); }
-  else if (path === '/records') { setPage('Records — Quarterly Ready', recordsPage(false)); bindRecords(); void refreshRemote(); }
+  else if (path === '/records') { setPage('Records — Quarterly Ready', recordsPage(false)); bindRecords(); void refreshRemote(); void refreshAccountSession(); }
+  else if (path === '/account') { setPage('Account — Quarterly Ready', accountPage()); void renderAccountPage(); }
   else if (path === '/privacy') setPage('Privacy — Quarterly Ready', privacyPage());
   else if (path === '/terms') setPage('Terms — Quarterly Ready', termsPage());
   else if (path.startsWith('/share/')) { setPage('Accountant pack — Quarterly Ready', sharePage(path.slice(7))); void renderShare(path.slice(7)); }
@@ -281,6 +307,12 @@ function bindRecords(): void {
   document.querySelector<HTMLInputElement>('#submission-review-confirmed')?.addEventListener('change', event => { document.querySelector<HTMLButtonElement>('#confirm-submission')!.disabled = !(event.target as HTMLInputElement).checked; });
   document.querySelector<HTMLFormElement>('#submission-dialog form')?.addEventListener('submit', submitHmrc);
   document.querySelector('#mark-ready')?.addEventListener('click', () => { currentDocument!.markedReady = true; saveAndRender('Quarter marked ready.'); });
+  document.querySelector<HTMLSelectElement>('#account-business')?.addEventListener('change', event => {
+    setAccountBusiness((event.target as HTMLSelectElement).value);
+    notice = 'Business selected. This browser quarter is not moved until you choose Move this browser quarter.';
+    rerenderRecords();
+  });
+  document.querySelector('#move-browser-quarter')?.addEventListener('click', () => void moveBrowserQuarter());
 }
 
 async function addTransaction(event: Event): Promise<void> {
@@ -326,12 +358,30 @@ function downloadHmrc(): void {
 
 async function sharePack(): Promise<void> {
   const result = document.querySelector<HTMLParagraphElement>('#output-result')!;
+  if (!currentDemo && accountSession?.authenticated && accountSession.businesses.length && !accountSyncEnabled(currentDocument!)) {
+    result.textContent = 'Move this browser quarter into your selected business before making an account accountant link.';
+    return;
+  }
   if (!currentDemo && !isLicensed()) { result.textContent = 'A live accountant link needs an active Sociobot subscription. The CSV remains free.'; return; }
   try {
     const url = currentDemo ? `${location.origin}/share/demo` : await createShare(currentDocument!);
     await navigator.clipboard.writeText(url).catch(() => undefined);
     result.innerHTML = `Accountant link ready and copied: <a href="${url}" data-link>${url}</a>`; bindLinks();
   } catch (error) { result.textContent = error instanceof Error ? error.message : 'The accountant link was not created. Try again.'; }
+}
+
+async function moveBrowserQuarter(): Promise<void> {
+  const button = document.querySelector<HTMLButtonElement>('#move-browser-quarter');
+  if (!button || !currentDocument) return;
+  button.disabled = true;
+  try {
+    currentDocument = await migrateBrowserQuarter(currentDocument);
+    notice = 'This browser quarter was moved to your account. Future changes save there too.';
+    rerenderRecords();
+  } catch (error) {
+    notice = error instanceof Error ? error.message : 'This browser quarter could not be moved. Try again.';
+    rerenderRecords();
+  }
 }
 
 async function connectHmrc(): Promise<void> {
@@ -387,6 +437,120 @@ async function refreshRemote(): Promise<void> {
   catch (error) { notice = error instanceof Error ? error.message : 'Saved records could not be loaded.'; rerenderRecords(); }
 }
 
+function chosenBusiness(session: AccountSession): AccountBusiness | null {
+  if (!session.authenticated || !session.businesses.length) return null;
+  const saved = localStorage.getItem('quarterly-ready:selected-business');
+  return session.businesses.find(business => business.id === saved) || session.businesses[0];
+}
+
+async function refreshAccountSession(): Promise<AccountSession | null> {
+  try {
+    const response = await fetch('/api/auth/session');
+    if (!response.ok) return null;
+    const next = await response.json() as AccountSession;
+    const before = JSON.stringify(accountSession);
+    accountSession = next;
+    const business = chosenBusiness(next);
+    setAccountBusiness(business?.id || null);
+    if (business) localStorage.setItem('quarterly-ready:selected-business', business.id);
+    if (before !== JSON.stringify(next) && location.pathname === '/records') {
+      rerenderRecords();
+      void refreshRemote();
+    }
+    return next;
+  } catch { return null; }
+}
+
+async function renderAccountPage(): Promise<void> {
+  const target = document.querySelector<HTMLDivElement>('#account-page');
+  if (!target) return;
+  const session = await refreshAccountSession();
+  if (!session) {
+    target.className = 'error-state';
+    target.innerHTML = '<h2>Account details could not be loaded</h2><p>Your browser records are unchanged. Check your connection and try again.</p>';
+    return;
+  }
+  if (!session.configured) {
+    target.className = 'account-panel';
+    target.innerHTML = '<h2>Account sign-in is not available yet</h2><p>You can keep using the browser records and free downloads. Account sign-in needs the product’s Sociobot identity registration.</p>';
+    return;
+  }
+  if (!session.authenticated) {
+    target.className = 'account-panel';
+    target.innerHTML = '<h2>Sign in to keep records across devices</h2><p>Sign-in uses the product’s identity service. Your sample and browser records are not moved automatically.</p><button id="start-sign-in" type="button" class="primary-button">Sign in</button><p id="account-result" class="form-message" aria-live="polite"></p>';
+    document.querySelector('#start-sign-in')?.addEventListener('click', () => void startAccountSignIn());
+    return;
+  }
+  const business = chosenBusiness(session);
+  target.className = 'account-panel';
+  target.innerHTML = `<h2>Signed in as ${escapeHtml(session.user?.display_name || 'Quarterly Ready user')}</h2><p>Choose where account quarters are kept. Browser quarters remain separate until you move them.</p>${session.businesses.length ? `<label for="account-page-business">Business</label><select id="account-page-business">${session.businesses.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === business?.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select>` : '<p>You have not created a business yet.</p>'}<form id="create-business" class="paper-form"><h3>Create a business</h3><label for="new-business-name">Business name</label><div><input id="new-business-name" name="name" maxlength="120" required><button type="submit">Create business</button></div></form><div class="account-actions"><button id="export-account" type="button">Download account data</button><button id="delete-account" type="button" class="delete-button">Delete account data</button></div><p id="account-result" class="form-message" aria-live="polite"></p>`;
+  document.querySelector<HTMLSelectElement>('#account-page-business')?.addEventListener('change', event => {
+    const selected = (event.target as HTMLSelectElement).value;
+    localStorage.setItem('quarterly-ready:selected-business', selected);
+    setAccountBusiness(selected);
+    void renderAccountPage();
+  });
+  document.querySelector<HTMLFormElement>('#create-business')?.addEventListener('submit', event => void createAccountBusiness(event));
+  document.querySelector('#export-account')?.addEventListener('click', () => void exportAccountData());
+  document.querySelector('#delete-account')?.addEventListener('click', () => void deleteAccountData());
+}
+
+async function startAccountSignIn(): Promise<void> {
+  const result = document.querySelector<HTMLParagraphElement>('#account-result');
+  if (result) result.textContent = 'Opening secure sign-in…';
+  try {
+    const response = await fetch('/api/auth/start', { method: 'POST' });
+    const data = await response.json().catch(() => ({})) as { authorization_url?: string; error?: string };
+    if (!response.ok || !data.authorization_url || !data.authorization_url.startsWith('https://')) throw new Error(data.error || 'Sign-in could not be started. Try again.');
+    location.assign(data.authorization_url);
+  } catch (error) { if (result) result.textContent = error instanceof Error ? error.message : 'Sign-in could not be started. Try again.'; }
+}
+
+async function createAccountBusiness(event: Event): Promise<void> {
+  event.preventDefault();
+  const result = document.querySelector<HTMLParagraphElement>('#account-result');
+  const form = event.currentTarget as HTMLFormElement;
+  const name = new FormData(form).get('name')?.toString().trim();
+  if (!name) return;
+  try {
+    const response = await fetch('/api/businesses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+    const business = await response.json().catch(() => ({})) as AccountBusiness & { error?: string };
+    if (!response.ok || !business.id) throw new Error(business.error || 'The business could not be created. Try again.');
+    localStorage.setItem('quarterly-ready:selected-business', business.id);
+    setAccountBusiness(business.id);
+    if (result) result.textContent = 'Business created.';
+    await renderAccountPage();
+  } catch (error) { if (result) result.textContent = error instanceof Error ? error.message : 'The business could not be created. Try again.'; }
+}
+
+async function exportAccountData(): Promise<void> {
+  const result = document.querySelector<HTMLParagraphElement>('#account-result');
+  try {
+    const response = await fetch('/api/account/export');
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(data.error || 'Account data could not be downloaded. Try again.');
+    downloadBlob('quarterly-ready-account-data.json', JSON.stringify(data, null, 2), 'application/json');
+    if (result) result.textContent = 'Account data downloaded.';
+  } catch (error) { if (result) result.textContent = error instanceof Error ? error.message : 'Account data could not be downloaded. Try again.'; }
+}
+
+async function deleteAccountData(): Promise<void> {
+  const result = document.querySelector<HTMLParagraphElement>('#account-result');
+  if (!confirm('Delete your account records and business data? This cannot be undone.')) return;
+  try {
+    const response = await fetch('/api/account', { method: 'DELETE' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(data.error || 'Account data could not be deleted. Try again.');
+    }
+    localStorage.removeItem('quarterly-ready:selected-business');
+    setAccountBusiness(null);
+    accountSession = null;
+    if (result) result.textContent = 'Account data deleted. Browser records on this device were not changed.';
+    await renderAccountPage();
+  } catch (error) { if (result) result.textContent = error instanceof Error ? error.message : 'Account data could not be deleted. Try again.'; }
+}
+
 async function refreshHmrcConsent(): Promise<void> {
   if (!hmrcTaxpayerConsentRequired || currentDemo || location.pathname !== '/records') return;
   try {
@@ -405,7 +569,7 @@ async function renderShare(token: string): Promise<void> {
   try {
     const doc = await loadShare(token); const sum = summarise(doc);
     target.className = 'shared-document';
-    target.innerHTML = `<div class="mini-summary"><div><span>INCOME</span><strong>${pounds(sum.incomePence)}</strong></div><div><span>COSTS</span><strong>${pounds(sum.expensePence)}</strong></div><div><span>NET</span><strong>${pounds(sum.netPence)}</strong></div></div><h2>${escapeHtml(doc.businessName || 'Unnamed business')}</h2><p>${escapeHtml(doc.quarterLabel)} · ${doc.transactions.length} transactions · ${sum.unresolved} unresolved</p>${transactionTable(doc.transactions).replaceAll(/<select[\s\S]*?<\/select>/g, '<span>Read only</span>').replaceAll(/<button[\s\S]*?<\/button>/g, '')}`;
+    target.innerHTML = `<div class="mini-summary"><div><span>Income</span><strong>${pounds(sum.incomePence)}</strong></div><div><span>Costs</span><strong>${pounds(sum.expensePence)}</strong></div><div><span>Net</span><strong>${pounds(sum.netPence)}</strong></div></div><h2>${escapeHtml(doc.businessName || 'Unnamed business')}</h2><p>${escapeHtml(doc.quarterLabel)} · ${doc.transactions.length} transactions · ${sum.unresolved} unresolved</p>${transactionTable(doc.transactions).replaceAll(/<select[\s\S]*?<\/select>/g, '<span>Read only</span>').replaceAll(/<button[\s\S]*?<\/button>/g, '')}`;
   } catch (error) { target.className = 'error-state'; target.innerHTML = `<h2>The pack did not open</h2><p>${escapeHtml(error instanceof Error ? error.message : 'Ask the owner for a new accountant link.')}</p>`; }
 }
 

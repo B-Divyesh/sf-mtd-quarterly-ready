@@ -18,6 +18,8 @@ Demo transaction metadata uses the localStorage key `demo:quarterly-ready:docume
 
 Demo actions never call the workspace, share, billing, consent, or submission APIs. “Make accountant link” uses the fixed read-only `/share/demo` fixture. A configured HMRC sandbox review or approved-provider connection remains disabled in demo mode.
 
+Account migration is also unavailable in demo mode. The demo never creates a business, session, account quarter, account link, export, or deletion request.
+
 Choose **Reset demo** in the persistent banner to restore the sample and clear its receipt files. Choose **Start for real** to discard all demo storage and open an empty real quarter.
 
 ## Verification paths
