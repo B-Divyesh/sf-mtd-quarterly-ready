@@ -527,13 +527,13 @@
       "degree": 42
     },
     {
-      "id": "src_main_put_account_quarter",
-      "label": "put_account_quarter()",
+      "id": "src_main_create_account_share",
+      "label": "create_account_share()",
       "degree": 24
     },
     {
-      "id": "src_main_create_account_share",
-      "label": "create_account_share()",
+      "id": "src_main_put_account_quarter",
+      "label": "put_account_quarter()",
       "degree": 24
     },
     {
@@ -557,31 +557,42 @@
       "degree": 19
     },
     {
-      "id": "src_main_submit_to_hmrc",
-      "label": "submit_to_hmrc()",
+      "id": "src_main_persist_state",
+      "label": "persist_state()",
       "degree": 18
     },
     {
-      "id": "src_main_persist_state",
-      "label": "persist_state()",
+      "id": "src_main_submit_to_hmrc",
+      "label": "submit_to_hmrc()",
       "degree": 18
     }
   ],
   "surprises": [
     {
-      "source": "recordsPage()",
-      "target": "availableQuarters()",
+      "source": "bindRecords()",
+      "target": "setAccountBusiness()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/quarters.ts"
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities"
     },
     {
-      "source": "bindRecords()",
-      "target": "nextUkQuarter()",
+      "source": "accountStatus()",
+      "target": "accountSyncEnabled()",
+      "source_files": [
+        "frontend/src/main.ts",
+        "frontend/src/storage.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "recordsPage()",
+      "target": "availableQuarters()",
       "source_files": [
         "frontend/src/main.ts",
         "frontend/src/quarters.ts"
@@ -602,22 +613,11 @@
       "why": "bridges separate communities"
     },
     {
-      "source": "downloadPack()",
-      "target": "accountantCsv()",
+      "source": "recordsPage()",
+      "target": "loadDocument()",
       "source_files": [
         "frontend/src/main.ts",
-        "frontend/src/records.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "downloadHmrc()",
-      "target": "hmrcHandoff()",
-      "source_files": [
-        "frontend/src/main.ts",
-        "frontend/src/records.ts"
+        "frontend/src/storage.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
