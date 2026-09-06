@@ -1,4 +1,10 @@
-# Quarterly Ready — M1 repair 21 handoff
+# Quarterly Ready — M2 account foundation handoff
+
+## Current status: M2 foundation implemented; not customer-live or accepted
+
+Implementation `08b2470eaff37e998e30323e98c2f87d8750baf6` is live as `sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:c365807e7e365a3f8f0ee016a5a4b686aa5333bff778a554ed0cdafc62085e98`. It adds the prepared account/session/tenant boundary while keeping M1 browser workflow and demo accepted and unchanged. Live identity configuration is absent, so `/account` says sign-in is unavailable; M2 is not an account, cross-device, or paid-lifecycle release. See [handoff-m2.md](handoff-m2.md) for current evidence and dependencies. The remainder preserves historical M1 evidence.
+
+# Historical M1 repair 21 handoff
 
 ## Status: PASS
 
