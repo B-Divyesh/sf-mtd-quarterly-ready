@@ -1,6 +1,38 @@
 # Quarterly Ready — M2 account foundation handoff
 
-## Current status: verification 26 PASS; M2 foundation is implemented but not customer-live or accepted
+## Strict review 2 — PASS
+
+Strict review 2 on 6 September 2026 passed with **0 findings and 0 untested
+claims**. It reviewed implementation
+`08b2470eaff37e998e30323e98c2f87d8750baf6`, live build label
+`0dcc20f5fec98a476540ea9f684cb92879de6903`, and documentation base
+`4d5b4f3cd40ccd95f96d73e747d1afccb8e8d905`. The label and documentation are
+report/Graphify-only descendants; runtime code matches the candidate.
+The current immutable image is
+`sociobotregistry.azurecr.io/sf-mtd-quarterly-ready@sha256:0323c799c17a1bcba78a1ddf74dfcf1b7fcd1f61674ff12d530483f698c4eb2b`.
+
+All 27 exact claim commands passed independently from a clean clone. `npm test`
+passed 11 frontend unit, 22 Rust, and 59 browser tests; the complete live run
+passed 58 with one expected ingress-only skip that passed locally. Fresh phone
+and desktop contexts proved the first-screen job/audience/action, isolated
+ten-row sample, persistent label, reset, and unchanged real-data sentinel.
+Live URL/Axe checks passed on all five public routes. Mobile Lighthouse scored
+100 in performance, accessibility, best practices, and SEO.
+
+The release verifier passed the immutable one-replica `/data` deployment,
+20 concurrent saves, health identity, safe checkout/non-filing paths, and 40/12
+request limits with 429 and `Retry-After`. A separate verifier workspace
+survived a restart of only the active product revision. No product code,
+configuration, provider integration, or pre-existing Graphify worktree change
+was modified by the review. Full evidence and earlier-finding dispositions are
+in [review-2.md](review-2.md).
+
+M1 remains accepted. The M2 foundation passes review but the milestone is not
+customer-live: authorised Sociobot Entra CIAM registration and an authorised
+billing purchase/restore/revoke lifecycle remain external dependencies. M3
+approved-provider consent/submission remains separate and unshipped.
+
+## Prior verification status: verification 26 PASS; M2 foundation is implemented but not customer-live or accepted
 
 Independent verification 26 reviewed implementation `08b2470eaff37e998e30323e98c2f87d8750baf6`, documentation commit `ef9442547aae1c0caff1a732b78cf4b89667a980`, and the later live build label `0dcc20f5fec98a476540ea9f684cb92879de6903`. It passed with **0 findings and 0 untested claims**. All 27 exact claim commands passed from a clean checkout; `npm test` passed 11 frontend unit, 22 Rust, and 59 browser tests. Live checks passed for fresh desktop/phone first-screen copy, one-click sample/reset, Axe, URL structure, account-unavailable truthfulness, one-replica `/data` persistence, 20 concurrent saves, and the 40/12 limit followed by 429 with `Retry-After`.
 
